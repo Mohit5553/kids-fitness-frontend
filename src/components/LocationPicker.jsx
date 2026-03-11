@@ -14,7 +14,6 @@ export default function LocationPicker({ compact = false, allowAll = false }) {
         const options = allowAll ? [{ _id: 'all', slug: 'all', name: 'All locations' }, ...list] : list;
         setLocations(options);
 
-<<<<<<< HEAD
         // Smarter default selection
         const saved = getSelectedLocation();
         if (!saved && options.length) {
@@ -27,15 +26,6 @@ export default function LocationPicker({ compact = false, allowAll = false }) {
       })
       .catch(() => { });
   }, [allowAll, selected]);
-=======
-        if (!selected && options.length) {
-          setSelected(options[0]);
-          setSelectedLocation(options[0]);
-        }
-      })
-      .catch(() => {});
-  }, [allowAll]);
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
 
   useEffect(() => {
     const handleChange = () => setSelected(getSelectedLocation());
@@ -58,14 +48,8 @@ export default function LocationPicker({ compact = false, allowAll = false }) {
             key={loc._id}
             type="button"
             onClick={() => handleSelect(loc)}
-<<<<<<< HEAD
             className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${selected?._id === loc._id ? 'border-coral bg-coral/10 text-coral' : 'border-ink/10 text-ink/70'
               }`}
-=======
-            className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-              selected?._id === loc._id ? 'border-coral bg-coral/10 text-coral' : 'border-ink/10 text-ink/70'
-            }`}
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
           >
             {loc.name}
           </button>
@@ -81,14 +65,8 @@ export default function LocationPicker({ compact = false, allowAll = false }) {
           key={loc._id}
           type="button"
           onClick={() => handleSelect(loc)}
-<<<<<<< HEAD
           className={`group overflow-hidden rounded-3xl border text-left transition hover:-translate-y-1 ${selected?._id === loc._id ? 'border-coral shadow-glow' : 'border-white/70 bg-white/70'
             }`}
-=======
-          className={`group overflow-hidden rounded-3xl border text-left transition hover:-translate-y-1 ${
-            selected?._id === loc._id ? 'border-coral shadow-glow' : 'border-white/70 bg-white/70'
-          }`}
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
         >
           <div className="h-36 w-full bg-gradient-to-r from-sky-200 via-blue-200 to-emerald-100">
             {loc.imageUrl ? (

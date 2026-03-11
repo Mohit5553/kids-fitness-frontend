@@ -14,7 +14,6 @@ export default function LocationSelect({ allowAll = false }) {
         const options = allowAll ? [{ _id: 'all', slug: 'all', name: 'All locations' }, ...list] : list;
         setLocations(options);
 
-<<<<<<< HEAD
         // Smarter default selection for sync across components
         const saved = getSelectedLocation();
         if (!saved && options.length) {
@@ -27,15 +26,6 @@ export default function LocationSelect({ allowAll = false }) {
       })
       .catch(() => { });
   }, [allowAll, selected]);
-=======
-        if (!selected && options.length) {
-          setSelected(options[0]);
-          setSelectedLocation(options[0]);
-        }
-      })
-      .catch(() => {});
-  }, [allowAll]);
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
 
   useEffect(() => {
     const handleChange = () => setSelected(getSelectedLocation());
@@ -48,11 +38,8 @@ export default function LocationSelect({ allowAll = false }) {
     if (loc) {
       setSelected(loc);
       setSelectedLocation(loc);
-<<<<<<< HEAD
       // Automatically refresh the page to update all data context
       window.location.reload();
-=======
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
     }
   };
 

@@ -42,11 +42,7 @@ const fallbackClasses = [
 export default function Programs() {
   const [classes, setClasses] = useState(fallbackClasses);
 
-<<<<<<< HEAD
   const fetchClasses = () => {
-=======
-  useEffect(() => {
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
     api
       .get('/classes')
       .then((res) => {
@@ -54,7 +50,6 @@ export default function Programs() {
           setClasses(res.data);
         }
       })
-<<<<<<< HEAD
       .catch(() => { });
   };
 
@@ -63,9 +58,6 @@ export default function Programs() {
     const handleChange = () => fetchClasses();
     window.addEventListener('location-change', handleChange);
     return () => window.removeEventListener('location-change', handleChange);
-=======
-      .catch(() => {});
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
   }, []);
 
   return (
