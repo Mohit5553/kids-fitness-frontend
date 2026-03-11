@@ -4,6 +4,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
+<<<<<<< HEAD
         display: ['Outfit', 'sans-serif'],
         body: ['Lexend', 'sans-serif']
       },
@@ -20,6 +21,18 @@ module.exports = {
           yellow: '#ffcd00',
           light: '#f8f9fa'
         }
+=======
+        display: ['Fraunces', 'serif'],
+        body: ['Space Grotesk', 'sans-serif']
+      },
+      colors: {
+        sand: '#f5f7fb',
+        ink: '#0b1b3a',
+        coral: '#f6a542',
+        ocean: '#2457c5',
+        moss: '#3aa67a',
+        night: '#0b1333'
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
       },
       boxShadow: {
         glow: '0 20px 60px -30px rgba(20,19,24,0.45)'

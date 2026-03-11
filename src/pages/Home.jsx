@@ -4,13 +4,62 @@ import Footer from '../components/Footer.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
 import ClassCard from '../components/ClassCard.jsx';
 import PricingCard from '../components/PricingCard.jsx';
+<<<<<<< HEAD
 import HeroSlider from '../components/HeroSlider.jsx';
+=======
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
 import heroImage from '../assets/hero-motion.svg';
 import classBaby from '../assets/class-baby.svg';
 import classBallet from '../assets/class-ballet.svg';
 import classCombat from '../assets/class-combat.svg';
+<<<<<<< HEAD
 import api from '../api/api.js';
 import { useEffect, useState } from 'react';
+=======
+
+const classHighlights = [
+  {
+    title: 'Baby Movers',
+    description: 'Gentle sensory play for balance, rhythm, and parent bonding.',
+    ageGroup: '6-24 months',
+    duration: '30 min',
+    price: 150,
+    image: classBaby
+  },
+  {
+    title: 'Ballet Stars',
+    description: 'Graceful movement, posture, and musical exploration.',
+    ageGroup: '3-6 years',
+    duration: '45 min',
+    price: 180,
+    image: classBallet
+  },
+  {
+    title: 'Combat Crew',
+    description: 'Confidence-building martial arts with safe sparring drills.',
+    ageGroup: '6-10 years',
+    duration: '60 min',
+    price: 220,
+    image: classCombat
+  }
+];
+
+const plans = [
+  { name: '1 Class', price: 150, validity: 'Drop-in', benefits: ['Any class', 'Trainer feedback', 'Flexible timing'] },
+  {
+    name: '5 Classes',
+    price: 690,
+    validity: '4 weeks',
+    benefits: ['Priority booking', 'Skill tracker', 'Family invites']
+  },
+  {
+    name: '12 Classes',
+    price: 1290,
+    validity: '10 weeks',
+    benefits: ['Free uniform', 'Progress report', 'Buddy pass']
+  }
+];
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
 
 const highlights = [
   { title: 'Member login', desc: 'Parents track classes and payments in one portal.' },
@@ -19,6 +68,7 @@ const highlights = [
 ];
 
 export default function Home() {
+<<<<<<< HEAD
   const [plans, setPlans] = useState([]);
   const [classes, setClasses] = useState([]);
 
@@ -78,10 +128,44 @@ export default function Home() {
                   <div key={item.title} className="bg-white/50 border border-brand-black/5 rounded-2xl p-5 backdrop-blur-sm shadow-sm">
                     <p className="text-sm font-bold text-brand-blue">{item.title}</p>
                     <p className="mt-2 text-xs text-brand-black/60 font-medium leading-relaxed">{item.desc}</p>
+=======
+  return (
+    <div className="min-h-screen">
+      <Navbar />
+      <main className="space-y-12">
+        <section className="page-shell pb-10 pt-10">
+          <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-ocean">Kids fitness hub</p>
+              <h1 className="mt-4 font-display text-4xl text-ink md:text-5xl">
+                Where energy turns into confidence.
+              </h1>
+              <p className="mt-4 text-base text-ink/70">
+                A joyful studio for movement, balance, and coordination. Book classes, track attendance, and
+                manage memberships in one place.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link to="/book-trial" className="rounded-full bg-coral px-5 py-3 text-sm font-semibold text-white">
+                  Book a trial
+                </Link>
+                <Link
+                  to="/programs"
+                  className="rounded-full border border-ink/10 px-5 py-3 text-sm font-semibold text-ink"
+                >
+                  Explore programs
+                </Link>
+              </div>
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                {highlights.map((item) => (
+                  <div key={item.title} className="section-soft rounded-2xl p-4">
+                    <p className="text-sm font-semibold text-ink">{item.title}</p>
+                    <p className="mt-2 text-xs text-ink/70">{item.desc}</p>
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
                   </div>
                 ))}
               </div>
             </div>
+<<<<<<< HEAD
             <div className="soft-card rounded-[40px] p-8 border-2 border-brand-black/5">
               <img src={heroImage} alt="Kids fitness energy" className="w-full rounded-3xl shadow-2xl" />
               <div className="mt-8 rounded-[32px] bg-brand-black p-8 text-white shadow-xl relative overflow-hidden">
@@ -105,6 +189,30 @@ export default function Home() {
                   <div className="rounded-2xl bg-white/10 p-4 border border-white/5 hover:bg-white/20 transition-colors">
                     <p className="text-white/60 font-bold uppercase tracking-wider">Fitness</p>
                     <p className="text-xl font-black mt-1">4:00</p>
+=======
+            <div className="soft-card rounded-[32px] p-6">
+              <img src={heroImage} alt="Kids fitness energy" className="w-full rounded-3xl" />
+              <div className="mt-6 rounded-3xl bg-night p-5 text-white">
+                <p className="text-xs uppercase tracking-[0.3em] text-white/70">Live classes today</p>
+                <h2 className="mt-3 font-display text-3xl">8 sessions</h2>
+                <p className="mt-2 text-sm text-white/70">Member login, QR check-in, and attendance tracking.</p>
+                <div className="mt-5 grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-2xl bg-white/10 p-3">
+                    <p className="text-white/70">Active play</p>
+                    <p className="text-lg font-semibold">10:00</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/10 p-3">
+                    <p className="text-white/70">Ballet</p>
+                    <p className="text-lg font-semibold">11:30</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/10 p-3">
+                    <p className="text-white/70">Combat</p>
+                    <p className="text-lg font-semibold">2:00</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/10 p-3">
+                    <p className="text-white/70">Fitness</p>
+                    <p className="text-lg font-semibold">4:00</p>
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
                   </div>
                 </div>
               </div>
@@ -119,6 +227,7 @@ export default function Home() {
             subtitle="Mix movement, music, and mindful coaching for total-body growth."
           />
           <div className="grid gap-6 md:grid-cols-3">
+<<<<<<< HEAD
             {classes.length > 0 ? (
               classes.map((item) => (
                 <ClassCard key={item._id} item={item} />
@@ -126,6 +235,11 @@ export default function Home() {
             ) : (
               <p className="text-sm text-ink/50 md:col-span-3">Loading classes...</p>
             )}
+=======
+            {classHighlights.map((item) => (
+              <ClassCard key={item.title} item={item} />
+            ))}
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
           </div>
         </section>
 
@@ -137,6 +251,7 @@ export default function Home() {
               subtitle="Transparent packages with flexible scheduling and membership perks."
             />
             <div className="grid gap-6 md:grid-cols-3">
+<<<<<<< HEAD
               {plans.length > 0 ? (
                 plans.map((plan) => (
                   <PricingCard key={plan._id} plan={plan} />
@@ -144,10 +259,16 @@ export default function Home() {
               ) : (
                 <p className="text-sm text-ink/50 md:col-span-3">Loading plans...</p>
               )}
+=======
+              {plans.map((plan) => (
+                <PricingCard key={plan.name} plan={plan} />
+              ))}
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
             </div>
           </div>
         </section>
 
+<<<<<<< HEAD
         <section className="page-shell pb-16">
           <div className="rounded-[40px] bg-brand-black p-12 shadow-2xl relative overflow-hidden md:flex md:items-center md:justify-between group">
             <div className="absolute inset-0 bg-gradient-to-r from-brand-blue/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
@@ -162,6 +283,18 @@ export default function Home() {
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5 transition-transform group-hover/btn:translate-x-1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
               </svg>
+=======
+        <section className="page-shell pb-12">
+          <div className="rounded-[32px] bg-white/90 p-8 shadow-glow md:flex md:items-center md:justify-between">
+            <div>
+              <h3 className="font-display text-2xl text-ink">Ready for a complimentary class?</h3>
+              <p className="mt-2 text-sm text-ink/70">
+                Book a trial session and our team will confirm your slot by SMS.
+              </p>
+            </div>
+            <Link to="/book-trial" className="mt-4 inline-flex rounded-full bg-coral px-6 py-3 text-sm font-semibold text-white md:mt-0">
+              Book a trial
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
             </Link>
           </div>
         </section>

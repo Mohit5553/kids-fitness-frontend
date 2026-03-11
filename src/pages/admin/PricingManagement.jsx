@@ -10,9 +10,13 @@ const emptyForm = {
   type: 'pack',
   classesIncluded: '',
   durationWeeks: '',
+<<<<<<< HEAD
   benefits: '',
   tagline: '',
   isFeatured: false
+=======
+  benefits: ''
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
 };
 
 export default function PricingManagement() {
@@ -22,7 +26,11 @@ export default function PricingManagement() {
   const [message, setMessage] = useState('');
 
   const load = () => {
+<<<<<<< HEAD
     api.get('/plans').then((res) => setPlans(res.data || [])).catch(() => { });
+=======
+    api.get('/plans').then((res) => setPlans(res.data || [])).catch(() => {});
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
   };
 
   useEffect(() => {
@@ -42,9 +50,13 @@ export default function PricingManagement() {
       type: plan.type || 'pack',
       classesIncluded: plan.classesIncluded ?? '',
       durationWeeks: plan.durationWeeks ?? '',
+<<<<<<< HEAD
       benefits: (plan.benefits || []).join(', '),
       tagline: plan.tagline || '',
       isFeatured: !!plan.isFeatured
+=======
+      benefits: (plan.benefits || []).join(', ')
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
     });
   };
 
@@ -141,6 +153,7 @@ export default function PricingManagement() {
               onChange={handleChange}
             />
           </div>
+<<<<<<< HEAD
           <div className="grid gap-3 md:grid-cols-3">
             <input
               className="rounded-xl border border-orange-200/70 p-3"
@@ -169,6 +182,16 @@ export default function PricingManagement() {
               <label htmlFor="isFeatured" className="text-sm font-medium text-ink/70">Featured (Best Value)</label>
             </div>
           </div>
+=======
+          <input
+            className="rounded-xl border border-orange-200/70 p-3"
+            name="durationWeeks"
+            type="number"
+            placeholder="Duration (weeks)"
+            value={form.durationWeeks}
+            onChange={handleChange}
+          />
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
           <textarea
             className="min-h-[90px] rounded-xl border border-orange-200/70 p-3"
             name="benefits"
