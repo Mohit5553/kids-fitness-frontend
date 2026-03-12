@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -20,9 +20,15 @@ export default function SessionsManagement() {
   const [editingId, setEditingId] = useState('');
 
   const load = () => {
+<<<<<<< HEAD
     api.get('/sessions').then((res) => setSessions(res.data || [])).catch(() => { });
     api.get('/classes').then((res) => setClasses(res.data || [])).catch(() => { });
     api.get('/trainers').then((res) => setTrainers(res.data || [])).catch(() => { });
+=======
+    api.get('/sessions').then((res) => setSessions(res.data || [])).catch(() => {});
+    api.get('/classes').then((res) => setClasses(res.data || [])).catch(() => {});
+    api.get('/trainers').then((res) => setTrainers(res.data || [])).catch(() => {});
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
   };
 
   useEffect(() => {
@@ -174,6 +180,7 @@ export default function SessionsManagement() {
           {sessions.map((session) => (
             <div key={session._id} className="rounded-2xl bg-white/80 p-4 shadow-glow">
               <div className="flex flex-wrap items-center justify-between gap-3">
+<<<<<<< HEAD
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold">{session.classId?.title}</p>
@@ -183,6 +190,10 @@ export default function SessionsManagement() {
                       </span>
                     )}
                   </div>
+=======
+                <div>
+                  <p className="font-semibold">{session.classId?.title}</p>
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
                   <p className="text-xs text-ink/70">
                     {new Date(session.startTime).toLocaleString()} · {session.location || 'Studio'}
                   </p>
@@ -202,7 +213,11 @@ export default function SessionsManagement() {
                     Copy QR
                   </button>
                   <button
+<<<<<<< HEAD
                     className="rounded-full border border-ink/10 px-3 py-1 text-xs font-semibold text-coral"
+=======
+                    className="rounded-full border border-ink/10 px-3 py-1 text-xs font-semibold"
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
                     onClick={() => handleDelete(session._id)}
                   >
                     Delete

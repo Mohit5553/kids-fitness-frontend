@@ -1,27 +1,24 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import api from '../api/api.js';
 import { getSelectedLocation, setSelectedLocation } from '../utils/location.js';
-import { getUser } from '../utils/auth.js';
 
 export default function LocationSelect({ allowAll = false }) {
   const [locations, setLocations] = useState([]);
   const [selected, setSelected] = useState(getSelectedLocation());
 
   useEffect(() => {
-    const user = getUser();
-    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-    const url = isAdmin ? '/locations?all=true' : '/locations';
-
     api
-      .get(url)
+      .get('/locations')
       .then((res) => {
         const list = res.data || [];
         const options = allowAll ? [{ _id: 'all', slug: 'all', name: 'All locations' }, ...list] : list;
         setLocations(options);
 
+<<<<<<< HEAD
         // Smarter default selection for sync across components
         const saved = getSelectedLocation();
         if (!saved && options.length) {
+          const user = JSON.parse(localStorage.getItem('kfb_user') || 'null');
           const userLoc = user?.locationId ? options.find(l => l._id === user.locationId) : null;
           const defaultLoc = userLoc || options[0];
           setSelected(defaultLoc);
@@ -30,6 +27,15 @@ export default function LocationSelect({ allowAll = false }) {
       })
       .catch(() => { });
   }, [allowAll, selected]);
+=======
+        if (!selected && options.length) {
+          setSelected(options[0]);
+          setSelectedLocation(options[0]);
+        }
+      })
+      .catch(() => {});
+  }, [allowAll]);
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
 
   useEffect(() => {
     const handleChange = () => setSelected(getSelectedLocation());
@@ -42,8 +48,11 @@ export default function LocationSelect({ allowAll = false }) {
     if (loc) {
       setSelected(loc);
       setSelectedLocation(loc);
+<<<<<<< HEAD
       // Automatically refresh the page to update all data context
       window.location.reload();
+=======
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
     }
   };
 

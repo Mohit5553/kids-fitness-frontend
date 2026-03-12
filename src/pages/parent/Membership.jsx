@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+<<<<<<< HEAD
 import LocationPicker from '../../components/LocationPicker.jsx';
+=======
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
 
 export default function Membership() {
   const [memberships, setMemberships] = useState([]);
@@ -13,6 +16,7 @@ export default function Membership() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [cardForm, setCardForm] = useState({ name: '', number: '', expiry: '', cvc: '' });
 
+<<<<<<< HEAD
   const fetchMemberships = () => {
     api.get('/memberships/mine').then((res) => setMemberships(res.data || [])).catch(() => { });
   };
@@ -28,6 +32,11 @@ export default function Membership() {
     const handleChange = () => fetchPlans();
     window.addEventListener('location-change', handleChange);
     return () => window.removeEventListener('location-change', handleChange);
+=======
+  useEffect(() => {
+    api.get('/memberships/mine').then((res) => setMemberships(res.data || [])).catch(() => {});
+    api.get('/plans').then((res) => setPlans(res.data || [])).catch(() => {});
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
   }, []);
 
   const openCheckout = (plan) => {
@@ -107,6 +116,7 @@ export default function Membership() {
           ))}
         </div>
 
+<<<<<<< HEAD
         <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
           <h2 className="font-display text-2xl">Subscribe to a plan</h2>
           <LocationPicker compact />
@@ -146,6 +156,20 @@ export default function Membership() {
                   Subscribe Now
                 </button>
               </div>
+=======
+        <h2 className="mt-10 font-display text-2xl">Subscribe to a plan</h2>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          {plans.map((plan) => (
+            <div key={plan._id} className="rounded-2xl bg-white/80 p-4 shadow-glow">
+              <p className="font-semibold">{plan.name}</p>
+              <p className="text-sm text-ink/70">AED {plan.price}</p>
+              <button
+                className="mt-3 rounded-full bg-coral px-4 py-2 text-xs font-semibold text-white"
+                onClick={() => openCheckout(plan)}
+              >
+                Pay now
+              </button>
+>>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
             </div>
           ))}
         </div>
