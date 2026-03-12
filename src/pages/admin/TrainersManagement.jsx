@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -8,17 +8,19 @@ const emptyForm = {
   email: '',
   phone: '',
   bio: '',
-  specialties: '',
+  specialties: [],
   status: 'active'
 };
 
 export default function TrainersManagement() {
   const [trainers, setTrainers] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState('');
 
   const load = () => {
     api.get('/trainers').then((res) => setTrainers(res.data || [])).catch(() => {});
+    api.get('/activities').then((res) => setActivities(res.data || [])).catch(() => {});
   };
 
   useEffect(() => {
@@ -29,6 +31,16 @@ export default function TrainersManagement() {
     setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
   };
 
+  const handleToggleSpecialty = (name) => {
+    setForm((prev) => {
+      const current = Array.isArray(prev.specialties) ? prev.specialties : [];
+      const updated = current.includes(name)
+        ? current.filter((s) => s !== name)
+        : [...current, name];
+      return { ...prev, specialties: updated };
+    });
+  };
+
   const handleEdit = (trainer) => {
     setEditingId(trainer._id);
     setForm({
@@ -36,7 +48,7 @@ export default function TrainersManagement() {
       email: trainer.email || '',
       phone: trainer.phone || '',
       bio: trainer.bio || '',
-      specialties: (trainer.specialties || []).join(', '),
+      specialties: Array.isArray(trainer.specialties) ? trainer.specialties : [],
       status: trainer.status || 'active'
     });
   };
@@ -50,7 +62,7 @@ export default function TrainersManagement() {
     event.preventDefault();
     const payload = {
       ...form,
-      specialties: form.specialties.split(',').map((item) => item.trim()).filter(Boolean)
+      specialties: Array.isArray(form.specialties) ? form.specialties : []
     };
 
     if (editingId) {
@@ -112,13 +124,31 @@ export default function TrainersManagement() {
               <option value="inactive">Inactive</option>
             </select>
           </div>
-          <input
-            className="rounded-xl border border-orange-200/70 p-3"
-            name="specialties"
-            placeholder="Specialties (comma separated)"
-            value={form.specialties}
-            onChange={handleChange}
-          />
+          
+          <div className="rounded-xl border border-orange-200/70 p-3 bg-white/50">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-ink/40">Specialties (Select from Master List)</p>
+            <div className="flex flex-wrap gap-2">
+              {activities.length > 0 ? (
+                activities.map((act) => (
+                  <button
+                    key={act._id}
+                    type="button"
+                    onClick={() => handleToggleSpecialty(act.name)}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                      Array.isArray(form.specialties) && form.specialties.includes(act.name)
+                        ? 'border-coral bg-coral/10 text-coral'
+                        : 'border-ink/10 text-ink/60'
+                    }`}
+                  >
+                    {act.name}
+                  </button>
+                ))
+              ) : (
+                <p className="text-xs text-ink/40 italic">No activities found. Add them in Activity Master first.</p>
+              )}
+            </div>
+          </div>
+
           <textarea
             className="min-h-[90px] rounded-xl border border-orange-200/70 p-3"
             name="bio"
@@ -153,6 +183,13 @@ export default function TrainersManagement() {
                 </div>
                 <p className="text-xs text-ink/60">{trainer.status}</p>
               </div>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {Array.isArray(trainer.specialties) && trainer.specialties.map(s => (
+                  <span key={s} className="rounded-full bg-ink/5 px-2 py-0.5 text-[9px] font-bold text-ink/50 uppercase">
+                    {s}
+                  </span>
+                ))}
+              </div>
               <div className="mt-3 flex gap-3">
                 <button
                   className="rounded-full border border-ink/10 px-3 py-1 text-xs font-semibold"
@@ -175,4 +212,3 @@ export default function TrainersManagement() {
     </div>
   );
 }
-

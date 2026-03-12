@@ -33,10 +33,8 @@ import MembershipManagement from './pages/admin/MembershipManagement.jsx';
 import SessionsManagement from './pages/admin/SessionsManagement.jsx';
 import TrialsManagement from './pages/admin/TrialsManagement.jsx';
 import PaymentsManagement from './pages/admin/PaymentsManagement.jsx';
-<<<<<<< HEAD
 import LocationManagement from './pages/admin/LocationManagement.jsx';
-=======
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
+import ActivitiesManagement from './pages/admin/ActivitiesManagement.jsx';
 
 export default function App() {
   return (
@@ -78,10 +76,8 @@ export default function App() {
         <Route path="/admin/memberships" element={<MembershipManagement />} />
         <Route path="/admin/trials" element={<TrialsManagement />} />
         <Route path="/admin/payments" element={<PaymentsManagement />} />
-<<<<<<< HEAD
         <Route path="/admin/locations" element={<LocationManagement />} />
-=======
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
+        <Route path="/admin/activities" element={<ActivitiesManagement />} />
       </Route>
     </Routes>
   );

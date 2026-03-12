@@ -7,21 +7,12 @@
 }
 
 body {
-<<<<<<< HEAD
-  font-family: 'Lexend', sans-serif;
-  color: #000000;
-  background:
-    radial-gradient(circle at 10% 10%, rgba(0, 86, 179, 0.1), transparent 45%),
-    radial-gradient(circle at 90% 15%, rgba(227, 30, 36, 0.08), transparent 40%),
-    linear-gradient(140deg, #f8f9fa, #f0f4f8 45%, #ffffff 100%);
-=======
   font-family: 'Space Grotesk', sans-serif;
   color: #0b1b3a;
   background:
     radial-gradient(circle at 10% 10%, rgba(110, 170, 255, 0.25), transparent 45%),
     radial-gradient(circle at 90% 15%, rgba(246, 165, 66, 0.18), transparent 40%),
     linear-gradient(140deg, #f5f7fb, #eef3ff 45%, #fff8ed 100%);
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
   min-height: 100vh;
 }
 
@@ -29,21 +20,13 @@ body {
   min-height: 100vh;
 }
 
-<<<<<<< HEAD
-#root>div {
-=======
 #root > div {
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-<<<<<<< HEAD
-#root>div>main {
-=======
 #root > div > main {
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
   flex: 1;
 }
 
@@ -97,19 +80,11 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 14px;
-<<<<<<< HEAD
   background: #29AAE2;
   color: #fff;
   font-weight: 700;
   letter-spacing: 0.05em;
   box-shadow: 0 14px 30px -18px rgba(41, 170, 226, 0.5);
-=======
-  background: linear-gradient(135deg, #ffb14a, #ff7a59);
-  color: #fff;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  box-shadow: 0 14px 30px -18px rgba(255, 122, 89, 0.8);
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
 }
 
 .nav-link {
@@ -126,11 +101,7 @@ body {
   bottom: -8px;
   height: 2px;
   border-radius: 999px;
-<<<<<<< HEAD
   background: #29AAE2;
-=======
-  background: linear-gradient(90deg, #ffb14a, #ff7a59);
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
   opacity: 0;
   transform: scaleX(0.6);
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -149,8 +120,17 @@ body {
 .nav-link-active {
   color: #0b1b3a;
   font-weight: 600;
-<<<<<<< HEAD
 }
-=======
+
+.shadow-glow {
+  box-shadow: 0 20px 60px -30px rgba(20, 19, 24, 0.45);
 }
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
