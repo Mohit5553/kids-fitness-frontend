@@ -16,12 +16,8 @@ const adminActions = [
   { to: '/admin/bookings', title: 'Bookings', desc: 'Approve or cancel class requests.' },
   { to: '/admin/users', title: 'Users', desc: 'Update roles and manage accounts.' },
   { to: '/admin/trials', title: 'Trial requests', desc: 'Follow up with new leads.' },
-<<<<<<< HEAD
   { to: '/admin/payments', title: 'Payments', desc: 'Monitor transactions and exports.' },
   { to: '/admin/locations', title: 'Locations', desc: 'Add or remove gym branches.' }
-=======
-  { to: '/admin/payments', title: 'Payments', desc: 'Monitor transactions and exports.' }
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
 ];
 
 export default function AdminDashboard() {

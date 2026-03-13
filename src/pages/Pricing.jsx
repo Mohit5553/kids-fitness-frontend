@@ -1,15 +1,10 @@
-<<<<<<< HEAD
 ﻿import { useEffect, useState } from 'react';
 import api from '../api/api.js';
 import Navbar from '../components/Navbar.jsx';
-=======
-﻿import Navbar from '../components/Navbar.jsx';
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
 import Footer from '../components/Footer.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
 import LocationPicker from '../components/LocationPicker.jsx';
 
-<<<<<<< HEAD
 export default function Pricing() {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,29 +34,6 @@ export default function Pricing() {
   const minDropIn = dropIns.length > 0
     ? Math.min(...dropIns.map(p => p.price))
     : (plans.find(p => p.type === 'dropin')?.price || 80);
-=======
-const classOptions = [
-  { label: '1 Class', price: '150 AED', tagline: 'Drop-in flexibility' },
-  { label: '1 Active Play', price: '80 AED', tagline: 'Quick energy burst' },
-  { label: '5 Classes', price: '690 AED', tagline: 'Family favorite' },
-  { label: '12 Classes', price: '1,290 AED', meta: 'Valid for 8 weeks', bonus: 'Get FREE: 3 classes or 3 gym accesses in 51 Gym' },
-  {
-    label: '24 Classes',
-    price: '2,290 AED',
-    meta: 'Valid for 10 weeks',
-    bonus: 'Get FREE: 3 reformer classes, 3 gym accesses, 3 shape classes in 51 Gym',
-    featured: true
-  }
-];
-
-const termPricing = [
-  { label: '1x per week', price: '1,610 AED' },
-  { label: '2x per week', price: '2,740 AED' },
-  { label: '3x per week', price: '3,390 AED' }
-];
-
-export default function Pricing() {
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
   return (
     <div>
       <Navbar />
@@ -77,11 +49,7 @@ export default function Pricing() {
           <div className="relative z-10 mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-2xl bg-white/15 p-4 backdrop-blur">
               <p className="text-xs uppercase tracking-[0.2em] text-white/70">Drop-ins</p>
-<<<<<<< HEAD
               <p className="mt-2 text-xl font-semibold">From {minDropIn} AED</p>
-=======
-              <p className="mt-2 text-xl font-semibold">From 80 AED</p>
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
             </div>
             <div className="rounded-2xl bg-white/15 p-4 backdrop-blur">
               <p className="text-xs uppercase tracking-[0.2em] text-white/70">Bundles</p>
@@ -108,7 +76,6 @@ export default function Pricing() {
           <SectionTitle
             kicker="Packages"
             title="Pick the plan that fits your rhythm"
-<<<<<<< HEAD
             subtitle="Save more with multi-class bundles and enjoy extra perks."
           />
           <div className="grid gap-5 lg:grid-cols-2">
@@ -160,41 +127,6 @@ export default function Pricing() {
             ) : (
               <p className="text-sm text-ink/50 md:col-span-2">No class packs available for this location.</p>
             )}
-=======
-            subtitle="Save more with multi-class bundles and enjoy extra perks." 
-          />
-          <div className="grid gap-5 lg:grid-cols-2">
-            {classOptions.map((item) => (
-              <div
-                key={item.label}
-                className={`relative overflow-hidden rounded-3xl border ${
-                  item.featured ? 'border-coral/40 bg-white shadow-glow' : 'border-white/60 bg-white/80'
-                } p-6`}
-              >
-                {item.featured ? (
-                  <span className="absolute right-6 top-6 rounded-full bg-coral/15 px-3 py-1 text-xs font-semibold text-coral">
-                    Best value
-                  </span>
-                ) : null}
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-ink/50">{item.tagline || 'Class pack'}</p>
-                    <h3 className="mt-2 font-display text-xl text-ink">{item.label}</h3>
-                    {item.meta ? <p className="mt-1 text-xs text-ink/60">{item.meta}</p> : null}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs uppercase tracking-[0.2em] text-ink/50">Price</p>
-                    <p className="mt-2 text-lg font-semibold text-ocean">{item.price}</p>
-                  </div>
-                </div>
-                {item.bonus ? (
-                  <div className="mt-4 rounded-2xl bg-ocean/5 p-3 text-xs text-ink/70">
-                    {item.bonus}
-                  </div>
-                ) : null}
-              </div>
-            ))}
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
           </div>
         </section>
 
@@ -211,19 +143,12 @@ export default function Pricing() {
               </span>
             </div>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
-<<<<<<< HEAD
               {loading ? (
                 Array(3).fill(0).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-2xl bg-white/40" />)
               ) : termPricing.map((term) => (
                 <div key={term._id} className="rounded-2xl border border-orange-200/60 bg-white/80 p-5">
                   <p className="text-sm text-ink/70">{term.name}</p>
                   <p className="mt-2 text-2xl font-semibold text-ocean">{term.price.toLocaleString()} AED</p>
-=======
-              {termPricing.map((term) => (
-                <div key={term.label} className="rounded-2xl border border-orange-200/60 bg-white/80 p-5">
-                  <p className="text-sm text-ink/70">{term.label}</p>
-                  <p className="mt-2 text-2xl font-semibold text-ocean">{term.price}</p>
->>>>>>> 5ba2eb2c538f7bb373cc2fcea42d65cc791058de
                 </div>
               ))}
             </div>
