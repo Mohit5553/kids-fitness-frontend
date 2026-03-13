@@ -15,10 +15,36 @@ export default function LocationManagement() {
         imageUrl: '',
         status: 'active'
     });
+    const [editingId, setEditingId] = useState(null);
+    const [uploading, setUploading] = useState(false);
+
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('image', file);
+        setUploading(true);
+
+        try {
+            const config = {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            };
+            const { data } = await api.post('/upload', formData, config);
+            setFormData((prev) => ({ ...prev, imageUrl: data.image }));
+        } catch (err) {
+            console.error(err);
+            alert('File upload failed');
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const fetchLocations = async () => {
         try {
-            const res = await api.get('/locations');
+            const res = await api.get('/locations?all=true');
             setLocations(res.data);
         } catch (err) {
             console.error('Failed to fetch locations', err);
@@ -31,15 +57,48 @@ export default function LocationManagement() {
         fetchLocations();
     }, []);
 
+    const resetForm = () => {
+        setFormData({ name: '', slug: '', city: '', address: '', imageUrl: '', status: 'active' });
+        setEditingId(null);
+        setShowForm(false);
+    };
+
+    const handleEdit = (loc) => {
+        setEditingId(loc._id);
+        setFormData({
+            name: loc.name || '',
+            slug: loc.slug || '',
+            city: loc.city || '',
+            address: loc.address || '',
+            imageUrl: loc.imageUrl || '',
+            status: loc.status || 'active'
+        });
+        setShowForm(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await api.post('/locations', formData);
+            if (editingId) {
+                await api.put(`/locations/${editingId}`, formData);
+            } else {
+                await api.post('/locations', formData);
+            }
             fetchLocations();
-            setShowForm(false);
-            setFormData({ name: '', slug: '', city: '', address: '', imageUrl: '', status: 'active' });
+            resetForm();
         } catch (err) {
-            alert(err.response?.data?.message || 'Failed to create location');
+            alert(err.response?.data?.message || 'Failed to save location');
+        }
+    };
+
+    const handleUpdateStatus = async (id, currentStatus) => {
+        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+        try {
+            await api.put(`/locations/${id}`, { status: newStatus });
+            fetchLocations();
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to update status');
         }
     };
 
@@ -75,7 +134,9 @@ export default function LocationManagement() {
 
                 {showForm && (
                     <div className="mb-10 rounded-[32px] bg-white p-8 shadow-sm border border-slate-100">
-                        <h2 className="font-display text-2xl text-ink mb-6">Create New Location</h2>
+                        <h2 className="font-display text-2xl text-ink mb-6">
+                            {editingId ? 'Edit Location' : 'Create New Location'}
+                        </h2>
                         <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2">
                             <div className="space-y-2">
                                 <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Location Name</label>
@@ -108,14 +169,46 @@ export default function LocationManagement() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Image URL</label>
-                                <input
-                                    type="text"
-                                    className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
-                                    value={formData.imageUrl}
-                                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                                    placeholder="https://..."
-                                />
+                                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Location Image</label>
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-4 p-4 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50">
+                                        <div className="flex-1">
+                                            <p className="text-xs font-medium text-ink/60 mb-2">Upload image file (JPG, PNG)</p>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleFileUpload}
+                                                className="block w-full text-xs text-slate-500
+                                                    file:mr-4 file:py-2 file:px-4
+                                                    file:rounded-full file:border-0
+                                                    file:text-xs file:font-semibold
+                                                    file:bg-coral file:text-white
+                                                    hover:file:bg-coral-dark
+                                                    cursor-pointer"
+                                            />
+                                        </div>
+                                        {formData.imageUrl && (
+                                            <div className="h-20 w-20 rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-white shrink-0 relative group/preview">
+                                                <img 
+                                                    src={formData.imageUrl.startsWith('http') ? formData.imageUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${formData.imageUrl}`} 
+                                                    alt="Preview" 
+                                                    className="h-full w-full object-cover"
+                                                />
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/preview:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <span className="text-[10px] text-white font-bold">Uploaded</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {uploading && (
+                                            <div className="flex items-center justify-center p-2">
+                                                <div className="h-5 w-5 animate-spin rounded-full border-2 border-coral border-t-transparent"></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {formData.imageUrl && !formData.imageUrl.startsWith('http') && (
+                                        <p className="text-[10px] text-ink/40 font-medium">Image saved to server: {formData.imageUrl}</p>
+                                    )}
+                                </div>
                             </div>
                             <div className="md:col-span-2 space-y-2">
                                 <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Address</label>
@@ -125,10 +218,30 @@ export default function LocationManagement() {
                                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                                 />
                             </div>
-                            <div className="md:col-span-2">
-                                <button type="submit" className="w-full rounded-2xl bg-coral py-4 font-semibold text-white shadow-lg transition hover:bg-coral-dark active:scale-[0.98]">
-                                    Save Location
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Status</label>
+                                <select
+                                    className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
+                                    value={formData.status}
+                                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                >
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                            <div className="md:col-span-2 flex gap-4">
+                                <button type="submit" className="flex-1 rounded-2xl bg-coral py-4 font-semibold text-white shadow-lg transition hover:bg-coral-dark active:scale-[0.98]">
+                                    {editingId ? 'Update Location' : 'Save Location'}
                                 </button>
+                                {editingId && (
+                                    <button 
+                                        type="button" 
+                                        onClick={resetForm}
+                                        className="px-8 rounded-2xl bg-slate-200 py-4 font-semibold text-ink transition hover:bg-slate-300 active:scale-[0.98]"
+                                    >
+                                        Cancel
+                                    </button>
+                                )}
                             </div>
                         </form>
                     </div>
@@ -144,15 +257,26 @@ export default function LocationManagement() {
                             <div key={loc._id} className="group overflow-hidden rounded-[32px] bg-white border border-slate-100 shadow-sm transition hover:shadow-md">
                                 <div className="relative h-40 w-full overflow-hidden bg-slate-100">
                                     {loc.imageUrl ? (
-                                        <img src={loc.imageUrl} alt={loc.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
+                                        <img 
+                                            src={loc.imageUrl.startsWith('http') ? loc.imageUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${loc.imageUrl}`} 
+                                            alt={loc.name} 
+                                            className="h-full w-full object-cover transition duration-500 group-hover:scale-110" 
+                                        />
                                     ) : (
                                         <div className="flex h-full items-center justify-center bg-gradient-to-br from-sky-100 to-indigo-50">
                                             <span className="text-4xl">🏢</span>
                                         </div>
                                     )}
-                                    <div className="absolute top-4 right-4 capitalize rounded-full bg-white/90 px-3 py-1 text-[10px] font-bold tracking-widest text-ink/70 backdrop-blur">
+                                    <button 
+                                        onClick={() => handleUpdateStatus(loc._id, loc.status)}
+                                        className={`absolute top-4 right-4 capitalize rounded-full px-3 py-1 text-[10px] font-bold tracking-widest backdrop-blur transition-colors ${
+                                            loc.status === 'active' 
+                                            ? 'bg-green-500/90 text-white hover:bg-green-600' 
+                                            : 'bg-slate-500/90 text-white hover:bg-slate-600'
+                                        }`}
+                                    >
                                         {loc.status}
-                                    </div>
+                                    </button>
                                 </div>
                                 <div className="p-6">
                                     <div className="flex items-start justify-between">
@@ -172,7 +296,12 @@ export default function LocationManagement() {
                                     </div>
                                     <div className="mt-4 flex items-center justify-between border-t border-slate-50 pt-4">
                                         <span className="text-xs text-ink/40 font-medium">Slug: /{loc.slug}</span>
-                                        <button className="text-xs font-bold text-ocean hover:underline">Edit Details</button>
+                                        <button 
+                                            onClick={() => handleEdit(loc)}
+                                            className="text-xs font-bold text-ocean hover:underline"
+                                        >
+                                            Edit Details
+                                        </button>
                                     </div>
                                 </div>
                             </div>
