@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../api/api.js';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
