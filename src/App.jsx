@@ -8,6 +8,7 @@ import Gallery from './pages/Gallery.jsx';
 import Contact from './pages/Contact.jsx';
 import BookTrial from './pages/BookTrial.jsx';
 import QuickCheckin from './pages/QuickCheckin.jsx';
+import BookingFlow from './pages/BookingFlow.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Calendar from './pages/Calendar.jsx';
@@ -50,6 +51,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/calendar" element={<Calendar />} />
+      <Route path="/book" element={<BookingFlow />} />
 
       <Route element={<RequireAuth />}>
         <Route path="/dashboard" element={<ParentDashboard />} />

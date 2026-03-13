@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -8,7 +8,7 @@ const emptyForm = {
   description: '',
   ageGroup: '',
   duration: '',
-  trainerId: '',
+  availableTrainers: [],
   price: '',
   capacity: ''
 };
@@ -40,7 +40,7 @@ export default function ClassesManagement() {
       description: item.description || '',
       ageGroup: item.ageGroup || '',
       duration: item.duration || '',
-      trainerId: item.trainerId?._id || item.trainerId || '',
+      availableTrainers: (item.availableTrainers || []).map(t => t._id || t),
       price: item.price ?? '',
       capacity: item.capacity ?? ''
     });
@@ -122,19 +122,27 @@ export default function ClassesManagement() {
               value={form.duration}
               onChange={handleChange}
             />
-            <select
-              className="rounded-xl border border-orange-200/70 p-3"
-              name="trainerId"
-              value={form.trainerId}
-              onChange={handleChange}
-            >
-              <option value="">Trainer (optional)</option>
-              {trainers.map((trainer) => (
-                <option key={trainer._id} value={trainer._id}>
-                  {trainer.name}
-                </option>
-              ))}
-            </select>
+            <div className="rounded-xl border border-orange-200/70 p-3">
+              <p className="text-[10px] font-bold text-ink/40 uppercase mb-2">Available Trainers</p>
+              <div className="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto">
+                {trainers.map(t => (
+                  <label key={t._id} className="flex items-center gap-2 text-xs font-bold text-ink/70 bg-slate-50 px-3 py-1.5 rounded-full cursor-pointer hover:bg-slate-100 transition-all">
+                    <input 
+                      type="checkbox" 
+                      checked={form.availableTrainers.includes(t._id)}
+                      onChange={(e) => {
+                        const newTrainers = e.target.checked 
+                          ? [...form.availableTrainers, t._id]
+                          : form.availableTrainers.filter(id => id !== t._id);
+                        setForm({...form, availableTrainers: newTrainers});
+                      }}
+                      className="accent-brand-blue"
+                    />
+                    {t.name}
+                  </label>
+                ))}
+              </div>
+            </div>
             <input
               className="rounded-xl border border-orange-200/70 p-3"
               name="price"
@@ -154,13 +162,13 @@ export default function ClassesManagement() {
             onChange={handleChange}
           />
           <div className="flex flex-wrap gap-3">
-            <button className="rounded-full bg-coral px-5 py-3 text-sm font-semibold text-white" type="submit">
+            <button className="rounded-full bg-brand-blue px-8 py-3 text-sm font-black text-white shadow-lg hover:scale-105 transition-all" type="submit">
               {editingId ? 'Update class' : 'Create class'}
             </button>
             {editingId ? (
               <button
                 type="button"
-                className="rounded-full border border-ink/10 px-5 py-3 text-sm font-semibold text-ink"
+                className="rounded-full border border-ink/10 px-8 py-3 text-sm font-black text-ink hover:bg-slate-50 transition-all"
                 onClick={handleCancel}
               >
                 Cancel
@@ -171,27 +179,34 @@ export default function ClassesManagement() {
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           {classes.map((item) => (
-            <div key={item._id} className="rounded-2xl bg-white/80 p-4 shadow-glow">
+            <div key={item._id} className="soft-card rounded-[32px] p-6 transition-all hover:shadow-xl group">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="font-semibold">{item.title}</p>
-                  <p className="text-xs text-ink/70">{item.ageGroup}</p>
-                  <p className="text-xs text-ink/70">{item.duration}</p>
-                  <p className="text-xs text-ink/70">
-                    Trainer: {item.trainerId?.name || item.trainer || 'TBA'}
-                  </p>
+                  <h3 className="font-display text-xl text-ink leading-tight">{item.title}</h3>
+                  <div className="flex gap-2 mt-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-ocean bg-ocean/5 px-2 py-0.5 rounded-full">{item.ageGroup}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-ink/30 bg-slate-50 px-2 py-0.5 rounded-full">{item.duration}</span>
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-1">Available Trainers</p>
+                    <div className="flex flex-wrap gap-1">
+                      {item.availableTrainers?.length > 0 ? item.availableTrainers.map(t => (
+                        <span key={t._id} className="text-[10px] font-bold text-brand-blue bg-brand-blue/5 px-2 py-0.5 rounded-full">{t.name}</span>
+                      )) : <span className="text-[10px] font-bold text-ink/20">None linked</span>}
+                    </div>
+                  </div>
                 </div>
-                <p className="text-sm font-semibold text-ocean">AED {item.price}</p>
+                <p className="text-xl font-black text-brand-blue">AED {item.price}</p>
               </div>
-              <div className="mt-3 flex gap-3">
+              <div className="mt-6 pt-6 border-t border-slate-50 flex gap-3">
                 <button
-                  className="rounded-full border border-ink/10 px-3 py-1 text-xs font-semibold"
+                  className="rounded-full bg-slate-50 px-6 py-2 text-xs font-black uppercase tracking-widest text-ink/60 hover:bg-slate-100 transition-all"
                   onClick={() => handleEdit(item)}
                 >
                   Edit
                 </button>
                 <button
-                  className="rounded-full border border-ink/10 px-3 py-1 text-xs font-semibold"
+                  className="rounded-full bg-red-50 px-6 py-2 text-xs font-black uppercase tracking-widest text-red-400 hover:bg-red-100 transition-all"
                   onClick={() => handleDelete(item._id)}
                 >
                   Delete

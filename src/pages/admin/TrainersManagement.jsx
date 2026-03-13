@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -9,16 +9,19 @@ const emptyForm = {
   phone: '',
   bio: '',
   specialties: '',
+  locationId: '',
   status: 'active'
 };
 
 export default function TrainersManagement() {
   const [trainers, setTrainers] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState('');
 
   const load = () => {
     api.get('/trainers').then((res) => setTrainers(res.data || [])).catch(() => {});
+    api.get('/locations').then((res) => setLocations(res.data || [])).catch(() => {});
   };
 
   useEffect(() => {
@@ -37,6 +40,7 @@ export default function TrainersManagement() {
       phone: trainer.phone || '',
       bio: trainer.bio || '',
       specialties: (trainer.specialties || []).join(', '),
+      locationId: trainer.locationId?._id || trainer.locationId || '',
       status: trainer.status || 'active'
     });
   };
@@ -104,6 +108,18 @@ export default function TrainersManagement() {
             />
             <select
               className="rounded-xl border border-orange-200/70 p-3"
+              name="locationId"
+              value={form.locationId}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Select Location</option>
+              {locations.map(loc => (
+                <option key={loc._id} value={loc._id}>{loc.name}</option>
+              ))}
+            </select>
+            <select
+              className="rounded-xl border border-orange-200/70 p-3"
               name="status"
               value={form.status}
               onChange={handleChange}
@@ -150,6 +166,9 @@ export default function TrainersManagement() {
                   <p className="font-semibold">{trainer.name}</p>
                   <p className="text-xs text-ink/70">{trainer.email}</p>
                   <p className="text-xs text-ink/70">{trainer.phone}</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue mt-1">
+                    Branch: {locations.find(l => l._id === (trainer.locationId?._id || trainer.locationId))?.name || 'Unassigned'}
+                  </p>
                 </div>
                 <p className="text-xs text-ink/60">{trainer.status}</p>
               </div>

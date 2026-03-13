@@ -236,10 +236,10 @@ export default function Schedule() {
 
                     <div className="mt-8 flex justify-end">
                       <Link
-                        to={`/book-trial?sessionId=${session._id}`}
+                        to={`/book?classId=${session.classId?._id}&sessionId=${session._id}`}
                         className="group/btn flex items-center gap-2 rounded-2xl bg-brand-blue px-6 py-3 text-sm font-black text-white shadow-low transition-all hover:scale-105 active:scale-95"
                       >
-                        <span>Book A Trial</span>
+                        <span>Book Now</span>
                         <svg className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                         </svg>
