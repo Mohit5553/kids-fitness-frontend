@@ -8,7 +8,7 @@ export default function LocationPicker({ compact = false, allowAll = false }) {
 
   useEffect(() => {
     api
-      .get('/locations')
+      .get('/locations?activeClasses=true')
       .then((res) => {
         const list = res.data || [];
         const options = allowAll ? [{ _id: 'all', slug: 'all', name: 'All locations' }, ...list] : list;

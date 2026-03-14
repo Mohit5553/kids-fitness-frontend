@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -11,7 +11,7 @@ export default function MyBookings() {
   const [error, setError] = useState('');
 
   const load = () => {
-    api.get('/bookings/mine').then((res) => setBookings(res.data || [])).catch(() => {});
+    api.get('/bookings/mine').then((res) => setBookings(res.data || [])).catch(() => { });
   };
 
   useEffect(() => {

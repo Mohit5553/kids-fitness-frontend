@@ -22,6 +22,8 @@ export default function BookingFlow() {
   const [selectedSession, setSelectedSession] = useState(null);
   const [participants, setParticipants] = useState([{ name: '', age: '', gender: 'male' }]);
   const [paymentType, setPaymentType] = useState(''); // 'online' or 'center'
+  const [guestDetails, setGuestDetails] = useState({ name: '', email: '', phone: '' });
+  const [showGuestForm, setShowGuestForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -45,7 +47,7 @@ export default function BookingFlow() {
 
   // Fetch Locations
   useEffect(() => {
-    api.get('/locations')
+    api.get('/locations?activeClasses=true')
       .then(res => setLocations(res.data || []))
       .catch(() => {});
   }, []);
@@ -111,6 +113,18 @@ export default function BookingFlow() {
         return;
       }
     }
+    if (step === 6 && showGuestForm) {
+      if (!guestDetails.name || !guestDetails.email || !guestDetails.phone) {
+        setError('Please fill in all guest details');
+        return;
+      }
+      // Simple email validation
+      if (!/\S+@\S+\.\S+/.test(guestDetails.email)) {
+        setError('Please enter a valid email address');
+        return;
+      }
+    }
+    
     setError('');
     setStep(step + 1);
   };
@@ -125,10 +139,11 @@ export default function BookingFlow() {
         locationId: selectedLocation,
         date: selectedSession.startTime,
         paymentMethod: paymentType || 'center',
-        paymentStatus: paymentType === 'online' ? 'completed' : 'pending'
+        paymentStatus: paymentType === 'online' ? 'completed' : 'pending',
+        guestDetails: showGuestForm ? guestDetails : undefined
       };
       await api.post('/bookings', payload);
-      setStep(7); // Success step
+      setStep(8); // Success step
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create booking');
     } finally {
@@ -160,8 +175,8 @@ export default function BookingFlow() {
           {/* Progress Bar */}
           <div className="flex justify-between mb-12 relative px-4">
              <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-200 -z-10 -translate-y-1/2 rounded-full"></div>
-             <div className="absolute top-1/2 left-0 h-1 bg-brand-blue -z-10 -translate-y-1/2 rounded-full transition-all duration-500" style={{ width: `${((step - 1) / 6) * 100}%` }}></div>
-             {[1, 2, 3, 4, 5, 6].map(s => (
+             <div className="absolute top-1/2 left-0 h-1 bg-brand-blue -z-10 -translate-y-1/2 rounded-full transition-all duration-500" style={{ width: `${((step - 1) / 7) * 100}%` }}></div>
+             {[1, 2, 3, 4, 5, 6, 7].map(s => (
                <div key={s} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${step >= s ? 'bg-brand-blue text-white shadow-glow' : 'bg-white text-ink/30 border-2 border-slate-200'}`}>
                  {s}
                </div>
@@ -284,6 +299,20 @@ export default function BookingFlow() {
                   <button onClick={addParticipant} className="bg-brand-blue/10 text-brand-blue px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-brand-blue/20 transition-all">+ Add more</button>
                 </div>
 
+                <div className="mb-8 p-6 rounded-[32px] bg-brand-blue/5 border border-brand-blue/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue">Selected Program</p>
+                    <p className="font-display text-xl mt-1 text-ink">{selectedClass.title}</p>
+                    <p className="text-sm font-bold text-ink/60 mt-2">
+                       {locations.find(l => l._id === selectedLocation)?.name || 'Central'} • {new Date(selectedSession.startTime).toLocaleDateString()} at {new Date(selectedSession.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <div className="md:text-right">
+                    <p className="text-2xl font-black text-ink">AED {selectedClass.price}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-ink/40 mt-1">Per Participant</p>
+                  </div>
+                </div>
+
                 <div className="space-y-6">
                   {participants.map((p, idx) => (
                     <div key={idx} className="p-6 rounded-[32px] bg-slate-50 relative animate-rise">
@@ -333,7 +362,7 @@ export default function BookingFlow() {
               </div>
             )}
 
-            {step === 5 && (
+             {step === 5 && (
               <div className="animate-rise">
                 <h2 className="font-display text-3xl font-black text-ink mb-8 text-center">Summary</h2>
                 <div className="space-y-6">
@@ -367,7 +396,13 @@ export default function BookingFlow() {
                          <p className="text-3xl font-black text-brand-blue">AED {selectedClass.price * participants.length}</p>
                          <p className="text-xs text-ink/40 font-bold uppercase tracking-widest mt-1">AED {selectedClass.price} x {participants.length} Person(s)</p>
                        </div>
-                       <button onClick={handleNextStep} className="bg-brand-blue text-white px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all">Confirm Booking</button>
+                       <button onClick={() => {
+                         if (!getUser()) {
+                           setStep(6);
+                         } else {
+                           setStep(7);
+                         }
+                       }} className="bg-brand-blue text-white px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all">Continue to Payment</button>
                     </div>
                  </div>
                  <div className="mt-8 text-center">
@@ -375,8 +410,75 @@ export default function BookingFlow() {
                  </div>
                </div>
              )}
- 
+
              {step === 6 && (
+              <div className="animate-rise text-center py-10">
+                {!showGuestForm ? (
+                  <>
+                    <div className="w-20 h-20 bg-brand-blue/10 text-brand-blue rounded-full flex items-center justify-center text-4xl mx-auto mb-6">👋</div>
+                    <h2 className="font-display text-3xl font-black text-ink mb-2">You are not logged in</h2>
+                    <p className="text-ink/60 mb-10 max-w-md mx-auto">Log in to save this booking to your account, or continue as a guest to quickly secure your spot.</p>
+                    
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                       <button onClick={() => navigate('/login?redirect=/calendar')} className="bg-brand-blue text-white w-full sm:w-auto px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all">Log In</button>
+                       <p className="text-ink/40 font-bold text-xs uppercase mx-4">Or</p>
+                       <button onClick={() => setShowGuestForm(true)} className="bg-white border-2 border-slate-200 text-ink/80 w-full sm:w-auto px-10 py-4 rounded-full font-black hover:border-brand-blue hover:text-brand-blue transition-all">Continue as Guest</button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="max-w-md mx-auto text-left animate-rise">
+                    <h2 className="font-display text-3xl font-black text-ink mb-2 text-center">Guest Details</h2>
+                    <p className="text-ink/60 mb-8 text-center text-sm">We need a few details to send your booking confirmation.</p>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-ink/40 uppercase tracking-widest mb-2 px-2">Full Name</label>
+                        <input 
+                          type="text" 
+                          placeholder="Parent / Guardian Name" 
+                          className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:border-brand-blue focus:ring-0 outline-none transition-all"
+                          value={guestDetails.name}
+                          onChange={(e) => setGuestDetails({...guestDetails, name: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-ink/40 uppercase tracking-widest mb-2 px-2">Email Address</label>
+                        <input 
+                          type="email" 
+                          placeholder="Your Email" 
+                          className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:border-brand-blue focus:ring-0 outline-none transition-all"
+                          value={guestDetails.email}
+                          onChange={(e) => setGuestDetails({...guestDetails, email: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-ink/40 uppercase tracking-widest mb-2 px-2">Phone Number</label>
+                        <input 
+                          type="tel" 
+                          placeholder="Your Phone Number" 
+                          className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:border-brand-blue focus:ring-0 outline-none transition-all"
+                          value={guestDetails.phone}
+                          onChange={(e) => setGuestDetails({...guestDetails, phone: e.target.value})}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-between">
+                       <button onClick={() => setShowGuestForm(false)} className="text-sm font-bold text-ink/40 hover:text-ink transition-colors px-6 py-3 order-2 sm:order-1 text-center">Back</button>
+                       <button onClick={handleNextStep} className="bg-brand-blue text-white w-full sm:w-auto px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all order-1 sm:order-2">Continue to Payment</button>
+                    </div>
+                  </div>
+                )}
+                
+                {!showGuestForm && (
+                  <div className="mt-12">
+                     <button onClick={() => setStep(5)} className="text-sm font-bold text-ink/40 hover:text-ink transition-colors">Back to summary</button>
+                  </div>
+                )}
+              </div>
+             )}
+
+             {step === 7 && (
               <div className="animate-rise text-center py-10">
                 {paymentType === 'online' ? (
                   <PaymentForm 
@@ -410,7 +512,7 @@ export default function BookingFlow() {
               </div>
             )}
   
-              {step === 7 && (
+              {step === 8 && (
               <div className="animate-rise text-center py-12">
                 <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-8 animate-bounce transition-transform">✓</div>
                 <h2 className="font-display text-4xl font-black text-ink mb-4">Awesome!</h2>

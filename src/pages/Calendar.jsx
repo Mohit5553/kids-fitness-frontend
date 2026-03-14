@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
@@ -13,7 +13,7 @@ const formatTime = (value) =>
 export default function Calendar() {
   const [sessions, setSessions] = useState([]);
   const [children, setChildren] = useState([]);
-  const [selectedChild, setSelectedChild] = useState('');
+  const [selectedChildren, setSelectedChildren] = useState([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -49,7 +49,7 @@ export default function Calendar() {
       .then((res) => {
         setChildren(res.data || []);
         if (res.data?.length) {
-          setSelectedChild(res.data[0]._id);
+          setSelectedChildren([res.data[0]._id]);
         }
       })
       .catch(() => { });
@@ -64,17 +64,44 @@ export default function Calendar() {
     }, {});
   }, [sessions]);
 
+  const toggleChildSelection = (childId) => {
+    setSelectedChildren(prev => 
+      prev.includes(childId) 
+        ? prev.filter(id => id !== childId)
+        : [...prev, childId]
+    );
+  };
+
   const handleBook = async (sessionId) => {
     setMessage('');
-    if (!selectedChild) {
-      setMessage('Please register a child first.');
+    if (selectedChildren.length === 0) {
+      setMessage('Please select at least one child.');
       return;
     }
+    
+    const participants = [];
+    for (const childId of selectedChildren) {
+      const child = children.find(c => c._id === childId);
+      if (child) {
+        participants.push({
+          name: child.name,
+          age: child.age,
+          gender: child.gender,
+          childId: child._id
+        });
+      }
+    }
+
+    if (participants.length === 0) {
+      setMessage('Selected children not found.');
+      return;
+    }
+
     try {
-      await api.post('/bookings', { sessionId, childId: selectedChild });
+      await api.post('/bookings', { sessionId, participants });
       setMessage('Booking confirmed. Check your dashboard.');
     } catch (err) {
-      setMessage(err?.response?.data?.message || 'Unable to book this session.');
+      setMessage(err?.response?.data?.message || err?.message || 'Unable to book this session.');
     }
   };
 
@@ -91,22 +118,29 @@ export default function Calendar() {
         <div className="mt-8 flex flex-wrap items-center justify-between gap-6">
           <LocationPicker compact />
 
-          <div className="flex items-center gap-4 rounded-3xl bg-white/60 p-2 pr-6 shadow-sm border border-brand-navy/5">
-            <span className="ml-4 text-xs font-black uppercase tracking-widest text-brand-blue/60">
+          <div className="flex flex-col items-end gap-2">
+            <span className="text-xs font-black uppercase tracking-widest text-brand-blue/60">
               Booking for:
             </span>
-            <select
-              className="bg-transparent text-sm font-bold outline-none"
-              value={selectedChild}
-              onChange={(event) => setSelectedChild(event.target.value)}
-            >
-              <option value="">Select Child</option>
-              {children.map((child) => (
-                <option key={child._id} value={child._id}>
-                  {child.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-wrap gap-2">
+              {children.length === 0 ? (
+                 <span className="text-sm italic text-brand-black/40">No children registered</span>
+              ) : (
+                children.map((child) => (
+                  <button
+                    key={child._id}
+                    onClick={() => toggleChildSelection(child._id)}
+                    className={`px-4 py-2 rounded-full text-sm font-bold border-2 transition-all ${
+                      selectedChildren.includes(child._id)
+                        ? 'border-brand-blue bg-brand-blue text-white shadow-md'
+                        : 'border-brand-navy/10 bg-white text-brand-black/60 hover:border-brand-blue/30'
+                    }`}
+                  >
+                    {child.name}
+                  </button>
+                ))
+              )}
+            </div>
           </div>
         </div>
 

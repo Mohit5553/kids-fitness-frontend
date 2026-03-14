@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -72,7 +72,9 @@ export default function MyChildren() {
           {children.map((child) => (
             <div key={child._id} className="rounded-2xl bg-white/80 p-4 shadow-glow">
               <p className="font-semibold">{child.name}</p>
-              <p className="text-xs text-ink/70">Age {child.age}</p>
+              <p className="text-xs text-ink/70">
+                Age {child.age} • <span className="capitalize">{child.gender}</span>
+              </p>
             </div>
           ))}
         </div>
