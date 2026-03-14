@@ -34,9 +34,9 @@ export default function AdminDashboard() {
   }, []);
 
   const adminStats = [
-    { label: 'Confirmed bookings', value: stats.bookings?.confirmed || 0 },
-    { label: 'Upcoming sessions', value: stats.upcomingSessions || 0 },
-    { label: 'Pending bookings', value: stats.bookings?.pending || 0 }
+    { label: 'Confirmed bookings', value: stats.bookings?.confirmed || 0, to: '/admin/bookings' },
+    { label: 'Upcoming sessions', value: stats.upcomingSessions || 0, to: '/admin/sessions' },
+    { label: 'Pending bookings', value: stats.bookings?.pending || 0, to: '/admin/bookings' }
   ];
 
   return (
@@ -57,13 +57,13 @@ export default function AdminDashboard() {
 
         <section className="mt-6 grid gap-4 md:grid-cols-3">
           {adminStats.map((stat) => (
-            <div key={stat.label} className="soft-card rounded-2xl p-6 transition-all hover:shadow-md">
+            <Link key={stat.label} to={stat.to} className="soft-card block rounded-2xl p-6 transition-all hover:shadow-md hover:-translate-y-1">
               <p className="text-xs font-bold text-ink/40 uppercase tracking-widest">{stat.label}</p>
               <p className={`mt-3 text-3xl font-black text-ink ${loading ? 'animate-pulse' : ''}`}>
                 {loading ? '—' : stat.value}
               </p>
               <div className="mt-4 h-1 w-10 rounded-full bg-brand-blue/70" />
-            </div>
+            </Link>
           ))}
         </section>
 
