@@ -1,12 +1,8 @@
-﻿import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
-
-const adminStats = [
-  { label: 'Active memberships', value: '—' },
-  { label: 'Upcoming sessions', value: '—' },
-  { label: 'Pending bookings', value: '—' }
-];
+import api from '../../api/api.js';
 
 const adminActions = [
   { to: '/admin/classes', title: 'Classes', desc: 'Create and update programs.' },
@@ -21,6 +17,28 @@ const adminActions = [
 ];
 
 export default function AdminDashboard() {
+  const [stats, setStats] = useState({
+    memberships: { active: 0 },
+    upcomingSessions: 0,
+    bookings: { pending: 0 }
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/reports/summary')
+      .then(res => {
+        setStats(res.data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const adminStats = [
+    { label: 'Confirmed bookings', value: stats.bookings?.confirmed || 0 },
+    { label: 'Upcoming sessions', value: stats.upcomingSessions || 0 },
+    { label: 'Pending bookings', value: stats.bookings?.pending || 0 }
+  ];
+
   return (
     <div>
       <Navbar />
@@ -39,10 +57,12 @@ export default function AdminDashboard() {
 
         <section className="mt-6 grid gap-4 md:grid-cols-3">
           {adminStats.map((stat) => (
-            <div key={stat.label} className="soft-card rounded-2xl p-4">
-              <p className="text-xs text-ink/60">{stat.label}</p>
-              <p className="mt-2 text-2xl font-semibold text-ink">{stat.value}</p>
-              <div className="mt-3 h-1 w-10 rounded-full bg-coral/70" />
+            <div key={stat.label} className="soft-card rounded-2xl p-6 transition-all hover:shadow-md">
+              <p className="text-xs font-bold text-ink/40 uppercase tracking-widest">{stat.label}</p>
+              <p className={`mt-3 text-3xl font-black text-ink ${loading ? 'animate-pulse' : ''}`}>
+                {loading ? '—' : stat.value}
+              </p>
+              <div className="mt-4 h-1 w-10 rounded-full bg-brand-blue/70" />
             </div>
           ))}
         </section>

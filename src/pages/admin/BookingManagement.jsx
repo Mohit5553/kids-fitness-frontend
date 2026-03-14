@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -37,11 +37,11 @@ export default function BookingManagement() {
             <div key={booking._id} className="rounded-2xl bg-white/80 p-4 shadow-glow">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="font-semibold">
-                    {booking.childId?.name} · {booking.classId?.title}
+                  <p className="font-semibold text-ink leading-tight">
+                    {booking.participants?.map(p => p.name).join(', ') || 'No Name'} · <span className="text-brand-blue">{booking.classId?.title}</span>
                   </p>
-                  <p className="text-xs text-ink/70">
-                    Parent: {booking.userId?.name} · {new Date(booking.date).toLocaleString()}
+                  <p className="text-xs text-ink/40 font-bold uppercase tracking-widest mt-1">
+                    Booked by {booking.userId?.name} · {booking.participants?.length || 0} Participant(s)
                   </p>
                   {booking.sessionId?.startTime ? (
                     <p className="text-xs text-ink/70">
