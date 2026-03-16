@@ -7,6 +7,9 @@ const emptyForm = {
   title: '',
   description: '',
   ageGroup: '',
+  minAge: '',
+  maxAge: '',
+  genderRestriction: 'any',
   duration: '',
   availableTrainers: [],
   price: '',
@@ -39,6 +42,9 @@ export default function ClassesManagement() {
       title: item.title || '',
       description: item.description || '',
       ageGroup: item.ageGroup || '',
+      minAge: item.minAge ?? '',
+      maxAge: item.maxAge ?? '',
+      genderRestriction: item.genderRestriction || 'any',
       duration: item.duration || '',
       availableTrainers: (item.availableTrainers || []).map(t => t._id || t),
       price: item.price ?? '',
@@ -106,6 +112,43 @@ export default function ClassesManagement() {
               value={form.ageGroup}
               onChange={handleChange}
             />
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+             <div className="space-y-1">
+               <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Min Age</label>
+               <input
+                 className="w-full rounded-xl border border-orange-200/70 p-3"
+                 name="minAge"
+                 type="number"
+                 placeholder="Min Age"
+                 value={form.minAge}
+                 onChange={handleChange}
+               />
+             </div>
+             <div className="space-y-1">
+               <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Max Age</label>
+               <input
+                 className="w-full rounded-xl border border-orange-200/70 p-3"
+                 name="maxAge"
+                 type="number"
+                 placeholder="Max Age"
+                 value={form.maxAge}
+                 onChange={handleChange}
+               />
+             </div>
+             <div className="space-y-1">
+               <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Gender</label>
+               <select
+                 className="w-full rounded-xl border border-orange-200/70 p-3"
+                 name="genderRestriction"
+                 value={form.genderRestriction}
+                 onChange={handleChange}
+               >
+                 <option value="any">Any</option>
+                 <option value="male">Male Only</option>
+                 <option value="female">Female Only</option>
+               </select>
+             </div>
           </div>
           <textarea
             className="min-h-[90px] rounded-xl border border-orange-200/70 p-3"
@@ -185,6 +228,12 @@ export default function ClassesManagement() {
                   <h3 className="font-display text-xl text-ink leading-tight">{item.title}</h3>
                   <div className="flex gap-2 mt-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-ocean bg-ocean/5 px-2 py-0.5 rounded-full">{item.ageGroup}</span>
+                    {item.minAge || item.maxAge ? (
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                        {item.minAge || 0}-{item.maxAge || '∞'} yrs
+                      </span>
+                    ) : null}
+                    <span className="text-[10px] font-black uppercase tracking-widest text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">{item.genderRestriction}</span>
                     <span className="text-[10px] font-black uppercase tracking-widest text-ink/30 bg-slate-50 px-2 py-0.5 rounded-full">{item.duration}</span>
                   </div>
                   <div className="mt-4">
