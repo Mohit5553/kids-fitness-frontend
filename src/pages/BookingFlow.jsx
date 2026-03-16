@@ -91,18 +91,24 @@ export default function BookingFlow() {
           setError('Please fill in all participant details');
           return;
         }
+        // New Structured Validation
+        const pAge = parseInt(p.age);
+        
         // Age validation
-        const classAgeLimitStr = selectedClass.ageGroup || '';
-        const limitMatch = classAgeLimitStr.match(/\d+/);
-        if (limitMatch) {
-          const limit = parseInt(limitMatch[0]);
-          if (classAgeLimitStr.includes('>') && parseInt(p.age) <= limit) {
-             setError(`${p.name} must be older than ${limit}`);
-             return;
-          }
-           if (classAgeLimitStr.includes('+') && parseInt(p.age) < limit) {
-             setError(`${p.name} must be at least ${limit} years old`);
-             return;
+        if (selectedClass.minAge !== undefined && selectedClass.minAge !== null && pAge < selectedClass.minAge) {
+          setError(`${p.name} is too young for this class. Minimum age: ${selectedClass.minAge}`);
+          return;
+        }
+        if (selectedClass.maxAge !== undefined && selectedClass.maxAge !== null && pAge > selectedClass.maxAge) {
+          setError(`${p.name} is too old for this class. Maximum age: ${selectedClass.maxAge}`);
+          return;
+        }
+
+        // Gender validation
+        if (selectedClass.genderRestriction && selectedClass.genderRestriction !== 'any') {
+          if (p.gender.toLowerCase() !== selectedClass.genderRestriction.toLowerCase()) {
+            setError(`${p.name}'s gender does not match the class restriction: ${selectedClass.genderRestriction}`);
+            return;
           }
         }
       }
