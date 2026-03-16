@@ -229,7 +229,17 @@ export default function BookingFlow() {
                       onClick={() => { setSelectedLocation(loc._id); setStep(3); }}
                       className={`p-8 rounded-[40px] border-2 transition-all text-left flex items-center gap-6 ${selectedLocation === loc._id ? 'border-brand-blue bg-brand-blue/5 shadow-xl' : 'border-slate-50 bg-white hover:border-brand-blue/30'}`}
                     >
-                      <div className="w-16 h-16 rounded-[24px] bg-slate-50 flex items-center justify-center text-3xl">📍</div>
+                      <div className="w-16 h-16 rounded-[24px] bg-slate-50 flex items-center justify-center text-3xl overflow-hidden shrink-0">
+                        {loc.imageUrl ? (
+                          <img 
+                            src={loc.imageUrl.startsWith('http') ? loc.imageUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${loc.imageUrl}`} 
+                            alt={loc.name} 
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          '📍'
+                        )}
+                      </div>
                       <div>
                         <h3 className="font-display text-xl text-ink">{loc.name}</h3>
                         <p className="text-sm text-ink/40 mt-1">{loc.city || loc.address}</p>

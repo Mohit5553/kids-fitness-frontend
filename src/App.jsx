@@ -35,6 +35,7 @@ import SessionsManagement from './pages/admin/SessionsManagement.jsx';
 import TrialsManagement from './pages/admin/TrialsManagement.jsx';
 import PaymentsManagement from './pages/admin/PaymentsManagement.jsx';
 import LocationManagement from './pages/admin/LocationManagement.jsx';
+import SpecialtiesManagement from './pages/admin/SpecialtiesManagement.jsx';
 
 export default function App() {
   return (
@@ -78,6 +79,7 @@ export default function App() {
         <Route path="/admin/trials" element={<TrialsManagement />} />
         <Route path="/admin/payments" element={<PaymentsManagement />} />
         <Route path="/admin/locations" element={<LocationManagement />} />
+        <Route path="/admin/specialties" element={<SpecialtiesManagement />} />
       </Route>
     </Routes>
   );
