@@ -96,7 +96,7 @@ export default function Pricing() {
     }
   };
 
-  const classOptions = plans.filter(p => p.type === 'pack');
+  const classOptions = plans.filter(p => p.type === 'pack' || p.type === 'subscription');
   const termPricing = plans.filter(p => p.type === 'term');
   const dropIns = plans.filter(p => p.type === 'dropin');
 
@@ -167,7 +167,7 @@ export default function Pricing() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="text-xs uppercase tracking-[0.2em] text-ink/50">{item.tagline || item.validity || 'Class pack'}</p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-ink/50">{item.tagline || item.validity || (item.type === 'subscription' ? 'Subscription' : 'Class pack')}</p>
                         {item.locationId?.name ? (
                           <span className="rounded-full bg-ocean/10 px-2 py-0.5 text-[10px] font-bold text-ocean/80">
                             {item.locationId.name}
@@ -183,7 +183,14 @@ export default function Pricing() {
                     </div>
                     <div className="text-right">
                       <p className="text-xs uppercase tracking-[0.2em] text-ink/50">Price</p>
-                      <p className="mt-2 text-lg font-semibold text-ocean">{item.price.toLocaleString()} AED</p>
+                      <p className="mt-2 text-lg font-semibold text-ocean">
+                        {item.price.toLocaleString()} AED
+                        {item.type === 'subscription' && item.billingCycle && item.billingCycle !== 'none' && (
+                          <span className="text-sm font-normal text-ink/60 ml-1">
+                            / {item.billingCycle === 'weekly' ? 'week' : item.billingCycle === 'monthly' ? 'month' : 'year'}
+                          </span>
+                        )}
+                      </p>
                     </div>
                   </div>
                   {item.benefits && item.benefits.length > 0 ? (

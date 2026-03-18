@@ -10,6 +10,8 @@ const emptyForm = {
   bio: '',
   specialties: '',
   locationId: '',
+  avatarUrl: '',
+  gallery: [],
   status: 'active'
 };
 
@@ -32,7 +34,7 @@ export default function TrainersManagement() {
     load();
   }, []);
 
-  const handleFileUpload = async (e) => {
+  const handleFileUpload = async (e, isGallery = false) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -41,14 +43,16 @@ export default function TrainersManagement() {
     setUploading(true);
 
     try {
-      const config = {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      };
-      const { data } = await api.post('/upload', formData, config);
-      setForm((prev) => ({ ...prev, avatarUrl: data.image }));
+      const { data } = await api.post('/upload', formData);
+      if (isGallery) {
+        setForm((prev) => ({ ...prev, gallery: [...(prev.gallery || []), data.image] }));
+      } else {
+        setForm((prev) => ({ ...prev, avatarUrl: data.image }));
+      }
     } catch (err) {
       console.error(err);
-      alert('File upload failed');
+      const msg = err.response?.data?.message || err.response?.data?.error || 'File upload failed';
+      alert(`Upload Failed: ${msg}`);
     } finally {
       setUploading(false);
     }
@@ -68,7 +72,8 @@ export default function TrainersManagement() {
       specialties: (trainer.specialties || []).join(', '),
       locationId: trainer.locationId?._id || trainer.locationId || '',
       status: trainer.status || 'active',
-      avatarUrl: trainer.avatarUrl || ''
+      avatarUrl: trainer.avatarUrl || '',
+      gallery: trainer.gallery || []
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -221,6 +226,45 @@ export default function TrainersManagement() {
                     />
                   )}
                   {uploading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-ocean border-t-transparent" />}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Gallery Photos (Multi)</label>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, true)}
+                      className="block w-full text-xs text-slate-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-xs file:font-semibold
+                        file:bg-moss file:text-white
+                        hover:file:bg-moss-dark
+                        cursor-pointer"
+                    />
+                    {uploading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-moss border-t-transparent" />}
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-3">
+                    {(form.gallery || []).map((img, idx) => (
+                      <div key={idx} className="relative group/img w-16 h-16 rounded-xl overflow-hidden border border-slate-200">
+                        <img 
+                          src={img.startsWith('http') ? img : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${img}`} 
+                          className="w-full h-full object-cover" 
+                          alt={`Gallery ${idx}`} 
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setForm(prev => ({ ...prev, gallery: prev.gallery.filter((_, i) => i !== idx) }))}
+                          className="absolute inset-0 bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"
+                        >
+                          <span className="text-[10px] font-bold">Delete</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

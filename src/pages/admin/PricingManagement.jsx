@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -10,6 +10,7 @@ const emptyForm = {
   type: 'pack',
   classesIncluded: '',
   durationWeeks: '',
+  billingCycle: 'none',
   benefits: '',
   tagline: '',
   isFeatured: false
@@ -42,6 +43,7 @@ export default function PricingManagement() {
       type: plan.type || 'pack',
       classesIncluded: plan.classesIncluded ?? '',
       durationWeeks: plan.durationWeeks ?? '',
+      billingCycle: plan.billingCycle || 'none',
       benefits: (plan.benefits || []).join(', '),
       tagline: plan.tagline || '',
       isFeatured: !!plan.isFeatured
@@ -131,6 +133,7 @@ export default function PricingManagement() {
               <option value="dropin">Drop-in</option>
               <option value="pack">Pack</option>
               <option value="term">Term</option>
+              <option value="subscription">Subscription</option>
             </select>
             <input
               className="rounded-xl border border-orange-200/70 p-3"
@@ -141,7 +144,7 @@ export default function PricingManagement() {
               onChange={handleChange}
             />
           </div>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-4">
             <input
               className="rounded-xl border border-orange-200/70 p-3"
               name="durationWeeks"
@@ -150,14 +153,27 @@ export default function PricingManagement() {
               value={form.durationWeeks}
               onChange={handleChange}
             />
+            {form.type === 'subscription' && (
+              <select
+                className="rounded-xl border border-orange-200/70 p-3"
+                name="billingCycle"
+                value={form.billingCycle}
+                onChange={handleChange}
+              >
+                <option value="none">Cycle (None)</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            )}
             <input
-              className="rounded-xl border border-orange-200/70 p-3"
+              className={`rounded-xl border border-orange-200/70 p-3 ${form.type === 'subscription' ? '' : 'md:col-span-2'}`}
               name="tagline"
               placeholder="Tagline (e.g. Family favorite)"
               value={form.tagline}
               onChange={handleChange}
             />
-            <div className="flex items-center gap-3 px-3">
+            <div className={`flex items-center gap-3 px-3 ${form.type === 'subscription' ? '' : 'md:col-span-1'}`}>
               <input
                 type="checkbox"
                 name="isFeatured"
@@ -199,7 +215,10 @@ export default function PricingManagement() {
                 <div>
                   <p className="font-semibold">{plan.name}</p>
                   <p className="text-xs text-ink/70">{plan.validity}</p>
-                  <p className="text-xs text-ink/70">Type: {plan.type}</p>
+                  <p className="text-xs text-ink/70">
+                    Type: {plan.type} 
+                    {plan.type === 'subscription' && plan.billingCycle !== 'none' && ` (${plan.billingCycle})`}
+                  </p>
                 </div>
                 <p className="text-sm font-semibold text-ocean">AED {plan.price}</p>
               </div>

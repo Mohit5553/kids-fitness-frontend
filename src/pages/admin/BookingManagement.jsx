@@ -68,6 +68,23 @@ export default function BookingManagement() {
     await api.delete(`/bookings/${id}`);
     load();
   };
+  
+  const resolveRefund = async (id, status) => {
+    let reason = '';
+    if (status === 'declined') {
+      reason = window.prompt('Please enter a reason for rejecting the refund:');
+      if (!reason) return;
+    } else {
+      if (!window.confirm('Are you sure you want to approve this refund?')) return;
+    }
+
+    try {
+      await api.put(`/bookings/${id}/refund-resolve`, { status, reason });
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to resolve refund');
+    }
+  };
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -161,15 +178,17 @@ export default function BookingManagement() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
                     <h3 className="font-display text-xl font-bold text-ink leading-tight">
-                      {booking.participants?.map(p => p.name).join(', ') || 'No Name'}
+                      {booking.participants?.map(p => `${p.name} (${p.relation || 'N/A'})`).join(', ') || 'No Name'}
                     </h3>
                     <span className="text-[10px] font-black text-ink/20 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">#{booking._id.slice(-6)}</span>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
                     <p className="text-xs font-bold text-brand-blue">{booking.classId?.title}</p>
-                    <p className="text-[10px] text-ink/40 font-bold uppercase tracking-widest">
-                      Parent: <span className="text-ink/60">{booking.userId?.name || 'Guest'}</span>
-                    </p>
+                    {!booking.participants?.some(p => p.relation === 'Self') && (
+                      <p className="text-[10px] text-ink/40 font-bold uppercase tracking-widest">
+                        Parent: <span className="text-ink/60">{booking.userId?.name || 'Guest'}</span>
+                      </p>
+                    )}
                     {booking.locationId && (
                        <p className="text-[10px] text-ink/40 font-bold uppercase tracking-widest">
                         📍 {typeof booking.locationId === 'object' ? booking.locationId.name : locations.find(l => l._id === booking.locationId)?.name || 'Central'}
@@ -187,21 +206,61 @@ export default function BookingManagement() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <div className="text-right">
-                    <p className="text-xs font-black text-ink/30 uppercase tracking-widest mb-1">Status</p>
-                    <select
-                      className={`rounded-xl border-none p-2.5 text-xs font-bold transition-all outline-none focus:ring-2 ${
-                        booking.status === 'confirmed' ? 'bg-moss/10 text-moss focus:ring-moss/20' : 
-                        booking.status === 'pending' ? 'bg-amber-100 text-amber-700 focus:ring-amber-200' : 
-                        'bg-red-100 text-red-600 focus:ring-red-200'
-                      }`}
-                      value={booking.status}
-                      onChange={(event) => updateStatus(booking._id, event.target.value)}
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
+                  <div className="text-right flex flex-col items-end gap-2">
+                    {booking.refundStatus === 'requested' && (
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest bg-coral px-3 py-1 rounded-full shadow-lg shadow-coral/20 animate-pulse">
+                          Refund Requested
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => resolveRefund(booking._id, 'refunded')}
+                            className="bg-moss/10 text-moss text-[10px] font-bold px-3 py-1 rounded-lg hover:bg-moss/20 transition-colors"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => resolveRefund(booking._id, 'declined')}
+                            className="bg-red-50 text-red-600 text-[10px] font-bold px-3 py-1 rounded-lg hover:bg-red-100 transition-colors"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {booking.refundStatus === 'declined' && (
+                       <div className="flex flex-col items-end gap-1">
+                          <span className="text-[10px] font-black text-red-400 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
+                            Refund Rejected
+                          </span>
+                          {booking.refundRejectionReason && (
+                            <p className="text-[9px] text-ink/40 font-medium max-w-[150px] text-right truncate" title={booking.refundRejectionReason}>
+                              Reason: {booking.refundRejectionReason}
+                            </p>
+                          )}
+                       </div>
+                    )}
+                    {booking.refundStatus === 'refunded' && (
+                       <span className="text-[10px] font-black text-moss uppercase tracking-widest bg-moss/10 px-2 py-0.5 rounded-full border border-moss/20">
+                         Refunded
+                       </span>
+                    )}
+                    <div>
+                      <p className="text-xs font-black text-ink/30 uppercase tracking-widest mb-1 text-right">Status</p>
+                      <select
+                        className={`rounded-xl border-none p-2.5 text-xs font-bold transition-all outline-none focus:ring-2 ${
+                          booking.status === 'confirmed' ? 'bg-moss/10 text-moss focus:ring-moss/20' : 
+                          booking.status === 'pending' ? 'bg-amber-100 text-amber-700 focus:ring-amber-200' : 
+                          'bg-red-100 text-red-600 focus:ring-red-200'
+                        }`}
+                        value={booking.status}
+                        onChange={(event) => updateStatus(booking._id, event.target.value)}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
                   </div>
                   
                   <button

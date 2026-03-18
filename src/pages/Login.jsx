@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import api from '../api/api.js';
@@ -7,6 +7,8 @@ import { getUser, setAuth } from '../utils/auth.js';
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirect = searchParams.get('redirect');
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
 
@@ -27,7 +29,11 @@ export default function Login() {
     try {
       const res = await api.post('/auth/login', form);
       setAuth(res.data);
-      navigate(res.data.role === 'admin' ? '/admin' : '/dashboard');
+      if (redirect) {
+        navigate(redirect);
+      } else {
+        navigate(res.data.role === 'admin' ? '/admin' : '/dashboard');
+      }
     } catch (err) {
       setError(err?.response?.data?.message || 'Login failed. Check your credentials.');
     }
@@ -65,7 +71,7 @@ export default function Login() {
             </button>
           </form>
           <p className="mt-4 text-sm text-ink/70">
-            New here? <Link className="text-coral" to="/register">Create an account</Link>
+            New here? <Link className="text-coral" to={redirect ? `/register?redirect=${encodeURIComponent(redirect)}` : "/register"}>Create an account</Link>
           </p>
         </div>
       </main>
