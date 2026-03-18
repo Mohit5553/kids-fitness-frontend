@@ -13,7 +13,8 @@ const adminActions = [
   { to: '/admin/users', title: 'Users', desc: 'Update roles and manage accounts.' },
   { to: '/admin/trials', title: 'Trial requests', desc: 'Follow up with new leads.' },
   { to: '/admin/payments', title: 'Payments', desc: 'Monitor transactions and exports.' },
-  { to: '/admin/locations', title: 'Locations', desc: 'Add or remove gym branches.' }
+  { to: '/admin/locations', title: 'Locations', desc: 'Add or remove gym branches.' },
+  { to: '/admin/specialties', title: 'Specialty Master', desc: 'Manage trainer expertise areas.' }
 ];
 
 export default function AdminDashboard() {

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -121,10 +121,19 @@ export default function Membership() {
               )}
               <div className="flex flex-col h-full">
                 <div className="flex-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink/50">{plan.tagline || plan.validity}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink/50">
+                    {plan.tagline || plan.validity || (plan.type === 'subscription' ? 'Subscription' : '')}
+                  </p>
                   <h3 className="mt-1 font-display text-xl">{plan.name}</h3>
                   <div className="mt-4 flex items-baseline gap-1">
-                    <span className="text-2xl font-bold text-ocean">AED {plan.price}</span>
+                    <span className="text-2xl font-bold text-ocean">
+                      AED {plan.price}
+                      {plan.type === 'subscription' && plan.billingCycle && plan.billingCycle !== 'none' && (
+                        <span className="text-sm font-normal text-ink/60 ml-1">
+                          / {plan.billingCycle === 'weekly' ? 'wk' : plan.billingCycle === 'monthly' ? 'mo' : 'yr'}
+                        </span>
+                      )}
+                    </span>
                   </div>
                   {plan.benefits && plan.benefits.length > 0 && (
                     <ul className="mt-4 space-y-2">

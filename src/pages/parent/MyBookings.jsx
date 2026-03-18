@@ -13,13 +13,19 @@ export default function MyBookings() {
   const [cardForm, setCardForm] = useState({ name: '', number: '', expiry: '', cvc: '' });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const load = () => {
+    setLoading(true);
     api.get('/bookings/mine').then((res) => {
       const data = res.data || [];
       setBookings(data);
       setFilteredBookings(data);
-    }).catch(() => { });
+      setLoading(false);
+    }).catch((err) => { 
+      setError(err?.response?.data?.message || 'Failed to load bookings. Please check your connection.');
+      setLoading(false);
+    });
   };
 
   useEffect(() => {
@@ -34,6 +40,7 @@ export default function MyBookings() {
       result = result.filter(b => 
         b.classId?.title?.toLowerCase().includes(q) ||
         b.participants?.some(p => p.name?.toLowerCase().includes(q)) ||
+        b.bookingNumber?.toLowerCase().includes(q) ||
         b.paymentReference?.toLowerCase().includes(q) ||
         b._id.toLowerCase().includes(q)
       );
@@ -104,25 +111,15 @@ export default function MyBookings() {
   };
 
   const isRefundable = (booking) => {
-    if (booking.status !== 'confirmed' || booking.refundStatus !== 'none') return false;
-    if (!booking.paymentDate) return false;
+    if (booking.refundStatus !== 'none') return false;
+    const isPaid = booking.paymentStatus === 'completed' || booking.status === 'confirmed';
+    if (!isPaid) return false;
 
     const now = new Date();
-    const paymentDate = new Date(booking.paymentDate);
+    const sessionDate = new Date(booking.date);
     
-    // Same day check
-    const isSameDay = 
-      now.getFullYear() === paymentDate.getFullYear() &&
-      now.getMonth() === paymentDate.getMonth() &&
-      now.getDate() === paymentDate.getDate();
-    
-    if (!isSameDay) return false;
-
-    // 1 hour check
-    const diffInMs = now.getTime() - paymentDate.getTime();
-    const diffInHours = diffInMs / (1000 * 60 * 60);
-    
-    return diffInHours <= 1;
+    // Allow refund if paid AND session is in the future
+    return booking.paymentStatus === 'completed' && now < sessionDate;
   };
 
   return (
@@ -163,17 +160,27 @@ export default function MyBookings() {
           </div>
         </div>
 
-        {message ? <p className="mt-3 text-sm text-moss">{message}</p> : null}
-        {error ? <p className="mt-3 text-sm text-coral">{error}</p> : null}
+        {message ? <p className="mt-3 text-sm text-moss font-bold">{message}</p> : null}
+        {error ? <p className="mt-3 text-sm text-coral font-bold">{error}</p> : null}
 
         <div className="mt-8 space-y-4">
-          {filteredBookings.length > 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 rounded-3xl bg-white/50 border border-dashed border-ink/10">
+              <div className="w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-sm text-ink/50 font-bold">Loading your bookings...</p>
+            </div>
+          ) : filteredBookings.length > 0 ? (
             filteredBookings.map((booking) => (
               <div key={booking._id} className="relative overflow-hidden rounded-2xl bg-white p-5 shadow-sm border border-black/5 transition hover:shadow-md">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex-1 min-w-[200px]">
                     <div className="flex items-center gap-2">
                       <p className="font-display text-lg font-semibold text-ink">{booking.classId?.title}</p>
+                      {booking.bookingNumber && (
+                        <span className="rounded bg-brand-blue/10 px-2 py-0.5 text-[10px] font-black text-brand-blue uppercase">
+                          {booking.bookingNumber}
+                        </span>
+                      )}
                       {booking.paymentReference && (
                         <span className="rounded bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-600 uppercase">
                           Ref: {booking.paymentReference}
@@ -182,7 +189,7 @@ export default function MyBookings() {
                     </div>
                     <div className="mt-2 space-y-1">
                       <p className="flex items-center gap-2 text-xs text-ink/70">
-                        <span className="font-medium">Child:</span> {booking.participants?.map(p => p.name).join(', ') || 'N/A'}
+                        <span className="font-medium">Participant(s):</span> {booking.participants?.map(p => `${p.name} (${p.relation || 'N/A'})`).join(', ')}
                       </p>
                       <p className="flex items-center gap-2 text-xs text-ink/70">
                         <span className="font-medium">Date:</span> {new Date(booking.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at {new Date(booking.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -201,16 +208,23 @@ export default function MyBookings() {
                     </span>
 
                     {booking.refundStatus && booking.refundStatus !== 'none' && (
-                      <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                        booking.refundStatus === 'requested' ? 'bg-sky-100 text-sky-700' : 
-                        booking.refundStatus === 'refunded' ? 'bg-moss/20 text-moss' : 
-                        'bg-red-50 text-red-400'
-                      }`}>
-                        Refund: {booking.refundStatus}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                          booking.refundStatus === 'requested' ? 'bg-sky-100 text-sky-700' : 
+                          booking.refundStatus === 'refunded' ? 'bg-moss/20 text-moss' : 
+                          'bg-red-50 text-red-400'
+                        }`}>
+                          Refund: {booking.refundStatus}
+                        </span>
+                        {booking.refundStatus === 'declined' && booking.refundRejectionReason && (
+                          <p className="text-[10px] text-red-500 font-medium max-w-[150px] text-right">
+                            Reason: {booking.refundRejectionReason}
+                          </p>
+                        )}
+                      </div>
                     )}
                     
-                    {booking.status !== 'confirmed' && booking.status !== 'cancelled' ? (
+                    {booking.status !== 'confirmed' && booking.status !== 'cancelled' && booking.paymentStatus !== 'completed' ? (
                       <button
                         className="rounded-full bg-coral px-5 py-2 text-xs font-bold text-white shadow-lg shadow-coral/20 transition hover:scale-105 active:scale-95"
                         onClick={() => openPayment(booking)}

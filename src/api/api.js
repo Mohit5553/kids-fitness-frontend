@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getToken } from '../utils/auth.js';
+import { getToken, clearAuth } from '../utils/auth.js';
 import { getLocationSlug } from '../utils/location.js';
 
 const api = axios.create({
@@ -17,5 +17,18 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Automatic Session Reset on 401
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.warn('Session expired or invalid token - Clearing session');
+      clearAuth();
+      // Optional: Notify user or redirect to login
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;
