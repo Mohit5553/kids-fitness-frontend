@@ -21,6 +21,7 @@ export default function BookingFlow() {
   const [selectedTrainer, setSelectedTrainer] = useState('');
   const [sessions, setSessions] = useState([]);
   const [selectedSessions, setSelectedSessions] = useState([]);
+  const [selectedDateFilter, setSelectedDateFilter] = useState('');
 
   // Reset selected sessions when class, location or trainer changes
   useEffect(() => {
@@ -158,11 +159,31 @@ export default function BookingFlow() {
       api.get(`/sessions?classId=${selectedClass._id}&trainerId=${selectedTrainer}&locationId=${selectedLocation}&start=${new Date().toISOString()}`)
         .then(res => {
           setSessions(res.data);
+          
+          // Auto-select first date group if available
+          const groups = Array.from(new Set(res.data.map(s => 
+            new Date(s.startTime).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+          )));
+          if (groups.length > 0) setSelectedDateFilter(groups[0]);
+
           setLoading(false);
         })
         .catch(() => setLoading(false));
     }
   }, [selectedClass, selectedTrainer]);
+
+  // Group sessions by date string
+  const sessionGroups = useMemo(() => {
+    const groups = {};
+    sessions.forEach(s => {
+      const dateKey = new Date(s.startTime).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(s);
+    });
+    return groups;
+  }, [sessions]);
+  
+  const dateKeys = Object.keys(sessionGroups);
 
   const handleNextStep = () => {
     if (step === 2 && !selectedLocation) {
@@ -440,27 +461,53 @@ export default function BookingFlow() {
                     <div className="animate-rise">
                       <label className="block text-xs font-bold text-ink/40 uppercase tracking-widest mb-3">Available Slots</label>
                       {loading ? <div className="animate-pulse h-12 bg-slate-100 rounded-2xl"></div> : (
-                        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-                          {sessions.length > 0 ? sessions.map(s => {
-                            const isSelected = selectedSessions.find(sess => sess._id === s._id);
-                            return (
-                              <button
-                                key={s._id}
-                                onClick={() => {
-                                  if (isSelected) {
-                                    setSelectedSessions(selectedSessions.filter(sess => sess._id !== s._id));
-                                  } else {
-                                    setSelectedSessions([...selectedSessions, s]);
-                                  }
-                                }}
-                                className={`p-4 rounded-2xl border-2 text-sm font-bold transition-all text-left ${isSelected ? 'border-brand-blue bg-brand-blue/5 text-brand-blue shadow-sm' : 'border-slate-50 bg-white hover:bg-slate-50 text-ink/70'}`}
-                              >
-                                <div className="text-[10px] text-ink/40 mb-1">{new Date(s.startTime).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</div>
-                                <div>{new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                <div className="mt-1 text-[10px] font-medium">{s.capacity - (s.bookedParticipants || 0)} spots left</div>
-                              </button>
-                            );
-                          }) : <p className="col-span-full text-sm text-ink/40 italic py-4">No available sessions for this trainer.</p>}
+                        <div>
+                          {dateKeys.length > 0 ? (
+                            <>
+                              {/* Date Navigation Tabs */}
+                              <div className="flex gap-2 overflow-x-auto pb-4 mb-4 select-none scrollbar-hide snap-x">
+                                {dateKeys.map(dKey => (
+                                  <button
+                                    key={dKey}
+                                    onClick={() => setSelectedDateFilter(dKey)}
+                                    className={`snap-start shrink-0 px-6 py-3 rounded-full text-sm font-bold transition-all border-2 ${selectedDateFilter === dKey ? 'bg-brand-blue text-white shadow-md border-brand-blue' : 'bg-white text-ink/60 border-slate-100 hover:border-brand-blue/30 hover:text-ink'}`}
+                                  >
+                                    {dKey}
+                                  </button>
+                                ))}
+                              </div>
+
+                              {/* Slots for Selected Date */}
+                              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                                {(sessionGroups[selectedDateFilter] || []).map(s => {
+                                  const isSelected = selectedSessions.find(sess => sess._id === s._id);
+                                  const spotsLeft = s.capacity - (s.bookedParticipants || 0);
+                                  return (
+                                    <button
+                                      key={s._id}
+                                      onClick={() => {
+                                        if (isSelected) {
+                                          setSelectedSessions(selectedSessions.filter(sess => sess._id !== s._id));
+                                        } else {
+                                          setSelectedSessions([...selectedSessions, s]);
+                                        }
+                                      }}
+                                      className={`p-5 rounded-3xl border-2 transition-all text-left flex flex-col justify-center items-center gap-1 ${isSelected ? 'border-brand-blue bg-brand-blue/5 text-brand-blue shadow-glow' : 'border-slate-100 bg-white hover:border-brand-blue/30 hover:bg-slate-50 text-ink/80'}`}
+                                    >
+                                      <span className="text-xl font-black font-display">
+                                        {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                      <span className={`text-[10px] font-bold uppercase tracking-widest ${isSelected ? 'text-brand-blue/70' : 'text-ink/40'}`}>
+                                        {spotsLeft} spots left
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          ) : (
+                            <p className="text-sm text-ink/40 italic py-4">No available sessions for this trainer.</p>
+                          )}
                         </div>
                       )}
                     </div>
