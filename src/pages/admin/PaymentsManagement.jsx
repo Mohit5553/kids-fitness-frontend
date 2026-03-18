@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -45,7 +45,7 @@ export default function PaymentsManagement() {
                     <p className="text-xs text-ink/70">Plan: {payment.planId.name}</p>
                   ) : null}
                   {payment.bookingId ? (
-                    <p className="text-xs text-ink/70">Booking: {payment.bookingId}</p>
+                    <p className="text-xs text-ink/70">Booking: {typeof payment.bookingId === 'object' ? payment.bookingId._id : payment.bookingId}</p>
                   ) : null}
                 </div>
                 <div className="text-xs text-ink/70">
