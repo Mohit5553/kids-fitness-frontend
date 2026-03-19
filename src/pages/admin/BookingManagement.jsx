@@ -39,7 +39,8 @@ export default function BookingManagement() {
         b.userId?.name?.toLowerCase().includes(q) ||
         b.participants?.some(p => p.name?.toLowerCase().includes(q)) ||
         b.classId?.title?.toLowerCase().includes(q) ||
-        b._id.toLowerCase().includes(q)
+        b._id.toLowerCase().includes(q) ||
+        (b.bookingNumber || '').toLowerCase().includes(q)
       );
     }
 
@@ -112,13 +113,18 @@ export default function BookingManagement() {
           <div className="grid gap-4 md:grid-cols-4">
             <div className="md:col-span-1">
               <label className="block text-[10px] font-black text-ink/30 uppercase tracking-[0.2em] mb-2 px-2">Search</label>
-              <input 
-                type="text"
-                placeholder="Name, Class, or ID..."
-                className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all placeholder:text-ink/20"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink/25" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input 
+                  type="text"
+                  placeholder="Booking No., Name, Class, or ID…"
+                  className="w-full bg-slate-50 border-none rounded-2xl py-3 pl-8 pr-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all placeholder:text-ink/20"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </div>
             </div>
             <div>
               <label className="block text-[10px] font-black text-ink/30 uppercase tracking-[0.2em] mb-2 px-2">Status</label>
@@ -176,11 +182,17 @@ export default function BookingManagement() {
             <div key={booking._id} className="group relative overflow-hidden rounded-3xl bg-white p-6 shadow-sm border border-slate-100 transition-all hover:shadow-xl hover:translate-y-[-2px]">
               <div className="flex flex-wrap items-center justify-between gap-6 relative z-10">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <h3 className="font-display text-xl font-bold text-ink leading-tight">
                       {booking.participants?.map(p => `${p.name} (${p.relation || 'N/A'})`).join(', ') || 'No Name'}
                     </h3>
-                    <span className="text-[10px] font-black text-ink/20 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">#{booking._id.slice(-6)}</span>
+                    {booking.bookingNumber ? (
+                      <span className="text-[10px] font-black text-brand-blue bg-brand-blue/8 border border-brand-blue/20 px-2.5 py-0.5 rounded-full tracking-widest">
+                        #{booking.bookingNumber}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-black text-ink/20 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">#{booking._id.slice(-6)}</span>
+                    )}
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
                     <p className="text-xs font-bold text-brand-blue">{booking.classId?.title}</p>

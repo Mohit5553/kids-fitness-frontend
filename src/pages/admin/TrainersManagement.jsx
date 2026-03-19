@@ -43,7 +43,12 @@ export default function TrainersManagement() {
     setUploading(true);
 
     try {
-      const { data } = await api.post('/upload', formData);
+      const config = {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      };
+      const { data } = await api.post('/upload', formData, config);
       if (isGallery) {
         setForm((prev) => ({ ...prev, gallery: [...(prev.gallery || []), data.image] }));
       } else {
