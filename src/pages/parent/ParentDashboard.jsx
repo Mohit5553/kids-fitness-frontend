@@ -85,27 +85,34 @@ export default function ParentDashboard() {
               No attendance recorded yet.
             </div>
           </div>
-          <div className="soft-card rounded-3xl p-6">
+          <Link to="/dashboard/payments" className="soft-card rounded-3xl p-6 transition hover:-translate-y-1 group block">
             <h3 className="font-display text-lg">Payment history</h3>
             <p className="mt-2 text-sm text-ink/70">View receipts and membership renewals.</p>
-            <div className="mt-4 rounded-2xl bg-slate-50/70 p-4 text-sm text-ink/70 border border-slate-100 italic">
-              No payments recorded yet.
+            <div className="mt-4 flex items-center text-xs font-black uppercase tracking-widest text-brand-blue">
+              <span>View all payments</span>
+              <svg className="h-3 w-3 ml-1 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M9 5l7 7-7 7" />
+              </svg>
             </div>
-          </div>
+          </Link>
           <div className="soft-card rounded-3xl p-6">
             <h3 className="font-display text-lg">Quick links</h3>
             <div className="mt-4 space-y-3 text-sm font-bold uppercase tracking-wider">
               <Link className="flex items-center gap-2 text-brand-blue hover:underline" to="/dashboard/children">
                 <span>Manage children</span>
-                <span className="text-[10px]">?</span>
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
               </Link>
               <Link className="flex items-center gap-2 text-brand-blue hover:underline" to="/calendar">
                 <span>Book classes</span>
-                <span className="text-[10px]">?</span>
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
               </Link>
               <Link className="flex items-center gap-2 text-brand-blue hover:underline" to="/dashboard/bookings">
                 <span>Pay bookings</span>
-                <span className="text-[10px]">?</span>
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
+              </Link>
+              <Link className="flex items-center gap-2 text-brand-blue hover:underline" to="/dashboard/payments">
+                <span>Payment history</span>
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
               </Link>
             </div>
           </div>
