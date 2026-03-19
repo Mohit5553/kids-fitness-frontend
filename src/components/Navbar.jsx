@@ -72,9 +72,9 @@ export default function Navbar() {
       <header className="site-header sticky top-0 z-50 bg-white/90 backdrop-blur-md shadow-sm">
         <div className="page-shell flex items-center justify-between py-3 relative z-20">
           <NavLink to="/" onClick={closeMenu} className="flex items-center gap-3 group">
-            <span className="brand-mark group-hover:scale-110 transition-transform">LS</span>
-            <span className="font-display text-2xl font-black tracking-tight text-brand-blue hidden sm:block">Little Sparks Gym</span>
-            <span className="font-display text-xl font-black tracking-tight text-brand-blue sm:hidden">Little Sparks</span>
+            <span className="brand-mark group-hover:scale-110 transition-transform">JTS</span>
+            <span className="font-display text-2xl font-black tracking-tight text-brand-blue hidden sm:block">JTS Booking</span>
+            <span className="font-display text-xl font-black tracking-tight text-brand-blue sm:hidden">JTS Booking</span>
           </NavLink>
 
           {/* Desktop Nav */}

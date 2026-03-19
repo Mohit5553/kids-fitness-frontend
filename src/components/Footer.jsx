@@ -3,7 +3,7 @@ export default function Footer() {
     <footer className="mt-12 border-t border-white/70 bg-white/80">
       <div className="page-shell grid gap-6 py-10 md:grid-cols-3">
         <div>
-          <h3 className="font-display text-lg">Little Sparks Gym</h3>
+          <h3 className="font-display text-lg">JTS Booking</h3>
           <p className="mt-2 text-sm text-ink/70">
             Building confidence and coordination through joyful movement.
           </p>
@@ -23,7 +23,7 @@ export default function Footer() {
       </div>
       <div className="border-t border-ink/5">
         <div className="page-shell flex flex-wrap items-center justify-between gap-3 py-4 text-xs text-ink/60">
-          <span>© 2026 Little Sparks Gym. All rights reserved.</span>
+          <span>© 2026 JTS Booking. All rights reserved.</span>
           <span>Instagram · WhatsApp · FAQ</span>
         </div>
       </div>

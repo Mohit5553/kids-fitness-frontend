@@ -12,6 +12,7 @@ import BookingFlow from './pages/BookingFlow.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Calendar from './pages/Calendar.jsx';
+import MemberHealthDeclaration from './pages/MemberHealthDeclaration.jsx';
 import { RequireAuth, RequireAdmin } from './components/ProtectedRoutes.jsx';
 
 import ParentDashboard from './pages/parent/ParentDashboard.jsx';
@@ -53,6 +54,7 @@ export default function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/calendar" element={<Calendar />} />
       <Route path="/book" element={<BookingFlow />} />
+      <Route path="/health-declaration" element={<MemberHealthDeclaration />} />
 
       <Route element={<RequireAuth />}>
         <Route path="/dashboard" element={<ParentDashboard />} />

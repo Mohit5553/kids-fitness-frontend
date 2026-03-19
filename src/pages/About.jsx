@@ -1,7 +1,7 @@
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
-import aboutImage from '../assets/about-movement.svg';
+import sliderJumping from '../assets/slider-jumping.png';
 
 export default function About() {
   return (
@@ -28,8 +28,8 @@ export default function About() {
               progress note in the parent dashboard.
             </p>
           </div>
-          <div className="soft-card rounded-3xl p-6 md:col-span-2">
-            <img src={aboutImage} alt="Movement class" className="w-full rounded-3xl" />
+          <div className="soft-card rounded-3xl p-6 md:col-span-2 overflow-hidden flex items-center justify-center">
+            <img src={sliderJumping} alt="Kids jumping on trampoline" className="w-full h-auto rounded-3xl shadow-xl hover:scale-[1.02] transition-transform duration-700" />
           </div>
         </div>
       </main>
