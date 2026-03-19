@@ -6,7 +6,6 @@ import { Link } from 'react-router-dom';
 import 'swiper/css/bundle';
 
 import sliderMain from '../assets/slider-main.png';
-import sliderJumping from '../assets/slider-jumping.png';
 import sliderBirthday from '../assets/slider-birthday.png';
 
 const slides = [
@@ -17,14 +16,6 @@ const slides = [
         description: "From Ninja Warrior and Martial Arts to Gymnastics and Fitness, we provide a joyful space for children to grow, learn, and build confidence.",
         ctaText: "Explore Classes",
         ctaLink: "/programs"
-    },
-    {
-        image: sliderJumping,
-        kicker: "Fitness & Fun",
-        title: "Active Play For Healthy Growth",
-        description: "Our high-energy programs keep kids moving while developing coordination, strength, and life-long healthy habits.",
-        ctaText: "Book A Trial",
-        ctaLink: "/book-trial"
     },
     {
         image: sliderBirthday,
