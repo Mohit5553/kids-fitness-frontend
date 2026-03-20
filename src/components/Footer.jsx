@@ -10,9 +10,9 @@ export default function Footer() {
         </div>
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-[0.25em] text-ink/60">Studio</h4>
-          <p className="mt-3 text-sm text-ink/70">Dubai Marina, UAE</p>
-          <p className="text-sm text-ink/70">hello@littlesparks.ae</p>
-          <p className="mt-2 text-sm text-ink/70">+971 4 385 5100</p>
+          <p className="mt-3 text-sm text-ink/70">SRTIP Free Zone,Block B - B20-017, Sharjah, UAE</p>
+          <p className="text-sm text-ink/70">info@jtsmiddleeast.com</p>
+          <p className="mt-2 text-sm text-ink/70">+971 522542550</p>
         </div>
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-[0.25em] text-ink/60">Hours</h4>
