@@ -11,6 +11,7 @@ const REPORT_TYPES = [
   { id: 'bookings', label: 'Bookings Report' },
   { id: 'trials', label: 'Trial Requests Report' },
   { id: 'payments', label: 'Payments Report' },
+  { id: 'users', label: 'Users Report' },
 ];
 
 export default function Reports() {
@@ -159,6 +160,13 @@ export default function Reports() {
       { key: 'status', label: 'Status' },
       { key: 'reference', label: 'Reference' },
       { key: 'createdAt', label: 'Date' },
+    ],
+    users: [
+      { key: 'name', label: 'Name' },
+      { key: 'email', label: 'Email' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'status', label: 'Status' },
+      { key: 'createdAt', label: 'Joined' },
     ]
   };
 

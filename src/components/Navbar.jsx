@@ -114,16 +114,9 @@ export default function Navbar() {
                   >
                     {initials}
                   </span>
-                  {/* Name */}
+                  {/* Name / Admin label */}
                   <span className="text-sm font-bold text-brand-black max-w-[120px] truncate">
-                    {user.name}
-                  </span>
-                  {/* Role badge */}
-                  <span
-                    className="text-xs font-black px-2 py-0.5 rounded-full"
-                    style={{ background: roleColor.bg + '22', color: roleColor.bg }}
-                  >
-                    {roleLabel}
+                    {(user.role === 'admin' || user.role === 'superadmin') ? 'Admin' : user.name}
                   </span>
                   {/* Chevron */}
                   <svg
@@ -147,20 +140,12 @@ export default function Navbar() {
                           {initials}
                         </span>
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-brand-black truncate">{user.name}</p>
+                          <p className="text-sm font-bold text-brand-black truncate">
+                            {(user.role === 'admin' || user.role === 'superadmin') ? 'Admin' : user.name}
+                          </p>
                           <p className="text-xs text-brand-black/50 truncate">{user.email}</p>
                         </div>
                       </div>
-                      <span
-                        className="mt-2 inline-flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full"
-                        style={{ background: roleColor.bg + '18', color: roleColor.bg }}
-                      >
-                        <span
-                          className="w-1.5 h-1.5 rounded-full"
-                          style={{ background: roleColor.bg }}
-                        />
-                        {roleLabel}
-                      </span>
                     </div>
 
                     {/* Menu items */}
@@ -256,15 +241,10 @@ export default function Navbar() {
                 {initials}
               </span>
               <div className="min-w-0">
-                <p className="font-bold text-brand-black truncate">{user.name}</p>
+                <p className="font-bold text-brand-black truncate">
+                  {(user.role === 'admin' || user.role === 'superadmin') ? 'Admin' : user.name}
+                </p>
                 <p className="text-xs text-brand-black/50 truncate">{user.email}</p>
-                <span
-                  className="mt-1 inline-flex items-center gap-1 text-xs font-black px-2.5 py-0.5 rounded-full"
-                  style={{ background: roleColor.bg + '22', color: roleColor.bg }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: roleColor.bg }} />
-                  {roleLabel}
-                </span>
               </div>
             </div>
           )}

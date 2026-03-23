@@ -9,6 +9,11 @@ export default function BookingManagement() {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Rejection Modal State
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectionId, setRejectionId] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -71,19 +76,34 @@ export default function BookingManagement() {
   };
   
   const resolveRefund = async (id, status) => {
-    let reason = '';
     if (status === 'declined') {
-      reason = window.prompt('Please enter a reason for rejecting the refund:');
-      if (!reason) return;
-    } else {
-      if (!window.confirm('Are you sure you want to approve this refund?')) return;
+      setRejectionId(id);
+      setRejectionReason('');
+      setShowRejectModal(true);
+      return;
     }
 
+    if (!window.confirm('Are you sure you want to approve this refund?')) return;
+
     try {
-      await api.put(`/bookings/${id}/refund-resolve`, { status, reason });
+      await api.put(`/bookings/${id}/refund-resolve`, { status });
       load();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to resolve refund');
+    }
+  };
+
+  const submitRejection = async () => {
+    if (!rejectionReason.trim()) return alert('Please enter a reason');
+    try {
+      await api.put(`/bookings/${rejectionId}/refund-resolve`, { 
+        status: 'declined', 
+        reason: rejectionReason 
+      });
+      setShowRejectModal(false);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to reject refund');
     }
   };
 
@@ -298,6 +318,39 @@ export default function BookingManagement() {
         </div>
       </main>
       <Footer />
+
+      {/* Rejection Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[32px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <h2 className="font-display text-2xl font-black text-ink mb-2">Reject Refund</h2>
+            <p className="text-sm text-ink/40 font-medium mb-6">Please provide a reason for declining this refund request.</p>
+            
+            <textarea
+              className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold text-ink focus:border-brand-blue/20 focus:ring-4 focus:ring-brand-blue/5 outline-none transition-all min-h-[120px] resize-none"
+              placeholder="e.g. Booking date has already passed..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              autoFocus
+            />
+            
+            <div className="flex items-center gap-3 mt-8">
+              <button 
+                onClick={submitRejection}
+                className="flex-1 bg-coral text-white py-4 rounded-2xl font-black shadow-lg shadow-coral/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                Confirm Rejection
+              </button>
+              <button 
+                onClick={() => setShowRejectModal(false)}
+                className="flex-1 bg-slate-50 text-ink/40 py-4 rounded-2xl font-black hover:bg-slate-100 transition-all text-sm uppercase tracking-widest"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
