@@ -23,7 +23,12 @@ export default function SessionsManagement() {
 
   const load = () => {
     setLoading(true);
-    const p1 = api.get('/sessions').then((res) => setSessions(res.data || []));
+    const p1 = api.get('/sessions').then((res) => {
+      const data = res.data || [];
+      // Sort latest date first
+      const sorted = data.sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+      setSessions(sorted);
+    });
     const p2 = api.get('/classes').then((res) => setClasses(res.data || []));
     const p3 = api.get('/trainers').then((res) => setTrainers(res.data || []));
     Promise.all([p1, p2, p3]).finally(() => setLoading(false));

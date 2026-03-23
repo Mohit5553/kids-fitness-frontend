@@ -12,9 +12,11 @@ const adminActions = [
   { to: '/admin/bookings', title: 'Bookings', desc: 'Approve or cancel class requests.' },
   { to: '/admin/users', title: 'Users', desc: 'Update roles and manage accounts.' },
   { to: '/admin/trials', title: 'Trial requests', desc: 'Follow up with new leads.' },
+  { to: '/admin/attendance', title: 'Attendance', desc: 'Track and verify member attendance.' },
   { to: '/admin/payments', title: 'Payments', desc: 'Monitor transactions and exports.' },
   { to: '/admin/locations', title: 'Locations', desc: 'Add or remove gym branches.' },
-  { to: '/admin/specialties', title: 'Specialty Master', desc: 'Manage trainer expertise areas.' }
+  { to: '/admin/specialties', title: 'Specialty Master', desc: 'Manage trainer expertise areas.' },
+  { to: '/admin/reports', title: 'Reports', desc: 'View detailed activity & export Excel.' }
 ];
 
 export default function AdminDashboard() {
@@ -73,7 +75,7 @@ export default function AdminDashboard() {
             <Link key={action.to} to={action.to} className="soft-card rounded-3xl p-6 transition hover:-translate-y-1">
               <h3 className="font-display text-lg">{action.title}</h3>
               <p className="mt-2 text-sm text-ink/70">{action.desc}</p>
-              <span className="mt-4 inline-flex text-sm font-semibold text-coral">Open ?</span>
+              <span className="mt-4 inline-flex text-sm font-semibold text-coral">Open </span>
             </Link>
           ))}
         </section>
