@@ -74,6 +74,20 @@ export default function BookingManagement() {
     await api.delete(`/bookings/${id}`);
     load();
   };
+
+  const confirmCenterPayment = async (bookingId) => {
+    if (!window.confirm('Confirm that payment has been received at the center?')) return;
+    try {
+      await api.post('/payments/booking', { 
+        bookingId, 
+        paymentMethod: 'cash', 
+        reference: `center_${Date.now()}` 
+      });
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to confirm payment');
+    }
+  };
   
   const resolveRefund = async (id, status) => {
     if (status === 'declined') {
@@ -239,6 +253,14 @@ export default function BookingManagement() {
 
                 <div className="flex items-center gap-4">
                   <div className="text-right flex flex-col items-end gap-2">
+                    {booking.paymentMethod === 'center' && booking.paymentStatus === 'pending' && booking.status !== 'cancelled' && (
+                      <button
+                        onClick={() => confirmCenterPayment(booking._id)}
+                        className="mb-2 bg-brand-blue text-white text-[10px] font-black px-4 py-2 rounded-xl shadow-lg shadow-brand-blue/20 hover:scale-[1.05] transition-all flex items-center gap-2"
+                      >
+                        <span className="text-sm">💵</span> Confirm Center Payment
+                      </button>
+                    )}
                     {booking.refundStatus === 'requested' && (
                       <div className="flex flex-col items-end gap-2">
                         <span className="text-[10px] font-black text-white uppercase tracking-widest bg-coral px-3 py-1 rounded-full shadow-lg shadow-coral/20 animate-pulse">

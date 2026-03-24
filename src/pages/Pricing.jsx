@@ -55,7 +55,19 @@ export default function Pricing() {
   };
 
   const handleCardChange = (event) => {
-    setCardForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+    let { name, value } = event.target;
+    if (name === 'number') {
+      value = value.replace(/\D/g, '').slice(0, 16);
+      value = value.match(/.{1,4}/g)?.join(' ') || value;
+    }
+    if (name === 'expiry') {
+      value = value.replace(/\D/g, '').slice(0, 4);
+      if (value.length >= 2) value = value.slice(0, 2) + '/' + value.slice(2);
+    }
+    if (name === 'cvc') {
+      value = value.replace(/\D/g, '').slice(0, 4);
+    }
+    setCardForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleCheckout = async (event) => {
@@ -199,8 +211,8 @@ export default function Pricing() {
                     </div>
                   ) : null}
                   <div className="mt-5">
-                    <button 
-                      onClick={() => openCheckout(item)} 
+                    <button
+                      onClick={() => openCheckout(item)}
                       className="w-full rounded-2xl bg-brand-blue py-3.5 text-sm font-bold text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
                     >
                       Buy Now
@@ -235,8 +247,8 @@ export default function Pricing() {
                     <p className="text-sm text-ink/70">{term.name}</p>
                     <p className="mt-2 text-2xl font-semibold text-ocean">{term.price.toLocaleString()} AED</p>
                   </div>
-                  <button 
-                    onClick={() => openCheckout(term)} 
+                  <button
+                    onClick={() => openCheckout(term)}
                     className="mt-5 w-full rounded-xl bg-orange-100 py-3 text-sm font-bold text-orange-600 transition-transform hover:bg-orange-200 active:scale-95"
                   >
                     Buy Now
@@ -252,29 +264,30 @@ export default function Pricing() {
       {showCheckout && selectedPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pb-20 sm:pb-6">
           <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" onClick={closeCheckout} />
-          <div className="relative w-full max-w-md animate-scale-up rounded-[32px] bg-white p-6 shadow-2xl sm:p-8">
-            <button
-              onClick={closeCheckout}
-              className="absolute right-6 top-6 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-ink/60 transition-colors hover:bg-slate-200 hover:text-ink"
-            >
-              ×
-            </button>
-            <h3 className="font-display text-2xl text-ink">Complete Purchase</h3>
-            <p className="mt-2 text-sm text-ink/60">
-              You are selecting the <strong>{selectedPlan.name}</strong> package for {selectedPlan.price.toLocaleString()} AED.
-            </p>
-
-            {error && (
-              <div className="mt-6 rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-600 border border-red-100">
-                {error}
-              </div>
-            )}
+          <div className="relative w-full max-w-md animate-scale-up rounded-[32px] bg-white overflow-hidden shadow-2xl">
+            <div className="bg-brand-blue p-8 text-white relative overflow-hidden">
+               <div className="relative z-10">
+                 <h3 className="font-display text-3xl font-black text-white">Complete Purchase</h3>
+                 <p className="mt-2 text-sm text-white/80 font-medium italic">
+                   You are selecting the <strong>{selectedPlan.name}</strong> package for {selectedPlan.price.toLocaleString()} AED.
+                 </p>
+               </div>
+               {/* Decorative circle */}
+               <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+            </div>
             
-            {message && (
-              <div className="mt-6 rounded-2xl bg-green-50 p-4 text-sm font-medium text-green-700 border border-green-100">
-                {message}
-              </div>
-            )}
+            <div className="p-8">
+              {error && (
+                <div className="mb-6 rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-600 border border-red-100 flex items-center gap-2">
+                  <span>⚠️</span> {error}
+                </div>
+              )}
+              
+              {message && (
+                <div className="mb-6 rounded-2xl bg-green-50 p-4 text-sm font-medium text-green-700 border border-green-100 flex items-center gap-2">
+                  <span>✅</span> {message}
+                </div>
+              )}
 
             <form onSubmit={handleCheckout} className="mt-6 space-y-4">
               <div>
@@ -343,6 +356,7 @@ export default function Pricing() {
             </form>
           </div>
         </div>
+      </div>
       )}
 
       <Footer />

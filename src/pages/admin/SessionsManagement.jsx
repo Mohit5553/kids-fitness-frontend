@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import toast from 'react-hot-toast';
 
 const emptyForm = {
   classId: '',
@@ -93,17 +94,23 @@ export default function SessionsManagement() {
       } else {
         await api.post('/sessions', payload);
       }
+      toast.success(editingId ? 'Session updated successfully!' : 'Session created successfully!');
       handleCancel();
       load();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to save session');
+      toast.error(err.response?.data?.message || 'Failed to save session');
     }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this session? Existing bookings may be affected.')) return;
-    await api.delete(`/sessions/${id}`);
-    load();
+    try {
+      await api.delete(`/sessions/${id}`);
+      toast.success('Session deleted');
+      load();
+    } catch (err) {
+      toast.error('Failed to delete session');
+    }
   };
 
   return (
@@ -118,7 +125,7 @@ export default function SessionsManagement() {
           <div className="flex gap-2">
              <div className="px-4 py-2 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                <span className="text-xs font-black uppercase tracking-widest text-ink/60">{sessions.length} Active Slots</span>
+                <span className="text-xs font-black uppercase tracking-widest text-ink/60">{sessions.filter(s => new Date(s.startTime) >= new Date()).length} Active Slots</span>
              </div>
           </div>
         </div>
@@ -227,7 +234,7 @@ export default function SessionsManagement() {
         </div>
 
         <div className="grid gap-4">
-          {sessions.length > 0 ? sessions.map((session) => (
+          {sessions.filter(s => new Date(s.startTime) >= new Date()).length > 0 ? sessions.filter(s => new Date(s.startTime) >= new Date()).map((session) => (
             <div key={session._id} className="soft-card rounded-[32px] p-6 hover:shadow-xl transition-all group flex flex-col md:flex-row items-center justify-between gap-6 border border-slate-100/50">
               <div className="flex items-center gap-6 flex-1">
                 <div className="w-16 h-16 rounded-[24px] bg-brand-blue/5 flex flex-col items-center justify-center text-brand-blue">
@@ -237,28 +244,43 @@ export default function SessionsManagement() {
                 <div>
                    <h3 className="font-display text-xl text-ink">{session.classId?.title}</h3>
                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                      <p className="text-xs font-bold text-ink/60 flex items-center gap-1.5">
+                      <p className="text-xs font-bold text-ink/60 flex items-center gap-1.5 leading-none">
                          <span className="w-1.5 h-1.5 rounded-full bg-ocean"></span>
                          {new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                         {session.endTime && (
+                            <span className="text-ink/30 ml-1">
+                              - {new Date(session.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                         )}
                       </p>
                       <p className="text-xs font-bold text-ink/40">Trainer: <span className="text-brand-blue">{session.trainerId?.name || 'TBA'}</span></p>
-                      <p className="text-xs font-bold text-ink/40">Occupancy: <span className={session.bookedParticipants >= session.capacity ? 'text-coral' : 'text-green-500'}>{session.bookedParticipants || 0} / {session.capacity}</span></p>
+                    <p className="text-xs font-bold text-ink/40">Occupancy: <span className={session.bookedParticipants >= session.capacity ? 'text-coral' : 'text-green-500'}>{session.bookedParticipants || 0} / {session.capacity}</span></p>
+                   </div>
+                   <div className="mt-2">
+                     {new Date(session.startTime) < new Date() ? (
+                       <span className="text-[10px] font-black text-ink/40 bg-slate-100 px-3 py-1 rounded-full uppercase tracking-widest border border-slate-200">
+                         Closed (Date Expired)
+                       </span>
+                     ) : (
+                       <span className="text-[10px] font-black text-moss bg-moss/10 px-3 py-1 rounded-full uppercase tracking-widest border border-moss/20">
+                         Open
+                       </span>
+                     )}
                    </div>
                 </div>
               </div>
               
               <div className="flex items-center gap-3">
                 <button
-                  className="rounded-full bg-slate-50 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-ink/60 hover:bg-slate-100 transition-all"
-                  onClick={() => handleEdit(session)}
+                  className={`rounded-full px-6 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+                    new Date(session.startTime) < new Date() 
+                      ? 'bg-slate-50 text-ink/20 cursor-not-allowed opacity-50' 
+                      : 'bg-brand-blue text-white hover:bg-brand-blue/90 shadow-md shadow-brand-blue/10'
+                  }`}
+                  onClick={() => new Date(session.startTime) >= new Date() && handleEdit(session)}
+                  disabled={new Date(session.startTime) < new Date()}
                 >
                   Edit
-                </button>
-                <button
-                  className="rounded-full bg-red-50 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-300 hover:bg-red-400 hover:text-white transition-all"
-                  onClick={() => handleDelete(session._id)}
-                >
-                  Delete
                 </button>
               </div>
             </div>

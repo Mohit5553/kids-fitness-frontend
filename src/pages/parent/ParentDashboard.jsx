@@ -51,14 +51,23 @@ export default function ParentDashboard() {
         </section>
 
         <section className="mt-6 grid gap-4 md:grid-cols-3">
-          {quickStats.map((stat) => (
-            <div key={stat.label} className="soft-card rounded-2xl p-6 transition-all hover:shadow-md">
-              <p className="text-xs font-bold text-ink/40 uppercase tracking-widest">{stat.label}</p>
-              <p className={`mt-3 text-3xl font-black text-ink ${loading ? 'animate-pulse' : ''}`}>
+          {quickStats.map((stat, idx) => (
+            <Link 
+              key={stat.label} 
+              to={idx === 0 ? '/dashboard/children' : idx === 1 ? '/dashboard/bookings' : '/dashboard/membership'}
+              className="soft-card rounded-2xl p-6 transition-all hover:shadow-xl hover:-translate-y-1 group block border-2 border-transparent hover:border-brand-blue/10"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-black text-ink/30 uppercase tracking-[0.2em]">{stat.label}</p>
+                <div className="w-6 h-6 rounded-full bg-brand-blue/5 flex items-center justify-center text-[10px] text-brand-blue opacity-0 group-hover:opacity-100 transition-opacity">
+                  →
+                </div>
+              </div>
+              <p className={`text-4xl font-black text-ink leading-none ${loading ? 'animate-pulse' : ''}`}>
                 {loading ? '—' : stat.value}
               </p>
-              <div className="mt-4 h-1 w-10 rounded-full bg-brand-blue/70" />
-            </div>
+              <div className="mt-5 h-1.5 w-12 rounded-full bg-brand-blue/20 group-hover:w-20 group-hover:bg-brand-blue transition-all duration-300" />
+            </Link>
           ))}
         </section>
 
