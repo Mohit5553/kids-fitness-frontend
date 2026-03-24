@@ -44,7 +44,19 @@ export default function Membership() {
   };
 
   const handleCardChange = (event) => {
-    setCardForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+    let { name, value } = event.target;
+    if (name === 'number') {
+      value = value.replace(/\D/g, '').slice(0, 16);
+      value = value.match(/.{1,4}/g)?.join(' ') || value;
+    }
+    if (name === 'expiry') {
+      value = value.replace(/\D/g, '').slice(0, 4);
+      if (value.length >= 2) value = value.slice(0, 2) + '/' + value.slice(2);
+    }
+    if (name === 'cvc') {
+      value = value.replace(/\D/g, '').slice(0, 4);
+    }
+    setCardForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleCheckout = async (event) => {
@@ -161,55 +173,70 @@ export default function Membership() {
       </main>
       {showCheckout ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-glow">
-            <h3 className="font-display text-2xl">Secure checkout</h3>
-            <p className="mt-1 text-sm text-ink/70">
-              Test mode only. No real charge will be made.
-            </p>
+          <div className="relative w-full max-w-md animate-scale-up rounded-[32px] bg-white overflow-hidden shadow-2xl">
+            <div className="bg-brand-blue p-8 text-white relative overflow-hidden">
+               <div className="relative z-10">
+                 <h3 className="font-display text-3xl font-black text-white">Secure checkout</h3>
+                 <p className="mt-1 text-sm text-white/80 font-medium italic">
+                   Test mode only. No real charge will be made.
+                 </p>
+               </div>
+               {/* Decorative circle */}
+               <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+            </div>
+            
+            <div className="p-8">
             <form className="mt-4 grid gap-3" onSubmit={handleCheckout}>
               <input
-                className="rounded-xl border border-orange-200/70 p-3"
+                className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 focus:bg-white outline-none transition-all placeholder:text-ink/20"
                 name="name"
                 placeholder="Name on card"
                 value={cardForm.name}
                 onChange={handleCardChange}
               />
               <input
-                className="rounded-xl border border-orange-200/70 p-3"
+                className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 focus:bg-white outline-none transition-all placeholder:text-ink/20"
                 name="number"
-                placeholder="Card number"
+                placeholder="0000 0000 0000 0000"
                 value={cardForm.number}
                 onChange={handleCardChange}
               />
               <div className="grid gap-3 md:grid-cols-2">
                 <input
-                  className="rounded-xl border border-orange-200/70 p-3"
+                  className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 focus:bg-white outline-none transition-all placeholder:text-ink/20"
                   name="expiry"
                   placeholder="MM/YY"
                   value={cardForm.expiry}
                   onChange={handleCardChange}
                 />
                 <input
-                  className="rounded-xl border border-orange-200/70 p-3"
+                  className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 focus:bg-white outline-none transition-all placeholder:text-ink/20"
+                  type="password"
                   name="cvc"
                   placeholder="CVC"
                   value={cardForm.cvc}
                   onChange={handleCardChange}
                 />
               </div>
-              <button className="rounded-full bg-coral px-5 py-3 text-sm font-semibold text-white" type="submit">
-                Pay AED {selectedPlan?.price}
-              </button>
-              <button
-                type="button"
-                className="rounded-full border border-ink/10 px-5 py-3 text-sm font-semibold text-ink"
-                onClick={closeCheckout}
-              >
-                Cancel
-              </button>
+              <div className="mt-6 flex flex-col gap-3">
+                <button
+                  className="w-full rounded-2xl bg-brand-blue py-5 text-sm font-black text-white shadow-xl shadow-brand-blue/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  type="submit"
+                >
+                  Pay AED {selectedPlan?.price}
+                </button>
+                <button
+                  type="button"
+                  className="w-full rounded-2xl border-2 border-slate-100 py-4 text-[10px] font-black uppercase tracking-widest text-ink/30 transition-all hover:bg-slate-50 hover:text-ink/50"
+                  onClick={closeCheckout}
+                >
+                  Cancel Purchase
+                </button>
+              </div>
             </form>
           </div>
         </div>
+      </div>
       ) : null}
       <Footer />
     </div>

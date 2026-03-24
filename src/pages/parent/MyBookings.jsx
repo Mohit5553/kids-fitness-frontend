@@ -22,7 +22,7 @@ export default function MyBookings() {
       setBookings(data);
       setFilteredBookings(data);
       setLoading(false);
-    }).catch((err) => { 
+    }).catch((err) => {
       setError(err?.response?.data?.message || 'Failed to load bookings. Please check your connection.');
       setLoading(false);
     });
@@ -37,7 +37,7 @@ export default function MyBookings() {
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(b => 
+      result = result.filter(b =>
         b.classId?.title?.toLowerCase().includes(q) ||
         b.participants?.some(p => p.name?.toLowerCase().includes(q)) ||
         b.bookingNumber?.toLowerCase().includes(q) ||
@@ -69,7 +69,19 @@ export default function MyBookings() {
   };
 
   const handleCardChange = (event) => {
-    setCardForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+    let { name, value } = event.target;
+    if (name === 'number') {
+      value = value.replace(/\D/g, '').slice(0, 16);
+      value = value.match(/.{1,4}/g)?.join(' ') || value;
+    }
+    if (name === 'expiry') {
+      value = value.replace(/\D/g, '').slice(0, 4);
+      if (value.length >= 2) value = value.slice(0, 2) + '/' + value.slice(2);
+    }
+    if (name === 'cvc') {
+      value = value.replace(/\D/g, '').slice(0, 4);
+    }
+    setCardForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handlePay = async (event) => {
@@ -115,9 +127,12 @@ export default function MyBookings() {
     const isPaid = booking.paymentStatus === 'completed' || booking.status === 'confirmed';
     if (!isPaid) return false;
 
+    // Center payments must be completed before they can be refunded
+    if (booking.paymentMethod === 'center' && booking.paymentStatus !== 'completed') return false;
+
     const now = new Date();
     const sessionDate = new Date(booking.date);
-    
+
     // Allow refund if paid AND session is in the future
     return booking.paymentStatus === 'completed' && now < sessionDate;
   };
@@ -133,15 +148,15 @@ export default function MyBookings() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Search bookings..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full md:w-64 rounded-xl border border-ink/10 bg-white px-4 py-2.5 text-sm outline-none focus:border-coral"
               />
             </div>
-            <select 
+            <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="rounded-xl border border-ink/10 bg-white px-4 py-2.5 text-sm outline-none focus:border-coral"
@@ -151,7 +166,7 @@ export default function MyBookings() {
               <option value="confirmed">Confirmed</option>
               <option value="cancelled">Cancelled</option>
             </select>
-            <input 
+            <input
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
@@ -197,23 +212,21 @@ export default function MyBookings() {
                       <p className="text-[10px] text-ink/40">ID: {booking._id}</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-col items-end gap-3">
-                    <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                      booking.status === 'confirmed' ? 'bg-moss/10 text-moss' : 
-                      booking.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
-                      'bg-red-100 text-red-600'
-                    }`}>
-                      {booking.status}
+                    <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${booking.status === 'confirmed' ? 'bg-moss/10 text-moss' :
+                        booking.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                          'bg-red-100 text-red-600'
+                      }`}>
+                      {booking.paymentMethod === 'center' && booking.status === 'pending' ? 'Pay at Center' : booking.status}
                     </span>
 
                     {booking.refundStatus && booking.refundStatus !== 'none' && (
                       <div className="flex flex-col items-end gap-1">
-                        <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                          booking.refundStatus === 'requested' ? 'bg-sky-100 text-sky-700' : 
-                          booking.refundStatus === 'refunded' ? 'bg-moss/20 text-moss' : 
-                          'bg-red-50 text-red-400'
-                        }`}>
+                        <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${booking.refundStatus === 'requested' ? 'bg-sky-100 text-sky-700' :
+                            booking.refundStatus === 'refunded' ? 'bg-moss/20 text-moss' :
+                              'bg-red-50 text-red-400'
+                          }`}>
                           Refund: {booking.refundStatus}
                         </span>
                         {booking.refundStatus === 'declined' && booking.refundRejectionReason && (
@@ -223,14 +236,16 @@ export default function MyBookings() {
                         )}
                       </div>
                     )}
-                    
-                    {booking.status !== 'confirmed' && booking.status !== 'cancelled' && booking.paymentStatus !== 'completed' ? (
+
+                    {booking.status !== 'confirmed' && booking.status !== 'cancelled' && booking.paymentStatus !== 'completed' && booking.paymentMethod !== 'center' ? (
                       <button
                         className="rounded-full bg-coral px-5 py-2 text-xs font-bold text-white shadow-lg shadow-coral/20 transition hover:scale-105 active:scale-95"
                         onClick={() => openPayment(booking)}
                       >
                         Pay now
                       </button>
+                    ) : booking.paymentMethod === 'center' && booking.paymentStatus === 'pending' ? (
+                       <p className="text-[10px] font-bold text-ink/30 italic">Please pay at the center front desk</p>
                     ) : isRefundable(booking) ? (
                       <button
                         className="rounded-full border border-red-200 bg-red-50 px-5 py-2 text-xs font-bold text-red-600 transition hover:bg-red-100 hover:scale-105 active:scale-95"
@@ -247,7 +262,7 @@ export default function MyBookings() {
             <div className="flex flex-col items-center justify-center py-20 rounded-3xl bg-white/50 border border-dashed border-ink/10">
               <p className="text-sm text-ink/50">No bookings found matching your criteria.</p>
               {(searchQuery || statusFilter !== 'all' || dateFilter) && (
-                <button 
+                <button
                   onClick={() => { setSearchQuery(''); setStatusFilter('all'); setDateFilter(''); }}
                   className="mt-4 text-xs font-semibold text-coral underline"
                 >
@@ -258,20 +273,24 @@ export default function MyBookings() {
           )}
         </div>
       </main>
-      
+
       {selectedBooking ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
           <div className="w-full max-w-md overflow-hidden rounded-[2rem] bg-white shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="bg-coral p-6 text-white">
-              <h3 className="font-display text-2xl">Complete Payment</h3>
-              <p className="mt-1 text-sm text-white/80">Pay for {selectedBooking.classId?.title}</p>
+            <div className="bg-brand-blue p-8 text-white relative overflow-hidden">
+               <div className="relative z-10">
+                 <h3 className="font-display text-3xl font-black">Complete Payment</h3>
+                 <p className="mt-1 text-sm text-white/80 font-medium italic">Pay for {selectedBooking.classId?.title} • AED {selectedBooking.totalAmount || selectedBooking.classId?.price || 0}</p>
+               </div>
+               {/* Decorative circle */}
+               <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
             </div>
-            
+
             <div className="p-6">
               <div className="mb-6 rounded-xl bg-amber-50 p-3 text-xs text-amber-700">
                 <p>This is a secure simulation. No real money will be charged.</p>
               </div>
-              
+
               <form className="grid gap-4" onSubmit={handlePay}>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-ink/50 px-1">Cardholder Name</label>
@@ -283,7 +302,7 @@ export default function MyBookings() {
                     onChange={handleCardChange}
                   />
                 </div>
-                
+
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-ink/50 px-1">Card Number</label>
                   <input
@@ -294,7 +313,7 @@ export default function MyBookings() {
                     onChange={handleCardChange}
                   />
                 </div>
-                
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-ink/50 px-1">Expiry Date</label>
@@ -317,20 +336,20 @@ export default function MyBookings() {
                     />
                   </div>
                 </div>
-                
-                <div className="mt-4 flex gap-3">
-                  <button 
-                    className="flex-1 rounded-full bg-coral py-4 text-sm font-bold text-white shadow-lg shadow-coral/20 transition hover:brightness-110 active:scale-95" 
+
+                <div className="mt-6 flex flex-col gap-3">
+                  <button
+                    className="w-full rounded-2xl bg-brand-blue py-5 text-sm font-black text-white shadow-xl shadow-brand-blue/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                     type="submit"
                   >
-                    Pay ${selectedBooking.totalAmount || selectedBooking.classId?.price || 0}
+                    Pay AED {selectedBooking.totalAmount || selectedBooking.classId?.price || 0}
                   </button>
                   <button
                     type="button"
-                    className="rounded-full border border-ink/10 px-8 text-sm font-bold text-ink transition hover:bg-slate-50"
+                    className="w-full rounded-2xl border-2 border-slate-100 py-4 text-[10px] font-black uppercase tracking-widest text-ink/30 transition-all hover:bg-slate-50 hover:text-ink/50"
                     onClick={closePayment}
                   >
-                    Cancel
+                    Cancel Transaction
                   </button>
                 </div>
               </form>

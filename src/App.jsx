@@ -14,6 +14,8 @@ import Register from './pages/Register.jsx';
 import Calendar from './pages/Calendar.jsx';
 import MemberHealthDeclaration from './pages/MemberHealthDeclaration.jsx';
 import { RequireAuth, RequireAdmin } from './components/ProtectedRoutes.jsx';
+import { SocketProvider } from './context/SocketContext.jsx';
+import { Toaster } from 'react-hot-toast';
 
 import ParentDashboard from './pages/parent/ParentDashboard.jsx';
 import MyChildren from './pages/parent/MyChildren.jsx';
@@ -40,49 +42,52 @@ import SpecialtiesManagement from './pages/admin/SpecialtiesManagement.jsx';
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/about" element={<About />} />
-      <Route path="/programs" element={<Programs />} />
-      <Route path="/pricing" element={<Pricing />} />
-      <Route path="/schedule" element={<Schedule />} />
-      <Route path="/gallery" element={<Gallery />} />
-      <Route path="/contact" element={<Contact />} />
-      <Route path="/book-trial" element={<BookTrial />} />
-      <Route path="/quick-checkin" element={<QuickCheckin />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/calendar" element={<Calendar />} />
-      <Route path="/book" element={<BookingFlow />} />
-      <Route path="/health-declaration" element={<MemberHealthDeclaration />} />
-
-      <Route element={<RequireAuth />}>
-        <Route path="/dashboard" element={<ParentDashboard />} />
-        <Route path="/dashboard/children" element={<MyChildren />} />
-        <Route path="/dashboard/book" element={<BookClasses />} />
-        <Route path="/dashboard/bookings" element={<MyBookings />} />
-        <Route path="/dashboard/payments" element={<PaymentHistory />} />
-        <Route path="/dashboard/membership" element={<Membership />} />
-        <Route path="/dashboard/attendance" element={<Attendance />} />
+    <SocketProvider>
+      <Toaster />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/programs" element={<Programs />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/schedule" element={<Schedule />} />
+        <Route path="/gallery" element={<Gallery />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/book-trial" element={<BookTrial />} />
+        <Route path="/quick-checkin" element={<QuickCheckin />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/calendar" element={<Calendar />} />
-      </Route>
+        <Route path="/book" element={<BookingFlow />} />
+        <Route path="/health-declaration" element={<MemberHealthDeclaration />} />
 
-      <Route element={<RequireAdmin />}>
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/classes" element={<ClassesManagement />} />
-        <Route path="/admin/sessions" element={<SessionsManagement />} />
-        <Route path="/admin/pricing" element={<PricingManagement />} />
-        <Route path="/admin/bookings" element={<BookingManagement />} />
-        <Route path="/admin/users" element={<UsersManagement />} />
-        <Route path="/admin/reports" element={<Reports />} />
-        <Route path="/admin/trainers" element={<TrainersManagement />} />
-        <Route path="/admin/attendance" element={<AttendanceManagement />} />
-        <Route path="/admin/memberships" element={<MembershipManagement />} />
-        <Route path="/admin/trials" element={<TrialsManagement />} />
-        <Route path="/admin/payments" element={<PaymentsManagement />} />
-        <Route path="/admin/locations" element={<LocationManagement />} />
-        <Route path="/admin/specialties" element={<SpecialtiesManagement />} />
-      </Route>
-    </Routes>
+        <Route element={<RequireAuth />}>
+          <Route path="/dashboard" element={<ParentDashboard />} />
+          <Route path="/dashboard/children" element={<MyChildren />} />
+          <Route path="/dashboard/book" element={<BookClasses />} />
+          <Route path="/dashboard/bookings" element={<MyBookings />} />
+          <Route path="/dashboard/payments" element={<PaymentHistory />} />
+          <Route path="/dashboard/membership" element={<Membership />} />
+          <Route path="/dashboard/attendance" element={<Attendance />} />
+          <Route path="/calendar" element={<Calendar />} />
+        </Route>
+
+        <Route element={<RequireAdmin />}>
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/classes" element={<ClassesManagement />} />
+          <Route path="/admin/sessions" element={<SessionsManagement />} />
+          <Route path="/admin/pricing" element={<PricingManagement />} />
+          <Route path="/admin/bookings" element={<BookingManagement />} />
+          <Route path="/admin/users" element={<UsersManagement />} />
+          <Route path="/admin/reports" element={<Reports />} />
+          <Route path="/admin/trainers" element={<TrainersManagement />} />
+          <Route path="/admin/attendance" element={<AttendanceManagement />} />
+          <Route path="/admin/memberships" element={<MembershipManagement />} />
+          <Route path="/admin/trials" element={<TrialsManagement />} />
+          <Route path="/admin/payments" element={<PaymentsManagement />} />
+          <Route path="/admin/locations" element={<LocationManagement />} />
+          <Route path="/admin/specialties" element={<SpecialtiesManagement />} />
+        </Route>
+      </Routes>
+    </SocketProvider>
   );
 }

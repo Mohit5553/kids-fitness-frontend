@@ -39,6 +39,7 @@ export default function BookingFlow() {
   const [activeImage, setActiveImage] = useState(0);
   const [createdBookings, setCreatedBookings] = useState([]);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [myChildren, setMyChildren] = useState([]);
 
   // Persistence: Save to sessionStorage
   useEffect(() => {
@@ -52,7 +53,7 @@ export default function BookingFlow() {
         participants
       };
       sessionStorage.setItem('booking_pending_state', JSON.stringify(bookingState));
-      
+
       // Auto-add restoring=true to URL to ensure progress is kept on refresh
       if (!isRestoringParam) {
         const params = new URLSearchParams(window.location.search);
@@ -72,7 +73,7 @@ export default function BookingFlow() {
   // Persistence: Restore from sessionStorage
   useEffect(() => {
     const saved = sessionStorage.getItem('booking_pending_state');
-    
+
     if (!isRestoringParam) {
       // Fresh entry - clear any old state to avoid jump-to-payment
       sessionStorage.removeItem('booking_pending_state');
@@ -130,7 +131,7 @@ export default function BookingFlow() {
       .then(res => {
         const data = res.data || [];
         setLocations(data);
-        
+
         // If restoring a state, don't reset
         if (isRestoring) return;
 
@@ -141,6 +142,15 @@ export default function BookingFlow() {
       })
       .catch(() => { });
   }, [selectedClass?._id, isRestoring]);
+
+  // Fetch My Children for Step 4
+  useEffect(() => {
+    if (step === 4 && getUser()) {
+      api.get('/children/mine')
+        .then(res => setMyChildren(res.data || []))
+        .catch(() => { });
+    }
+  }, [step]);
 
   // Step 3: Fetch Trainers for selected class and location
   useEffect(() => {
@@ -159,9 +169,9 @@ export default function BookingFlow() {
       api.get(`/sessions?classId=${selectedClass._id}&trainerId=${selectedTrainer}&locationId=${selectedLocation}&start=${new Date().toISOString()}`)
         .then(res => {
           setSessions(res.data);
-          
+
           // Auto-select first date group if available
-          const groups = Array.from(new Set(res.data.map(s => 
+          const groups = Array.from(new Set(res.data.map(s =>
             new Date(s.startTime).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
           )));
           if (groups.length > 0) setSelectedDateFilter(groups[0]);
@@ -182,7 +192,7 @@ export default function BookingFlow() {
     });
     return groups;
   }, [sessions]);
-  
+
   const dateKeys = Object.keys(sessionGroups);
 
   const handleNextStep = () => {
@@ -295,10 +305,28 @@ export default function BookingFlow() {
       const user = getUser();
       if (user) {
         newParticipants[index].name = user.name || newParticipants[index].name;
-        // Phone/Email are not in the participant model currently, just name/age/gender
       }
     }
-    
+
+    setParticipants(newParticipants);
+  };
+
+  const handleChildSelect = (index, childId) => {
+    const newParticipants = [...participants];
+    if (childId === 'new') {
+      newParticipants[index] = { ...newParticipants[index], name: '', age: '', gender: 'male', childId: undefined };
+    } else {
+      const child = myChildren.find(c => c._id === childId);
+      if (child) {
+        newParticipants[index] = {
+          ...newParticipants[index],
+          name: child.name,
+          age: child.age || '',
+          gender: child.gender === 'other' ? 'male' : (child.gender || 'male'),
+          childId: child._id
+        };
+      }
+    }
     setParticipants(newParticipants);
   };
 
@@ -308,7 +336,7 @@ export default function BookingFlow() {
       setStep(6); // Go to login if not logged in
       return;
     }
-    
+
     const newParticipants = [...participants];
     // Find first empty or default participant to fill, or add new one
     let targetIdx = newParticipants.findIndex(p => !p.name && !p.age);
@@ -537,9 +565,17 @@ export default function BookingFlow() {
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue">Selected Program</p>
                     <p className="font-display text-xl mt-1 text-ink">{selectedClass.title} • {selectedClass.ageGroup}</p>
-                    <p className="text-sm font-bold text-ink/60 mt-2">
-                      {locations.find(l => l._id === selectedLocation)?.name || 'Central'} • {selectedSessions.length} Session(s) Selected
-                    </p>
+                    <div className="mt-2 space-y-1">
+                      <p className="text-sm font-bold text-ink/60">
+                        {locations.find(l => l._id === selectedLocation)?.name || 'Central'} • {selectedSessions.length} Session(s) Selected
+                      </p>
+                      {selectedSessions.map((sess, i) => (
+                        <p key={i} className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-blue/70">
+                          {new Date(sess.startTime).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} @ {new Date(sess.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {trainers.find(t => t._id === selectedTrainer) && ` • Coach ${trainers.find(t => t._id === selectedTrainer).name}`}
+                        </p>
+                      ))}
+                    </div>
                   </div>
                   <div className="md:text-right">
                     <p className="text-2xl font-black text-ink">AED {selectedClass.price}</p>
@@ -554,14 +590,29 @@ export default function BookingFlow() {
                         <button onClick={() => removeParticipant(idx)} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white text-red-400 hover:text-red-600 shadow-sm flex items-center justify-center transition-all">×</button>
                       )}
                       <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 mb-4 px-2">Participant {idx + 1}</h3>
-                      <div className="grid gap-4 md:grid-cols-4">
-                        <div>
+                      <div className="grid gap-4 md:grid-cols-5">
+                        {myChildren.length > 0 && (
+                          <div>
+                            <select
+                              className="w-full bg-white border-none rounded-2xl py-3 px-5 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all appearance-none cursor-pointer"
+                              onChange={(e) => handleChildSelect(idx, e.target.value)}
+                              value={p.childId || 'new'}
+                            >
+                              <option value="new">New Participant</option>
+                              {myChildren.map(c => (
+                                <option key={c._id} value={c._id}>{c.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        <div className={myChildren.length > 0 ? '' : 'md:col-span-1'}>
                           <input
                             type="text"
                             placeholder="Name"
                             className="w-full bg-white border-none rounded-2xl py-3 px-5 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
                             value={p.name}
                             onChange={(e) => updateParticipant(idx, 'name', e.target.value)}
+                            disabled={p.childId}
                           />
                         </div>
                         <div>
@@ -571,6 +622,7 @@ export default function BookingFlow() {
                             className="w-full bg-white border-none rounded-2xl py-3 px-5 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
                             value={p.age}
                             onChange={(e) => updateParticipant(idx, 'age', e.target.value)}
+                            disabled={p.childId}
                           />
                         </div>
                         <div>
@@ -591,8 +643,9 @@ export default function BookingFlow() {
                           {['male', 'female'].map(g => (
                             <button
                               key={g}
+                              disabled={p.childId}
                               onClick={() => updateParticipant(idx, 'gender', g)}
-                              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${p.gender === g ? 'bg-brand-blue text-white shadow-md' : 'text-ink/30 hover:text-ink/60'}`}
+                              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${p.gender === g ? 'bg-brand-blue text-white shadow-md' : 'text-ink/30 hover:text-ink/60 disabled:opacity-50'}`}
                             >
                               {g}
                             </button>
@@ -612,45 +665,109 @@ export default function BookingFlow() {
 
             {step === 5 && (
               <div className="animate-rise">
-                <h2 className="font-display text-3xl font-black text-ink mb-8 text-center">Summary</h2>
-                <div className="space-y-6">
-                  <div className="p-6 rounded-3xl bg-slate-50 border border-slate-100">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Selected Sessions ({selectedSessions.length})</p>
-                    <div className="space-y-3">
-                      {selectedSessions.map((sess, i) => (
-                        <div key={i} className="flex justify-between items-center text-sm border-b border-slate-200/50 pb-2 last:border-0 last:pb-0">
-                          <div>
-                            <p className="font-bold text-ink/80">{new Date(sess.startTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
-                            <p className="text-[10px] text-brand-blue font-bold uppercase">{new Date(sess.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                <div className="text-center mb-10">
+                  <h2 className="font-display text-4xl font-black text-ink tracking-tight mb-2">Review & Summary</h2>
+                  <p className="text-sm font-bold text-ink/40 uppercase tracking-[0.3em]">Final Step before payment</p>
+                </div>
+                
+                <div className="space-y-8">
+                  {/* Program Overview */}
+                  <div className="p-8 rounded-[40px] bg-gradient-to-br from-brand-blue/10 to-brand-blue/5 border border-brand-blue/20 relative overflow-hidden shadow-sm">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-white/30 rounded-full -mr-24 -mt-24 blur-3xl"></div>
+                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-blue mb-2">Selected Program</p>
+                        <h3 className="font-display text-3xl text-ink leading-tight">{selectedClass.title}</h3>
+                        <div className="flex flex-wrap items-center gap-3 mt-3">
+                          <span className="text-xs font-black uppercase tracking-widest text-ink/60 bg-white/80 px-4 py-1.5 rounded-full shadow-sm border border-slate-100">
+                            {selectedClass.ageGroup}
+                          </span>
+                          <span className="text-sm font-black text-ocean flex items-center gap-2">
+                             <span className="w-2 h-2 rounded-full bg-ocean animate-pulse"></span>
+                             {locations.find(l => l._id === selectedLocation)?.name || 'Central Branch'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="hidden md:flex w-20 h-20 rounded-[2rem] bg-white/80 backdrop-blur-sm border border-brand-blue/10 items-center justify-center text-4xl shadow-xl shrink-0">
+                         🏅
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-8 lg:grid-cols-2">
+                    {/* Sessions Column */}
+                    <div className="space-y-6">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 px-4">Schedule Details ({selectedSessions.length})</p>
+                      <div className="space-y-4">
+                        {selectedSessions.map((sess, i) => (
+                          <div key={i} className="flex justify-between items-center bg-white p-6 rounded-[32px] shadow-sm border border-slate-100 group hover:border-brand-blue/30 transition-all hover:shadow-md">
+                            <div className="flex items-center gap-5">
+                              <div className="w-14 h-14 rounded-2xl bg-brand-blue/5 flex flex-col items-center justify-center text-brand-blue shrink-0 group-hover:scale-105 transition-transform">
+                                 <span className="text-[9px] font-black uppercase leading-none mb-0.5">{new Date(sess.startTime).toLocaleDateString('en-US', { month: 'short' })}</span>
+                                 <span className="text-xl font-black leading-none">{new Date(sess.startTime).getDate()}</span>
+                              </div>
+                              <div>
+                                <p className="font-black text-ink text-base">{new Date(sess.startTime).toLocaleDateString('en-US', { weekday: 'long' })}</p>
+                                <p className="text-[11px] text-brand-blue font-black uppercase tracking-widest mt-1 bg-brand-blue/5 px-2 py-0.5 rounded-md inline-block">
+                                  {new Date(sess.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                               <p className="text-[9px] font-black uppercase tracking-widest text-ink/20 mb-1">Coach</p>
+                               <p className="text-xs font-black text-brand-blue">{sess.trainerId?.name || trainers.find(t => t._id === selectedTrainer)?.name || 'TBA'}</p>
+                            </div>
                           </div>
-                          <span className="text-xs text-ink/40">{sess.trainerId?.name || 'Coach Assigned'}</span>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Participants Column */}
+                    <div className="space-y-6">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 px-4">Participant List ({participants.length})</p>
+                      <div className="grid gap-4">
+                         {participants.map((p, i) => (
+                           <div key={i} className="p-5 rounded-[32px] bg-white border border-slate-100 flex items-center justify-between shadow-sm hover:border-slate-300 transition-colors">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-lg">
+                                  {p.gender === 'male' ? '👦' : '👧'}
+                                </div>
+                                <div>
+                                   <p className="font-black text-ink text-base line-clamp-1">{p.name}</p>
+                                   <p className="text-[11px] font-bold text-ink/40 bg-slate-100 px-2 py-0.5 rounded-md inline-block mt-0.5 whitespace-nowrap">{p.relation || 'Me'}</p>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                 <p className="text-sm font-black text-brand-blue">{p.age} Years</p>
+                                 <p className="text-[9px] font-black uppercase tracking-widest text-ink/20 mt-1">{p.gender}</p>
+                              </div>
+                           </div>
+                         ))}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="p-6 rounded-3xl bg-white border border-slate-100">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Participants ({participants.length})</p>
-                    <div className="space-y-3">
-                      {participants.map((p, i) => (
-                        <div key={i} className="flex justify-between items-center text-sm">
-                          <span className="font-bold text-ink/80">{p.name}</span>
-                          <span className="text-xs text-ink/40">{p.age} Years • {p.gender} • {p.relation || 'Relation'}</span>
-                        </div>
-                      ))}
+                  {/* Pricing Footer */}
+                  <div className="mt-10 pt-10 border-t-4 border-dashed border-slate-100 flex flex-col md:flex-row justify-between items-center gap-8">
+                    <div className="text-center md:text-left">
+                      <div className="flex items-baseline gap-2 justify-center md:justify-start">
+                        <span className="text-5xl font-black text-brand-blue tracking-tighter">AED {selectedClass.price * participants.length * selectedSessions.length}</span>
+                        <span className="text-sm font-bold text-ink/30 uppercase tracking-widest italic">Total</span>
+                      </div>
+                      <p className="text-[11px] text-ink/40 font-black uppercase tracking-[0.2em] mt-3 bg-slate-100/50 px-4 py-2 rounded-full border border-slate-100 inline-block font-body">
+                         {selectedClass.price} AED × {participants.length} PPL × {selectedSessions.length} SESS
+                      </p>
                     </div>
-                  </div>
-
-                  <div className="pt-6 border-t-2 border-slate-50 flex justify-between items-end">
-                    <div>
-                      <p className="text-3xl font-black text-brand-blue">AED {selectedClass.price * participants.length * selectedSessions.length}</p>
-                      <p className="text-xs text-ink/40 font-bold uppercase tracking-widest mt-1">AED {selectedClass.price} x {participants.length} Participant(s) x {selectedSessions.length} Session(s)</p>
-                    </div>
-                    <button onClick={() => getUser() ? setStep(7) : setStep(6)} className="bg-brand-blue text-white px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all">Continue to Pay</button>
+                    <button onClick={() => getUser() ? setStep(7) : setStep(6)} className="w-full md:w-auto bg-brand-blue text-white px-14 py-6 rounded-[2.5rem] font-black shadow-glow hover:scale-[1.03] active:scale-[0.98] transition-all text-xl hover:shadow-brand-blue/30 group">
+                       Secure Booking Now <span className="ml-2 group-hover:translate-x-1 transition-transform inline-block">→</span>
+                    </button>
                   </div>
                 </div>
-                <div className="mt-8 text-center">
-                  <button onClick={() => setStep(4)} className="text-sm font-bold text-ink/40 hover:text-ink transition-colors">Edit details</button>
+                
+                <div className="mt-12 text-center">
+                  <button onClick={() => setStep(4)} className="text-sm font-bold text-ink/40 hover:text-brand-blue transition-colors flex items-center justify-center gap-2 mx-auto group">
+                    <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span> Edit details & participants
+                  </button>
                 </div>
               </div>
             )}
@@ -662,10 +779,10 @@ export default function BookingFlow() {
                     <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">👤</div>
                     <h2 className="font-display text-3xl font-black text-ink mb-2">Welcome Back!</h2>
                     <p className="text-ink/60 mb-10">Logged in as <b>{getUser().name}</b>. You are now ready to complete your booking.</p>
-                    
+
                     <div className="flex flex-col gap-4">
-                       <button onClick={() => setStep(7)} className="bg-brand-blue text-white w-full px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all">Continue to Payment</button>
-                       <button onClick={() => setStep(5)} className="text-sm font-bold text-ink/40 hover:text-ink transition-colors px-6 py-3">Back to summary</button>
+                      <button onClick={() => setStep(7)} className="bg-brand-blue text-white w-full px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all">Continue to Payment</button>
+                      <button onClick={() => setStep(5)} className="text-sm font-bold text-ink/40 hover:text-ink transition-colors px-6 py-3">Back to summary</button>
                     </div>
                   </div>
                 ) : !showGuestForm ? (
