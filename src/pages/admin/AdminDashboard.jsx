@@ -3,20 +3,22 @@ import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import { getUser } from '../../utils/auth.js';
 
 const adminActions = [
-  { to: '/admin/classes', title: 'Classes', desc: 'Create and update programs.' },
-  { to: '/admin/sessions', title: 'Session calendar', desc: 'Schedule classes and copy QR tokens.' },
-  { to: '/admin/trainers', title: 'Trainers', desc: 'Manage coach profiles and status.' },
-  { to: '/admin/pricing', title: 'Pricing', desc: 'Update plan pricing and benefits.' },
-  { to: '/admin/bookings', title: 'Bookings', desc: 'Approve or cancel class requests.' },
-  { to: '/admin/users', title: 'Users', desc: 'Update roles and manage accounts.' },
-  { to: '/admin/trials', title: 'Trial requests', desc: 'Follow up with new leads.' },
-  { to: '/admin/attendance', title: 'Attendance', desc: 'Track and verify member attendance.' },
-  { to: '/admin/payments', title: 'Payments', desc: 'Monitor transactions and exports.' },
-  { to: '/admin/locations', title: 'Locations', desc: 'Add or remove gym branches.' },
-  { to: '/admin/specialties', title: 'Specialty Master', desc: 'Manage trainer expertise areas.' },
-  { to: '/admin/reports', title: 'Reports', desc: 'View detailed activity & export Excel.' }
+  { to: '/admin/classes', title: 'Classes', desc: 'Create and update programs.', perm: 'classes:view' },
+  { to: '/admin/sessions', title: 'Session calendar', desc: 'Schedule classes and copy QR tokens.', perm: 'sessions:view' },
+  { to: '/admin/trainers', title: 'Trainers', desc: 'Manage coach profiles and status.', perm: 'trainers:view' },
+  { to: '/admin/pricing', title: 'Pricing', desc: 'Update plan pricing and benefits.', perm: 'pricing:view' },
+  { to: '/admin/bookings', title: 'Bookings', desc: 'Approve or cancel class requests.', perm: 'bookings:view' },
+  { to: '/admin/users', title: 'Users', desc: 'Update roles and manage accounts.', perm: 'users:view' },
+  { to: '/admin/roles', title: 'Role Master', desc: 'Define granular CRUD permissions.', perm: 'roles:view' },
+  { to: '/admin/trials', title: 'Trial requests', desc: 'Follow up with new leads.', perm: 'trials:view' },
+  { to: '/admin/attendance', title: 'Attendance', desc: 'Track and verify member attendance.', perm: 'attendance:view' },
+  { to: '/admin/payments', title: 'Payments', desc: 'Monitor transactions and exports.', perm: 'payments:view' },
+  { to: '/admin/locations', title: 'Locations', desc: 'Add or remove gym branches.', perm: 'locations:view' },
+  { to: '/admin/specialties', title: 'Specialty Master', desc: 'Manage trainer expertise areas.', perm: 'specialties:view' },
+  { to: '/admin/reports', title: 'Reports', desc: 'View detailed activity & export Excel.', perm: 'reports:view' }
 ];
 
 export default function AdminDashboard() {
@@ -26,6 +28,10 @@ export default function AdminDashboard() {
     bookings: { pending: 0 }
   });
   const [loading, setLoading] = useState(true);
+
+  const user = getUser();
+  const isAdminOrSuper = user?.role === 'superadmin' || user?.role === 'admin';
+  const permissions = user?.permissions || [];
 
   useEffect(() => {
     api.get('/reports/summary')
@@ -37,10 +43,13 @@ export default function AdminDashboard() {
   }, []);
 
   const adminStats = [
-    { label: 'Confirmed bookings', value: stats.bookings?.confirmed || 0, to: '/admin/bookings' },
-    { label: 'Upcoming sessions', value: stats.upcomingSessions || 0, to: '/admin/sessions' },
-    { label: 'Pending bookings', value: stats.bookings?.pending || 0, to: '/admin/bookings' }
+    { label: 'Confirmed bookings', value: stats.bookings?.confirmed || 0, to: '/admin/bookings', perm: 'bookings:view' },
+    { label: 'Upcoming sessions', value: stats.upcomingSessions || 0, to: '/admin/sessions', perm: 'sessions:view' },
+    { label: 'Pending bookings', value: stats.bookings?.pending || 0, to: '/admin/bookings', perm: 'bookings:view' }
   ];
+
+  const filteredActions = adminActions.filter(action => isAdminOrSuper || permissions.includes(action.perm));
+  const filteredStats = adminStats.filter(stat => isAdminOrSuper || permissions.includes(stat.perm));
 
   return (
     <div>
@@ -59,7 +68,7 @@ export default function AdminDashboard() {
         </section>
 
         <section className="mt-6 grid gap-4 md:grid-cols-3">
-          {adminStats.map((stat) => (
+          {filteredStats.map((stat) => (
             <Link key={stat.label} to={stat.to} className="soft-card block rounded-2xl p-6 transition-all hover:shadow-md hover:-translate-y-1">
               <p className="text-xs font-bold text-ink/40 uppercase tracking-widest">{stat.label}</p>
               <p className={`mt-3 text-3xl font-black text-ink ${loading ? 'animate-pulse' : ''}`}>
@@ -71,7 +80,7 @@ export default function AdminDashboard() {
         </section>
 
         <section className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {adminActions.map((action) => (
+          {filteredActions.map((action) => (
             <Link key={action.to} to={action.to} className="soft-card rounded-3xl p-6 transition hover:-translate-y-1">
               <h3 className="font-display text-lg">{action.title}</h3>
               <p className="mt-2 text-sm text-ink/70">{action.desc}</p>
@@ -84,5 +93,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-

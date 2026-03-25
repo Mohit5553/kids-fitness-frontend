@@ -19,7 +19,9 @@ export default function Login() {
   useEffect(() => {
     const user = getUser();
     if (user) {
-      navigate(user.role === 'admin' ? '/admin' : '/dashboard');
+      if (user.role === 'admin' || user.role === 'superadmin') navigate('/admin');
+      else if (user.role === 'trainer') navigate('/trainer/dashboard');
+      else navigate('/dashboard');
     }
   }, [navigate]);
 
@@ -32,7 +34,9 @@ export default function Login() {
       if (redirect) {
         navigate(redirect);
       } else {
-        navigate(res.data.role === 'admin' ? '/admin' : '/dashboard');
+        if (res.data.role === 'admin' || res.data.role === 'superadmin') navigate('/admin');
+        else if (res.data.role === 'trainer') navigate('/trainer/dashboard');
+        else navigate('/dashboard');
       }
     } catch (err) {
       setError(err?.response?.data?.message || 'Login failed. Check your credentials.');

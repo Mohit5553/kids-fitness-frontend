@@ -12,7 +12,8 @@ const emptyForm = {
   locationId: '',
   avatarUrl: '',
   gallery: [],
-  status: 'active'
+  status: 'active',
+  password: ''
 };
 
 export default function TrainersManagement() {
@@ -78,7 +79,8 @@ export default function TrainersManagement() {
       locationId: trainer.locationId?._id || trainer.locationId || '',
       status: trainer.status || 'active',
       avatarUrl: trainer.avatarUrl || '',
-      gallery: trainer.gallery || []
+      gallery: trainer.gallery || [],
+      password: ''
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -176,6 +178,20 @@ export default function TrainersManagement() {
                   placeholder="Phone"
                   value={form.phone}
                   onChange={handleChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">
+                  {editingId ? 'Reset Password' : 'Initial Password'}
+                </label>
+                <input
+                  className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
+                  name="password"
+                  type="password"
+                  placeholder={editingId ? "Leave blank to keep current" : "Password"}
+                  value={form.password}
+                  onChange={handleChange}
+                  required={!editingId}
                 />
               </div>
             </div>

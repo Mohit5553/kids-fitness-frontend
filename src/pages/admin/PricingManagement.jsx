@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import { getUser } from '../../utils/auth.js';
 
 const emptyForm = {
   name: '',
@@ -21,6 +22,14 @@ export default function PricingManagement() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState('');
   const [message, setMessage] = useState('');
+
+  const user = getUser();
+  const permissions = user?.permissions || [];
+  const isAdminOrSuper = user?.role === 'superadmin' || user?.role === 'admin';
+  const canCreate = isAdminOrSuper || permissions.includes('pricing:create');
+  const canEdit = isAdminOrSuper || permissions.includes('pricing:edit');
+  const canDelete = isAdminOrSuper || permissions.includes('pricing:delete');
+  const canView = isAdminOrSuper || permissions.includes('pricing:view');
 
   const load = () => {
     api.get('/plans').then((res) => setPlans(res.data || [])).catch(() => { });
@@ -96,117 +105,123 @@ export default function PricingManagement() {
         <p className="mt-2 text-sm text-ink/70">Update plan pricing and benefits.</p>
         {message ? <p className="mt-3 text-sm text-coral">{message}</p> : null}
 
-        <form className="mt-6 grid gap-3 rounded-3xl bg-white/80 p-6 shadow-glow" onSubmit={handleSubmit}>
-          <div className="grid gap-3 md:grid-cols-2">
-            <input
-              className="rounded-xl border border-orange-200/70 p-3"
-              name="name"
-              placeholder="Plan name"
-              value={form.name}
-              onChange={handleChange}
-              required
-            />
-            <input
-              className="rounded-xl border border-orange-200/70 p-3"
-              name="price"
-              type="number"
-              placeholder="Price"
-              value={form.price}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            <input
-              className="rounded-xl border border-orange-200/70 p-3"
-              name="validity"
-              placeholder="Validity (e.g. 8 weeks)"
-              value={form.validity}
-              onChange={handleChange}
-            />
-            <select
-              className="rounded-xl border border-orange-200/70 p-3"
-              name="type"
-              value={form.type}
-              onChange={handleChange}
-            >
-              <option value="dropin">Drop-in</option>
-              <option value="pack">Pack</option>
-              <option value="term">Term</option>
-              <option value="subscription">Subscription</option>
-            </select>
-            <input
-              className="rounded-xl border border-orange-200/70 p-3"
-              name="classesIncluded"
-              type="number"
-              placeholder="Classes included"
-              value={form.classesIncluded}
-              onChange={handleChange}
-            />
-          </div>
-          <div className="grid gap-3 md:grid-cols-4">
-            <input
-              className="rounded-xl border border-orange-200/70 p-3"
-              name="durationWeeks"
-              type="number"
-              placeholder="Duration (weeks)"
-              value={form.durationWeeks}
-              onChange={handleChange}
-            />
-            {form.type === 'subscription' && (
+        {canCreate || (editingId && canEdit) ? (
+          <form className="mt-6 grid gap-3 rounded-3xl bg-white/80 p-6 shadow-glow" onSubmit={handleSubmit}>
+            <div className="grid gap-3 md:grid-cols-2">
+              <input
+                className="rounded-xl border border-orange-200/70 p-3"
+                name="name"
+                placeholder="Plan name"
+                value={form.name}
+                onChange={handleChange}
+                required
+              />
+              <input
+                className="rounded-xl border border-orange-200/70 p-3"
+                name="price"
+                type="number"
+                placeholder="Price"
+                value={form.price}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <input
+                className="rounded-xl border border-orange-200/70 p-3"
+                name="validity"
+                placeholder="Validity (e.g. 8 weeks)"
+                value={form.validity}
+                onChange={handleChange}
+              />
               <select
                 className="rounded-xl border border-orange-200/70 p-3"
-                name="billingCycle"
-                value={form.billingCycle}
+                name="type"
+                value={form.type}
                 onChange={handleChange}
               >
-                <option value="none">Cycle (None)</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
+                <option value="dropin">Drop-in</option>
+                <option value="pack">Pack</option>
+                <option value="term">Term</option>
+                <option value="subscription">Subscription</option>
               </select>
-            )}
-            <input
-              className={`rounded-xl border border-orange-200/70 p-3 ${form.type === 'subscription' ? '' : 'md:col-span-2'}`}
-              name="tagline"
-              placeholder="Tagline (e.g. Family favorite)"
-              value={form.tagline}
+              <input
+                className="rounded-xl border border-orange-200/70 p-3"
+                name="classesIncluded"
+                type="number"
+                placeholder="Classes included"
+                value={form.classesIncluded}
+                onChange={handleChange}
+              />
+            </div>
+            <div className="grid gap-3 md:grid-cols-4">
+              <input
+                className="rounded-xl border border-orange-200/70 p-3"
+                name="durationWeeks"
+                type="number"
+                placeholder="Duration (weeks)"
+                value={form.durationWeeks}
+                onChange={handleChange}
+              />
+              {form.type === 'subscription' && (
+                <select
+                  className="rounded-xl border border-orange-200/70 p-3"
+                  name="billingCycle"
+                  value={form.billingCycle}
+                  onChange={handleChange}
+                >
+                  <option value="none">Cycle (None)</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              )}
+              <input
+                className={`rounded-xl border border-orange-200/70 p-3 ${form.type === 'subscription' ? '' : 'md:col-span-2'}`}
+                name="tagline"
+                placeholder="Tagline (e.g. Family favorite)"
+                value={form.tagline}
+                onChange={handleChange}
+              />
+              <div className={`flex items-center gap-3 px-3 ${form.type === 'subscription' ? '' : 'md:col-span-1'}`}>
+                <input
+                  type="checkbox"
+                  name="isFeatured"
+                  id="isFeatured"
+                  checked={form.isFeatured}
+                  onChange={(e) => setForm(prev => ({ ...prev, isFeatured: e.target.checked }))}
+                  className="h-5 w-5 rounded border-orange-200 text-coral focus:ring-coral"
+                />
+                <label htmlFor="isFeatured" className="text-sm font-medium text-ink/70">Featured (Best Value)</label>
+              </div>
+            </div>
+            <textarea
+              className="min-h-[90px] rounded-xl border border-orange-200/70 p-3"
+              name="benefits"
+              placeholder="Benefits (comma separated)"
+              value={form.benefits}
               onChange={handleChange}
             />
-            <div className={`flex items-center gap-3 px-3 ${form.type === 'subscription' ? '' : 'md:col-span-1'}`}>
-              <input
-                type="checkbox"
-                name="isFeatured"
-                id="isFeatured"
-                checked={form.isFeatured}
-                onChange={(e) => setForm(prev => ({ ...prev, isFeatured: e.target.checked }))}
-                className="h-5 w-5 rounded border-orange-200 text-coral focus:ring-coral"
-              />
-              <label htmlFor="isFeatured" className="text-sm font-medium text-ink/70">Featured (Best Value)</label>
-            </div>
-          </div>
-          <textarea
-            className="min-h-[90px] rounded-xl border border-orange-200/70 p-3"
-            name="benefits"
-            placeholder="Benefits (comma separated)"
-            value={form.benefits}
-            onChange={handleChange}
-          />
-          <div className="flex flex-wrap gap-3">
-            <button className="rounded-full bg-coral px-5 py-3 text-sm font-semibold text-white" type="submit">
-              {editingId ? 'Update plan' : 'Create plan'}
-            </button>
-            {editingId ? (
-              <button
-                type="button"
-                className="rounded-full border border-ink/10 px-5 py-3 text-sm font-semibold text-ink"
-                onClick={handleCancel}
-              >
-                Cancel
+            <div className="flex flex-wrap gap-3">
+              <button className="rounded-full bg-coral px-5 py-3 text-sm font-semibold text-white" type="submit">
+                {editingId ? 'Update plan' : 'Create plan'}
               </button>
-            ) : null}
+              {editingId ? (
+                <button
+                  type="button"
+                  className="rounded-full border border-ink/10 px-5 py-3 text-sm font-semibold text-ink"
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </div>
+          </form>
+        ) : (
+          <div className="mt-6 p-6 bg-white/50 rounded-3xl border border-dashed border-slate-200 text-center">
+            <p className="text-sm font-bold text-ink/30 italic">You don't have permission to {editingId ? 'edit' : 'create'} plans.</p>
           </div>
-        </form>
+        )}
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           {plans.map((plan) => (
@@ -216,25 +231,29 @@ export default function PricingManagement() {
                   <p className="font-semibold">{plan.name}</p>
                   <p className="text-xs text-ink/70">{plan.validity}</p>
                   <p className="text-xs text-ink/70">
-                    Type: {plan.type} 
+                    Type: {plan.type}
                     {plan.type === 'subscription' && plan.billingCycle !== 'none' && ` (${plan.billingCycle})`}
                   </p>
                 </div>
                 <p className="text-sm font-semibold text-ocean">AED {plan.price}</p>
               </div>
               <div className="mt-3 flex gap-3">
-                <button
-                  className="rounded-full border border-ink/10 px-3 py-1 text-xs font-semibold"
-                  onClick={() => handleEdit(plan)}
-                >
-                  Edit
-                </button>
-                <button
-                  className="rounded-full border border-ink/10 px-3 py-1 text-xs font-semibold"
-                  onClick={() => handleDelete(plan._id)}
-                >
-                  Delete
-                </button>
+                {canEdit && (
+                  <button
+                    className="rounded-full border border-ink/10 px-3 py-1 text-xs font-semibold"
+                    onClick={() => handleEdit(plan)}
+                  >
+                    Edit
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    className="rounded-full border border-ink/10 px-3 py-1 text-xs font-semibold"
+                    onClick={() => handleDelete(plan._id)}
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -244,4 +263,3 @@ export default function PricingManagement() {
     </div>
   );
 }
-
