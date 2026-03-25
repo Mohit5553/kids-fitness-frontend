@@ -12,6 +12,7 @@ const REPORT_TYPES = [
   { id: 'trials', label: 'Trial Requests Report' },
   { id: 'payments', label: 'Payments Report' },
   { id: 'users', label: 'Users Report' },
+  { id: 'trainer_sales', label: 'Trainer Sales Report' },
 ];
 
 export default function Reports() {
@@ -39,6 +40,7 @@ export default function Reports() {
         startDate,
         endDate,
         locationId,
+        all: !locationId ? 'true' : 'false'
       };
       const res = await api.get(`/reports/${reportType}`, { params });
       setReportData(res.data || []);
@@ -88,6 +90,10 @@ export default function Reports() {
           flat['Trainers'] = value.map(t => t.name).join(', ');
           return;
         }
+        if (key === 'sessionId' && typeof value === 'object') {
+          flat['Trainer'] = value?.trainerId?.name || 'TBA';
+          return;
+        }
         if (key === 'participants' && Array.isArray(value)) {
           flat['Participants'] = value.map(p => `${p.name} (${p.relation})`).join(', ');
           return;
@@ -115,6 +121,7 @@ export default function Reports() {
       { key: 'userId', label: 'User' },
       { key: 'participants', label: 'Participants' },
       { key: 'classId', label: 'Class' },
+      { key: 'sessionId', label: 'Trainer' },
       { key: 'date', label: 'Date' },
       { key: 'totalAmount', label: 'Amount' },
       { key: 'status', label: 'Status' },
@@ -129,6 +136,7 @@ export default function Reports() {
       { key: 'duration', label: 'Duration' },
       { key: 'capacity', label: 'Capacity' },
       { key: 'availableTrainers', label: 'Trainers' },
+      { key: 'locationId', label: 'Branch' },
     ],
     trainers: [
       { key: 'name', label: 'Name' },
@@ -136,6 +144,7 @@ export default function Reports() {
       { key: 'phone', label: 'Phone' },
       { key: 'specialties', label: 'Specialties' },
       { key: 'status', label: 'Status' },
+      { key: 'locationId', label: 'Branch' },
     ],
     pricing: [
       { key: 'name', label: 'Plan Name' },
@@ -143,6 +152,7 @@ export default function Reports() {
       { key: 'type', label: 'Type' },
       { key: 'durationWeeks', label: 'Weeks' },
       { key: 'classesIncluded', label: 'Classes' },
+      { key: 'locationId', label: 'Branch' },
     ],
     trials: [
       { key: 'parentName', label: 'Parent' },
@@ -151,6 +161,7 @@ export default function Reports() {
       { key: 'preferredClass', label: 'Class' },
       { key: 'preferredTime', label: 'Time' },
       { key: 'status', label: 'Status' },
+      { key: 'locationId', label: 'Branch' },
       { key: 'createdAt', label: 'Requested' },
     ],
     payments: [
@@ -165,8 +176,18 @@ export default function Reports() {
       { key: 'name', label: 'Name' },
       { key: 'email', label: 'Email' },
       { key: 'phone', label: 'Phone' },
-      { key: 'status', label: 'Status' },
+      { key: 'role', label: 'Role' },
+      { key: 'locationId', label: 'Branch' },
       { key: 'createdAt', label: 'Joined' },
+    ],
+    trainer_sales: [
+      { key: 'date', label: 'Session Date' },
+      { key: 'classTitle', label: 'Class' },
+      { key: 'trainerName', label: 'Trainer' },
+      { key: 'bookingsCount', label: 'Bookings' },
+      { key: 'totalRevenue', label: 'Total Sales (AED)' },
+      { key: 'sessionStatus', label: 'Session Status' },
+      { key: 'branchName', label: 'Branch' },
     ]
   };
 
@@ -195,14 +216,14 @@ export default function Reports() {
     }
 
     if (typeof value === 'object') {
-      return value.name || value.title || value.email || <span className="text-[10px] text-brand-blue truncate max-w-[100px] inline-block">ID: ..{String(value._id || value).slice(-6)}</span>;
+      return value.name || value.title || value.email || (value.trainerId ? value.trainerId.name : null) || <span className="text-[10px] text-brand-blue truncate max-w-[100px] inline-block">ID: ..{String(value._id || value).slice(-6)}</span>;
     }
 
     if (typeof value === 'string' && value.length > 50) {
       return <span title={value} className="truncate max-w-[150px] inline-block">{value}</span>;
     }
 
-    if (key === 'status' || key === 'paymentStatus') {
+    if (key === 'status' || key === 'paymentStatus' || key === 'sessionStatus') {
       const colors = {
         active: 'text-moss bg-moss/10',
         inactive: 'text-ink/40 bg-slate-100',
@@ -212,7 +233,9 @@ export default function Reports() {
         pending: 'text-amber-600 bg-amber-50',
         cancelled: 'text-red-600 bg-red-50',
         failed: 'text-red-600 bg-red-50',
-        new: 'text-brand-blue bg-brand-blue/10'
+        new: 'text-brand-blue bg-brand-blue/10',
+        open: 'text-brand-blue bg-brand-blue/10',
+        closed: 'text-ink/40 bg-slate-100'
       };
       const statusValue = String(value).toLowerCase();
       return <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${colors[statusValue] || 'bg-slate-50'}`}>{value}</span>;

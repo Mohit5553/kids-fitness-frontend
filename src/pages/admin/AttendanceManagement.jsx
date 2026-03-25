@@ -12,8 +12,8 @@ const formatSession = (session) => {
 export default function AttendanceManagement() {
   const [records, setRecords] = useState([]);
   const [sessions, setSessions] = useState([]);
-  const [children, setChildren] = useState([]);
-  const [form, setForm] = useState({ sessionId: '', childId: '', status: 'present' });
+  const [attendees, setAttendees] = useState([]); // Changed name to attendees for clarity
+  const [form, setForm] = useState({ sessionId: '', childId: '', participantName: '', status: 'present' });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -21,7 +21,6 @@ export default function AttendanceManagement() {
   const loadAttendance = () => {
     api.get('/attendance')
       .then((res) => {
-        // Sort latest first in case backend didn't (though it should)
         const sorted = (res.data || []).sort((a, b) => new Date(b.checkedInAt) - new Date(a.checkedInAt));
         setRecords(sorted);
       })
@@ -40,29 +39,46 @@ export default function AttendanceManagement() {
       .catch(() => setError('Failed to load sessions.'));
   }, []);
 
-  // Filter children by session bookings
+  // Filter attendees by session bookings
   useEffect(() => {
     if (!form.sessionId) {
-      setChildren([]);
+      setAttendees([]);
       return;
     }
     setLoading(true);
     api.get(`/bookings?sessionId=${form.sessionId}`)
       .then((res) => {
         const bookings = res.data || [];
-        // Extract children from confirmed bookings
-        const allParticipants = bookings
-          .filter(b => b.status === 'confirmed')
-          .flatMap(b => b.participants);
+        // Confirmed bookings only
+        const confirmedBookings = bookings.filter(b => b.status === 'confirmed');
         
-        // Filter those that have a childId ref
-        const sessionChildren = allParticipants
-          .map(p => p.childId)
-          .filter(Boolean);
-        
-        // Unique children
-        const unique = Array.from(new Map(sessionChildren.map(c => [c._id, c])).values());
-        setChildren(unique);
+        // Extract all participants (profile-linked or name-only)
+        const list = [];
+        confirmedBookings.forEach(b => {
+          b.participants.forEach(p => {
+             list.push({
+               id: p.childId?._id || p._id, // Use childId or participant entry ID
+               childId: p.childId?._id || null,
+               name: p.name || p.childId?.name || 'Unknown',
+               age: p.age || p.childId?.age || '',
+               gender: p.gender || p.childId?.gender || '',
+               bookingId: b._id
+             });
+          });
+        });
+
+        // Unique by childId (if exists) or Name
+        const uniqueItems = [];
+        const seen = new Set();
+        list.forEach(item => {
+          const key = item.childId || item.name;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueItems.push(item);
+          }
+        });
+
+        setAttendees(uniqueItems);
         setLoading(false);
       })
       .catch(() => {
@@ -72,9 +88,24 @@ export default function AttendanceManagement() {
   }, [form.sessionId]);
 
   const handleChange = (e) => {
+    if (e.target.name === 'attendeeKey') {
+      const selection = attendees.find(a => (a.childId || a.name) === e.target.value);
+      if (selection) {
+        setForm(prev => ({
+          ...prev,
+          childId: selection.childId || '',
+          participantName: selection.childId ? '' : selection.name,
+          bookingId: selection.bookingId
+        }));
+      } else {
+        setForm(prev => ({ ...prev, childId: '', participantName: '', bookingId: '' }));
+      }
+      return;
+    }
+    
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     if (e.target.name === 'sessionId') {
-      setForm(prev => ({ ...prev, childId: '' })); // Reset child when session changes
+      setForm(prev => ({ ...prev, childId: '', participantName: '', bookingId: '' })); // Reset when session changes
     }
   };
 
@@ -85,13 +116,12 @@ export default function AttendanceManagement() {
     
     try {
       await api.post('/attendance/checkin', { ...form, method: 'manual' });
-      setMessage('Check-in record saved successfully.');
-      setForm(prev => ({ ...prev, childId: '', status: 'present' }));
+      setMessage('Attendance record saved successfully.');
+      setForm(prev => ({ ...prev, childId: '', participantName: '', bookingId: '', status: 'present' }));
       loadAttendance();
-      // Auto clear message
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Check-in failed. This child might already be checked in.');
+      setError(err?.response?.data?.message || 'Check-in failed. This attendee might already be logged.');
     }
   };
 
@@ -104,11 +134,10 @@ export default function AttendanceManagement() {
             <p className="text-xs font-black uppercase tracking-[0.3em] text-white/60">Operations</p>
             <h1 className="mt-4 font-display text-4xl font-black">Attendance Tracking</h1>
             <p className="mt-3 max-w-xl text-lg text-white/80 leading-relaxed font-medium">
-              Manage physical presence for classes. Select a session to see confirmed participants and log their status.
+              Manage physical presence for classes. Select a session to see all attendees (both members and guests).
             </p>
           </div>
           <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -bottom-20 left-40 h-60 w-60 rounded-full bg-sky-400/20 blur-2xl" />
         </header>
 
         {message && (
@@ -146,20 +175,20 @@ export default function AttendanceManagement() {
 
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">
-                  {loading ? 'Finding Bookings...' : 'Select Participant'}
+                  {loading ? 'Finding Attendees...' : 'Select Attendee'}
                 </label>
                 <select
                   className="w-full rounded-2xl border-none bg-slate-50 p-4 font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 outline-none transition-all disabled:opacity-50"
-                  name="childId"
-                  value={form.childId}
+                  name="attendeeKey"
+                  value={form.childId || form.participantName}
                   onChange={handleChange}
                   required
                   disabled={!form.sessionId || loading}
                 >
-                  <option value="">{form.sessionId ? (children.length > 0 ? 'Select a child...' : 'No children found for this session') : 'Select session first'}</option>
-                  {children.map((child) => (
-                    <option key={child._id} value={child._id}>
-                      {child.name} ({child.age} yrs)
+                  <option value="">{form.sessionId ? (attendees.length > 0 ? 'Select a name...' : 'No attendees found for this session') : 'Select session first'}</option>
+                  {attendees.map((a) => (
+                    <option key={a.id} value={a.childId || a.name}>
+                      {a.name} {a.age ? `(${a.age} yrs)` : ''}
                     </option>
                   ))}
                 </select>
@@ -184,7 +213,7 @@ export default function AttendanceManagement() {
               <button 
                 className="rounded-2xl bg-brand-blue px-12 py-4 text-sm font-black text-white shadow-xl shadow-brand-blue/20 transition-all hover:scale-105 active:scale-95 disabled:grayscale" 
                 type="submit"
-                disabled={!form.childId}
+                disabled={!form.childId && !form.participantName}
               >
                 Log Attendance
               </button>
@@ -195,11 +224,10 @@ export default function AttendanceManagement() {
         <section className="mt-16">
           <div className="mb-8 flex items-center justify-between">
             <h2 className="font-display text-2xl font-black text-ink">Recent Logs</h2>
-            <div className="h-0.5 flex-1 bg-gradient-to-r from-slate-200 to-transparent mx-8 hidden md:block" />
             <p className="text-xs font-bold text-ink/30 uppercase tracking-widest">{records.length} records found</p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 text-left">
             {records.map((record) => (
               <div 
                 key={record._id} 
@@ -213,29 +241,18 @@ export default function AttendanceManagement() {
                 </div>
                 
                 <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-black text-ink">{record.childId?.name || 'Unknown Child'}</p>
-                    <span className="text-[10px] font-bold text-ink/20 uppercase tracking-widest">
+                  <div className="flex items-center justify-between mb-1 text-left">
+                    <p className="text-sm font-black text-ink">{record.childId?.name || record.participantName || 'Guest Participant'}</p>
+                    <span className="text-[10px] font-bold text-ink/20 uppercase tracking-widest text-right">
                        {new Date(record.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <p className="text-xs font-bold text-ink/50 leading-relaxed">
+                  <p className="text-xs font-bold text-ink/50 leading-relaxed text-left">
                     {record.sessionId?.classId?.title || 'Class'} · {new Date(record.checkedInAt).toLocaleDateString()}
                   </p>
                 </div>
-                
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className={`rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${record.method === 'qr' ? 'bg-sky-100 text-sky-600' : 'bg-slate-100 text-slate-500'}`}>
-                    {record.method || 'manual'}
-                  </span>
-                </div>
               </div>
             ))}
-            {records.length === 0 && (
-              <div className="col-span-full py-20 text-center rounded-[3rem] border-4 border-dashed border-slate-100">
-                <p className="text-lg font-bold text-ink/20">No attendance logs yet.</p>
-              </div>
-            )}
           </div>
         </section>
       </main>
@@ -243,4 +260,3 @@ export default function AttendanceManagement() {
     </div>
   );
 }
-

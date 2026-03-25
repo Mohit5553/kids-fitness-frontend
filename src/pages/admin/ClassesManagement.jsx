@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import { getUser } from '../../utils/auth.js';
 
 const emptyForm = {
   title: '',
@@ -23,9 +24,17 @@ export default function ClassesManagement() {
   const [editingId, setEditingId] = useState('');
   const [message, setMessage] = useState('');
 
+  const user = getUser();
+  const permissions = user?.permissions || [];
+  const isAdminOrSuper = user?.role === 'superadmin' || user?.role === 'admin';
+  const canCreate = isAdminOrSuper || permissions.includes('classes:create');
+  const canEdit = isAdminOrSuper || permissions.includes('classes:edit');
+  const canDelete = isAdminOrSuper || permissions.includes('classes:delete');
+  const canView = isAdminOrSuper || permissions.includes('classes:view');
+
   const load = () => {
-    api.get('/classes').then((res) => setClasses(res.data || [])).catch(() => {});
-    api.get('/trainers').then((res) => setTrainers(res.data || [])).catch(() => {});
+    api.get('/classes').then((res) => setClasses(res.data || [])).catch(() => { });
+    api.get('/trainers').then((res) => setTrainers(res.data || [])).catch(() => { });
   };
 
   useEffect(() => {
@@ -95,130 +104,136 @@ export default function ClassesManagement() {
         <p className="mt-2 text-sm text-ink/70">Create, update, and schedule classes.</p>
         {message ? <p className="mt-3 text-sm text-coral">{message}</p> : null}
 
-        <form className="mt-6 grid gap-3 rounded-3xl bg-white/80 p-6 shadow-glow" onSubmit={handleSubmit}>
-          <div className="grid gap-3 md:grid-cols-2">
-            <input
-              className="rounded-xl border border-orange-200/70 p-3"
-              name="title"
-              placeholder="Class title"
-              value={form.title}
-              onChange={handleChange}
-              required
-            />
-            <input
-              className="rounded-xl border border-orange-200/70 p-3"
-              name="ageGroup"
-              placeholder="Age group"
-              value={form.ageGroup}
-              onChange={handleChange}
-            />
-          </div>
-          <div className="grid gap-3 md:grid-cols-3">
-             <div className="space-y-1">
-               <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Min Age</label>
-               <input
-                 className="w-full rounded-xl border border-orange-200/70 p-3"
-                 name="minAge"
-                 type="number"
-                 placeholder="Min Age"
-                 value={form.minAge}
-                 onChange={handleChange}
-               />
-             </div>
-             <div className="space-y-1">
-               <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Max Age</label>
-               <input
-                 className="w-full rounded-xl border border-orange-200/70 p-3"
-                 name="maxAge"
-                 type="number"
-                 placeholder="Max Age"
-                 value={form.maxAge}
-                 onChange={handleChange}
-               />
-             </div>
-             <div className="space-y-1">
-               <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Gender</label>
-               <select
-                 className="w-full rounded-xl border border-orange-200/70 p-3"
-                 name="genderRestriction"
-                 value={form.genderRestriction}
-                 onChange={handleChange}
-               >
-                 <option value="any">Any</option>
-                 <option value="male">Male Only</option>
-                 <option value="female">Female Only</option>
-               </select>
-             </div>
-          </div>
-          <textarea
-            className="min-h-[90px] rounded-xl border border-orange-200/70 p-3"
-            name="description"
-            placeholder="Description"
-            value={form.description}
-            onChange={handleChange}
-          />
-          <div className="grid gap-3 md:grid-cols-3">
-            <input
-              className="rounded-xl border border-orange-200/70 p-3"
-              name="duration"
-              placeholder="Duration (e.g. 45 min)"
-              value={form.duration}
-              onChange={handleChange}
-            />
-            <div className="rounded-xl border border-orange-200/70 p-3">
-              <p className="text-[10px] font-bold text-ink/40 uppercase mb-2">Available Trainers</p>
-              <div className="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto">
-                {trainers.map(t => (
-                  <label key={t._id} className="flex items-center gap-2 text-xs font-bold text-ink/70 bg-slate-50 px-3 py-1.5 rounded-full cursor-pointer hover:bg-slate-100 transition-all">
-                    <input 
-                      type="checkbox" 
-                      checked={form.availableTrainers.includes(t._id)}
-                      onChange={(e) => {
-                        const newTrainers = e.target.checked 
-                          ? [...form.availableTrainers, t._id]
-                          : form.availableTrainers.filter(id => id !== t._id);
-                        setForm({...form, availableTrainers: newTrainers});
-                      }}
-                      className="accent-brand-blue"
-                    />
-                    {t.name}
-                  </label>
-                ))}
+        {canCreate || (editingId && canEdit) ? (
+          <form className="mt-6 grid gap-3 rounded-3xl bg-white/80 p-6 shadow-glow" onSubmit={handleSubmit}>
+            <div className="grid gap-3 md:grid-cols-2">
+              <input
+                className="rounded-xl border border-orange-200/70 p-3"
+                name="title"
+                placeholder="Class title"
+                value={form.title}
+                onChange={handleChange}
+                required
+              />
+              <input
+                className="rounded-xl border border-orange-200/70 p-3"
+                name="ageGroup"
+                placeholder="Age group"
+                value={form.ageGroup}
+                onChange={handleChange}
+              />
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Min Age</label>
+                <input
+                  className="w-full rounded-xl border border-orange-200/70 p-3"
+                  name="minAge"
+                  type="number"
+                  placeholder="Min Age"
+                  value={form.minAge}
+                  onChange={handleChange}
+                />
               </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Max Age</label>
+                <input
+                  className="w-full rounded-xl border border-orange-200/70 p-3"
+                  name="maxAge"
+                  type="number"
+                  placeholder="Max Age"
+                  value={form.maxAge}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Gender</label>
+                <select
+                  className="w-full rounded-xl border border-orange-200/70 p-3"
+                  name="genderRestriction"
+                  value={form.genderRestriction}
+                  onChange={handleChange}
+                >
+                  <option value="any">Any</option>
+                  <option value="male">Male Only</option>
+                  <option value="female">Female Only</option>
+                </select>
+              </div>
+            </div>
+            <textarea
+              className="min-h-[90px] rounded-xl border border-orange-200/70 p-3"
+              name="description"
+              placeholder="Description"
+              value={form.description}
+              onChange={handleChange}
+            />
+            <div className="grid gap-3 md:grid-cols-3">
+              <input
+                className="rounded-xl border border-orange-200/70 p-3"
+                name="duration"
+                placeholder="Duration (e.g. 45 min)"
+                value={form.duration}
+                onChange={handleChange}
+              />
+              <div className="rounded-xl border border-orange-200/70 p-3">
+                <p className="text-[10px] font-bold text-ink/40 uppercase mb-2">Available Trainers</p>
+                <div className="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto">
+                  {trainers.map(t => (
+                    <label key={t._id} className="flex items-center gap-2 text-xs font-bold text-ink/70 bg-slate-50 px-3 py-1.5 rounded-full cursor-pointer hover:bg-slate-100 transition-all">
+                      <input
+                        type="checkbox"
+                        checked={form.availableTrainers.includes(t._id)}
+                        onChange={(e) => {
+                          const newTrainers = e.target.checked
+                            ? [...form.availableTrainers, t._id]
+                            : form.availableTrainers.filter(id => id !== t._id);
+                          setForm({ ...form, availableTrainers: newTrainers });
+                        }}
+                        className="accent-brand-blue"
+                      />
+                      {t.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <input
+                className="rounded-xl border border-orange-200/70 p-3"
+                name="price"
+                type="number"
+                placeholder="Price"
+                value={form.price}
+                onChange={handleChange}
+                required
+              />
             </div>
             <input
               className="rounded-xl border border-orange-200/70 p-3"
-              name="price"
+              name="capacity"
               type="number"
-              placeholder="Price"
-              value={form.price}
+              placeholder="Capacity"
+              value={form.capacity}
               onChange={handleChange}
-              required
             />
-          </div>
-          <input
-            className="rounded-xl border border-orange-200/70 p-3"
-            name="capacity"
-            type="number"
-            placeholder="Capacity"
-            value={form.capacity}
-            onChange={handleChange}
-          />
-          <div className="flex flex-wrap gap-3">
-            <button className="rounded-full bg-brand-blue px-8 py-3 text-sm font-black text-white shadow-lg hover:scale-105 transition-all" type="submit">
-              {editingId ? 'Update class' : 'Create class'}
-            </button>
-            {editingId ? (
-              <button
-                type="button"
-                className="rounded-full border border-ink/10 px-8 py-3 text-sm font-black text-ink hover:bg-slate-50 transition-all"
-                onClick={handleCancel}
-              >
-                Cancel
+            <div className="flex flex-wrap gap-3">
+              <button className="rounded-full bg-brand-blue px-8 py-3 text-sm font-black text-white shadow-lg hover:scale-105 transition-all" type="submit">
+                {editingId ? 'Update class' : 'Create class'}
               </button>
-            ) : null}
+              {editingId ? (
+                <button
+                  type="button"
+                  className="rounded-full border border-ink/10 px-8 py-3 text-sm font-black text-ink hover:bg-slate-50 transition-all"
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </div>
+          </form>
+        ) : (
+          <div className="mt-6 p-6 bg-white/50 rounded-3xl border border-dashed border-slate-200 text-center">
+            <p className="text-sm font-bold text-ink/30 italic">You don't have permission to {editingId ? 'edit' : 'create'} classes.</p>
           </div>
-        </form>
+        )}
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           {classes.map((item) => (
@@ -248,18 +263,22 @@ export default function ClassesManagement() {
                 <p className="text-xl font-black text-brand-blue">AED {item.price}</p>
               </div>
               <div className="mt-6 pt-6 border-t border-slate-50 flex gap-3">
-                <button
-                  className="rounded-full bg-slate-50 px-6 py-2 text-xs font-black uppercase tracking-widest text-ink/60 hover:bg-slate-100 transition-all"
-                  onClick={() => handleEdit(item)}
-                >
-                  Edit
-                </button>
-                <button
-                  className="rounded-full bg-red-50 px-6 py-2 text-xs font-black uppercase tracking-widest text-red-400 hover:bg-red-100 transition-all"
-                  onClick={() => handleDelete(item._id)}
-                >
-                  Delete
-                </button>
+                {canEdit && (
+                  <button
+                    className="rounded-full bg-slate-50 px-6 py-2 text-xs font-black uppercase tracking-widest text-ink/60 hover:bg-slate-100 transition-all"
+                    onClick={() => handleEdit(item)}
+                  >
+                    Edit
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    className="rounded-full bg-red-50 px-6 py-2 text-xs font-black uppercase tracking-widest text-red-400 hover:bg-red-100 transition-all"
+                    onClick={() => handleDelete(item._id)}
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           ))}

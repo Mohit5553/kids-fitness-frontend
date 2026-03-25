@@ -17,7 +17,8 @@ export const setAuth = (payload) => {
     name: payload?.name,
     email: payload?.email,
     role: payload?.role,
-    locationId: payload?.locationId
+    locationId: payload?.locationId,
+    trainerId: payload?.trainerId
   };
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 };

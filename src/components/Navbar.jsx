@@ -219,9 +219,8 @@ export default function Navbar() {
 
       {/* Mobile Menu Dropdown */}
       <div
-        className={`fixed inset-x-0 top-[72px] h-[calc(100vh-72px)] bg-white/95 backdrop-blur-xl z-40 transition-all duration-300 ease-in-out xl:hidden overflow-y-auto ${
-          isMobileMenuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-4'
-        }`}
+        className={`fixed inset-x-0 top-[72px] h-[calc(100vh-72px)] bg-white/95 backdrop-blur-xl z-40 transition-all duration-300 ease-in-out xl:hidden overflow-y-auto ${isMobileMenuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-4'
+          }`}
       >
         <div className="page-shell py-8 flex flex-col gap-6">
 
