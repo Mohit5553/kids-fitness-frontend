@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { getUser, clearAuth } from '../utils/auth.js';
+import { getUser, clearAuth, getRoleSlug } from '../utils/auth.js';
 import LocationSelect from './LocationSelect.jsx';
 
 const navLinks = [
@@ -20,8 +20,11 @@ function getInitials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function getRoleLabel(role) {
-  if (role === 'admin' || role === 'superadmin') return 'Admin';
+function getRoleLabel(user) {
+  if (!user) return null;
+  if (user.role === 'superadmin' || user.role === 'admin') return 'Admin';
+  if (user.permissions && user.permissions.length > 0) return user.role; // Custom role name
+  if (user.role === 'trainer') return 'Trainer';
   return 'User';
 }
 
@@ -58,13 +61,12 @@ export default function Navbar() {
     setIsMobileMenuOpen(false);
   };
 
-  const roleLabel = user ? getRoleLabel(user.role) : null;
+  const isStaff = user && (user.role === 'admin' || user.role === 'superadmin' || (user.permissions && user.permissions.length > 0));
+  const roleLabel = getRoleLabel(user);
   const roleColor = user ? getRoleColor(user.role) : null;
   const initials = user ? getInitials(user.name) : null;
   const dashboardPath = user
-    ? user.role === 'admin' || user.role === 'superadmin'
-      ? '/admin'
-      : '/dashboard'
+    ? `/${getRoleSlug(user.role)}`
     : '/login';
 
   return (
@@ -94,7 +96,7 @@ export default function Navbar() {
 
           {/* Desktop Actions */}
           <div className="hidden xl:flex items-center gap-3">
-            {user && (user.role === 'admin' || user.role === 'superadmin') ? (
+            {isStaff ? (
               <LocationSelect allowAll={user.role === 'superadmin'} />
             ) : null}
 
@@ -116,7 +118,7 @@ export default function Navbar() {
                   </span>
                   {/* Name / Admin label */}
                   <span className="text-sm font-bold text-brand-black max-w-[120px] truncate">
-                    {(user.role === 'admin' || user.role === 'superadmin') ? 'Admin' : user.name}
+                    {isStaff ? (user.role === 'admin' || user.role === 'superadmin' ? 'Admin' : user.role) : user.name}
                   </span>
                   {/* Chevron */}
                   <svg
@@ -141,7 +143,7 @@ export default function Navbar() {
                         </span>
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-brand-black truncate">
-                            {(user.role === 'admin' || user.role === 'superadmin') ? 'Admin' : user.name}
+                            {isStaff ? (user.role === 'admin' || user.role === 'superadmin' ? 'Admin' : user.role) : user.name}
                           </p>
                           <p className="text-xs text-brand-black/50 truncate">{user.email}</p>
                         </div>

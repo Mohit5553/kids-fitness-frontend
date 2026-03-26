@@ -87,7 +87,7 @@ export default function Register() {
     try {
       const config = { headers: { 'Content-Type': 'multipart/form-data' } };
       const { data } = await api.post('/upload', formData, config);
-      
+
       if (type === 'parent') {
         setForm(prev => ({ ...prev, avatarUrl: data.image }));
       } else {
@@ -126,7 +126,7 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     const payload = {
       ...form,
       name: `${form.firstName} ${form.lastName}`.trim()
@@ -672,10 +672,9 @@ export default function Register() {
           <div className="relative flex justify-between">
             {[1, 2, 3].map((s) => (
               <div key={s} className="flex flex-col items-center gap-3">
-                <div 
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black transition-all duration-500 relative z-10 ${
-                    step >= s ? 'bg-ocean text-white shadow-lg' : 'bg-white text-slate-300 border-2 border-slate-200'
-                  }`}
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black transition-all duration-500 relative z-10 ${step >= s ? 'bg-ocean text-white shadow-lg' : 'bg-white text-slate-300 border-2 border-slate-200'
+                    }`}
                 >
                   {s}
                 </div>

@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { getUser } from '../utils/auth.js';
+import { getUser, getRoleSlug } from '../utils/auth.js';
 
 export function RequireAuth() {
   const user = getUser();
@@ -38,7 +38,7 @@ export function RequirePermission({ permission }) {
   const hasPerm = user.role === 'superadmin' || user.role === 'admin' || (user.permissions && user.permissions.includes(permission));
   
   if (!hasPerm) {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to={`/${getRoleSlug(user.role)}`} replace />;
   }
   return <Outlet />;
 }

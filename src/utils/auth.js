@@ -18,7 +18,8 @@ export const setAuth = (payload) => {
     email: payload?.email,
     role: payload?.role,
     locationId: payload?.locationId,
-    trainerId: payload?.trainerId
+    trainerId: payload?.trainerId,
+    permissions: payload?.permissions
   };
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 };
@@ -26,4 +27,13 @@ export const setAuth = (payload) => {
 export const clearAuth = () => {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+};
+
+export const getRoleSlug = (role) => {
+  if (!role) return 'dashboard';
+  const r = role.toLowerCase();
+  if (r === 'parent' || r === 'customer') return 'dashboard';
+  if (r === 'trainer') return 'trainer/dashboard';
+  // Remove spaces and underscores for staff roles (e.g. "Store Manager" -> "storemanger")
+  return r.replace(/[\s_]/g, '');
 };

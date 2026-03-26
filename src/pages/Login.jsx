@@ -3,7 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import api from '../api/api.js';
-import { getUser, setAuth } from '../utils/auth.js';
+import { getUser, setAuth, getRoleSlug } from '../utils/auth.js';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -19,9 +19,12 @@ export default function Login() {
   useEffect(() => {
     const user = getUser();
     if (user) {
-      if (user.role === 'admin' || user.role === 'superadmin') navigate('/admin');
-      else if (user.role === 'trainer') navigate('/trainer/dashboard');
-      else navigate('/dashboard');
+      const isStaff = user.role === 'admin' || user.role === 'superadmin' || (user.permissions && user.permissions.length > 0);
+      if (isStaff || user.role === 'trainer') {
+        navigate(`/${getRoleSlug(user.role)}`);
+      } else {
+        navigate('/dashboard');
+      }
     }
   }, [navigate]);
 
@@ -34,9 +37,12 @@ export default function Login() {
       if (redirect) {
         navigate(redirect);
       } else {
-        if (res.data.role === 'admin' || res.data.role === 'superadmin') navigate('/admin');
-        else if (res.data.role === 'trainer') navigate('/trainer/dashboard');
-        else navigate('/dashboard');
+        const isStaff = res.data.role === 'admin' || res.data.role === 'superadmin' || (res.data.permissions && res.data.permissions.length > 0);
+        if (isStaff || res.data.role === 'trainer') {
+          navigate(`/${getRoleSlug(res.data.role)}`);
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (err) {
       setError(err?.response?.data?.message || 'Login failed. Check your credentials.');

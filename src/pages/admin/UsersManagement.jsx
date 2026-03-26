@@ -36,6 +36,7 @@ export default function UsersManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [customRoles, setCustomRoles] = useState([]);
+  const [locations, setLocations] = useState([]);
   
   // Staff Creation Form State
   const [showAddStaff, setShowAddStaff] = useState(false);
@@ -44,7 +45,8 @@ export default function UsersManagement() {
     email: '',
     password: '',
     role: 'admin',
-    phone: ''
+    phone: '',
+    locationId: ''
   });
 
   const user = getUser();
@@ -65,6 +67,7 @@ export default function UsersManagement() {
   useEffect(() => {
     load();
     api.get('/roles').then(res => setCustomRoles(res.data || [])).catch(() => {});
+    api.get('/locations?all=true').then(res => setLocations(res.data || [])).catch(() => {});
   }, []);
 
   const updateRole = async (id, role) => {
@@ -104,7 +107,7 @@ export default function UsersManagement() {
       await api.post('/users', staffForm);
       toast.success('Staff user created successfully');
       setShowAddStaff(false);
-      setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '' });
+      setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '', locationId: '' });
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create staff');
@@ -167,6 +170,22 @@ export default function UsersManagement() {
                     {customRoles.map(r => <option key={r._id} value={r.name}>{r.name}</option>)}
                   </select>
                 </div>
+                {user?.role === 'superadmin' && (
+                  <div className="md:col-span-2">
+                    <label className="text-[10px] font-black text-ink/30 uppercase tracking-widest block mb-2">Branch Assignment</label>
+                    <select 
+                      required
+                      value={staffForm.locationId} 
+                      onChange={e => setStaffForm({...staffForm, locationId: e.target.value})} 
+                      className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 text-sm font-bold"
+                    >
+                      <option value="">Select Branch</option>
+                      {locations.map(loc => (
+                        <option key={loc._id} value={loc._id}>{loc.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="md:col-span-2">
                   <button type="submit" className="w-full bg-coral text-white py-4 rounded-2xl text-sm font-black uppercase tracking-widest hover:brightness-110 shadow-lg shadow-coral/20">Create account</button>
                 </div>

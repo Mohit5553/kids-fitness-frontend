@@ -78,62 +78,62 @@ export default function App() {
         </Route>
 
         <Route element={<RequireAdmin />}>
-          <Route path="/admin" element={<AdminDashboard />} />
-          
+          <Route path="/:roleSlug" element={<AdminDashboard />} />
+
           <Route element={<RequirePermission permission="classes:view" />}>
-            <Route path="/admin/classes" element={<ClassesManagement />} />
+            <Route path="/:roleSlug/classes" element={<ClassesManagement />} />
           </Route>
-          
+
           <Route element={<RequirePermission permission="sessions:view" />}>
-            <Route path="/admin/sessions" element={<SessionsManagement />} />
+            <Route path="/:roleSlug/sessions" element={<SessionsManagement />} />
           </Route>
-          
+
           <Route element={<RequirePermission permission="pricing:view" />}>
-            <Route path="/admin/pricing" element={<PricingManagement />} />
+            <Route path="/:roleSlug/pricing" element={<PricingManagement />} />
           </Route>
-          
+
           <Route element={<RequirePermission permission="bookings:view" />}>
-            <Route path="/admin/bookings" element={<BookingManagement />} />
+            <Route path="/:roleSlug/bookings" element={<BookingManagement />} />
           </Route>
-          
+
           <Route element={<RequirePermission permission="users:view" />}>
-            <Route path="/admin/users" element={<UsersManagement />} />
+            <Route path="/:roleSlug/users" element={<UsersManagement />} />
           </Route>
-          
+
           <Route element={<RequirePermission permission="reports:view" />}>
-            <Route path="/admin/reports" element={<Reports />} />
+            <Route path="/:roleSlug/reports" element={<Reports />} />
           </Route>
-          
+
           <Route element={<RequirePermission permission="trainers:view" />}>
-            <Route path="/admin/trainers" element={<TrainersManagement />} />
+            <Route path="/:roleSlug/trainers" element={<TrainersManagement />} />
           </Route>
-          
+
           <Route element={<RequirePermission permission="attendance:view" />}>
-            <Route path="/admin/attendance" element={<AttendanceManagement />} />
+            <Route path="/:roleSlug/attendance" element={<AttendanceManagement />} />
           </Route>
-          
+
           <Route element={<RequirePermission permission="memberships:view" />}>
-            <Route path="/admin/memberships" element={<MembershipManagement />} />
+            <Route path="/:roleSlug/memberships" element={<MembershipManagement />} />
           </Route>
-          
+
           <Route element={<RequirePermission permission="trials:view" />}>
-            <Route path="/admin/trials" element={<TrialsManagement />} />
+            <Route path="/:roleSlug/trials" element={<TrialsManagement />} />
           </Route>
-          
+
           <Route element={<RequirePermission permission="payments:view" />}>
-            <Route path="/admin/payments" element={<PaymentsManagement />} />
+            <Route path="/:roleSlug/payments" element={<PaymentsManagement />} />
           </Route>
-          
+
           <Route element={<RequirePermission permission="locations:view" />}>
-            <Route path="/admin/locations" element={<LocationManagement />} />
+            <Route path="/:roleSlug/locations" element={<LocationManagement />} />
           </Route>
-          
+
           <Route element={<RequirePermission permission="specialties:view" />}>
-            <Route path="/admin/specialties" element={<SpecialtiesManagement />} />
+            <Route path="/:roleSlug/specialties" element={<SpecialtiesManagement />} />
           </Route>
-          
+
           <Route element={<RequirePermission permission="roles:view" />}>
-            <Route path="/admin/roles" element={<RoleMaster />} />
+            <Route path="/:roleSlug/roles" element={<RoleMaster />} />
           </Route>
         </Route>
       </Routes>

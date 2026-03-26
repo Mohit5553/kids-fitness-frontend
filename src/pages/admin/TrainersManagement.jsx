@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
+import AdminHeader from '../../components/AdminHeader.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import { getUser } from '../../utils/auth.js';
 
 const emptyForm = {
   name: '',
@@ -24,6 +26,12 @@ export default function TrainersManagement() {
   const [editingId, setEditingId] = useState('');
 
   const [uploading, setUploading] = useState(false);
+
+  const user = getUser();
+  const isAdminOrSuper = user?.role === 'admin' || user?.role === 'superadmin';
+  const canCreate = isAdminOrSuper || user?.permissions?.includes('trainers:create');
+  const canEdit = isAdminOrSuper || user?.permissions?.includes('trainers:edit');
+  const canDelete = isAdminOrSuper || user?.permissions?.includes('trainers:delete');
 
   const load = () => {
     api.get('/trainers').then((res) => setTrainers(res.data || [])).catch(() => { });
@@ -124,255 +132,257 @@ export default function TrainersManagement() {
     <div className="min-h-screen bg-slate-50">
       <Navbar />
       <main className="page-shell pb-12 pt-8">
-        <section className="relative overflow-hidden rounded-[32px] bg-gradient-to-r from-ocean to-moss p-8 text-white shadow-glow mb-8">
-          <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/80">Admin Center</p>
-              <h1 className="mt-3 font-display text-3xl md:text-4xl">Trainer Master</h1>
-              <p className="mt-2 text-sm text-white/80">Manage your coaching team, their specialties, and center assignments.</p>
-            </div>
-            <div className="flex gap-2">
-               <button
-                onClick={() => handleCancel()}
-                className="rounded-full bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20 active:scale-95"
-              >
-                Clear Form
-              </button>
-            </div>
-          </div>
-        </section>
+        <AdminHeader 
+          title="Trainer Master" 
+          description="Manage your coaching team, their specialties, and center assignments."
+          actions={(
+            <button
+              onClick={() => handleCancel()}
+              className="rounded-full bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20 active:scale-95"
+            >
+              Clear Form
+            </button>
+          )}
+        />
 
-        <div className="mb-10 rounded-[32px] bg-white p-8 shadow-sm border border-slate-100">
-          <h2 className="font-display text-2xl text-ink mb-6">
-            {editingId ? 'Edit Trainer Profile' : 'Register New Trainer'}
-          </h2>
-          <form onSubmit={handleSubmit} className="grid gap-6">
-            <div className="grid gap-6 md:grid-cols-3">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Trainer Name</label>
-                <input
-                  className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
-                  name="name"
-                  placeholder="Full Name"
-                  value={form.name}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Email Address</label>
-                <input
-                  className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
-                  name="email"
-                  type="email"
-                  placeholder="Email"
-                  value={form.email}
-                  onChange={handleChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Phone Number</label>
-                <input
-                  className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
-                  name="phone"
-                  placeholder="Phone"
-                  value={form.phone}
-                  onChange={handleChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">
-                  {editingId ? 'Reset Password' : 'Initial Password'}
-                </label>
-                <input
-                  className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
-                  name="password"
-                  type="password"
-                  placeholder={editingId ? "Leave blank to keep current" : "Password"}
-                  value={form.password}
-                  onChange={handleChange}
-                  required={!editingId}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-3">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Assigned Branch</label>
-                <select
-                  className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
-                  name="locationId"
-                  value={form.locationId}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="">Select Location</option>
-                  {locations.map(loc => (
-                    <option key={loc._id} value={loc._id}>{loc.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Duty Status</label>
-                <select
-                  className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
-                  name="status"
-                  value={form.status}
-                  onChange={handleChange}
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Avatar / Photo</label>
-                <div className="flex items-center gap-4">
+        {(canCreate || (canEdit && editingId)) ? (
+          <div className="mb-10 rounded-[32px] bg-white p-8 shadow-sm border border-slate-100">
+            <h2 className="font-display text-2xl text-ink mb-6">
+              {editingId ? 'Edit Trainer Profile' : 'Register New Trainer'}
+            </h2>
+            <form onSubmit={handleSubmit} className="grid gap-6">
+              {/* Form contents... */}
+              <div className="grid gap-6 md:grid-cols-3">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Trainer Name</label>
                   <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="block w-full text-xs text-slate-500
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-full file:border-0
-                      file:text-xs file:font-semibold
-                      file:bg-ocean file:text-white
-                      hover:file:bg-ocean-dark
-                      cursor-pointer"
+                    className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
+                    name="name"
+                    placeholder="Full Name"
+                    value={form.name}
+                    onChange={handleChange}
+                    required
                   />
-                  {form.avatarUrl && (
-                    <img 
-                      src={form.avatarUrl.startsWith('http') ? form.avatarUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${form.avatarUrl}`} 
-                      className="h-10 w-10 rounded-full object-cover border" 
-                      alt="Preview" 
-                    />
-                  )}
-                  {uploading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-ocean border-t-transparent" />}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Email Address</label>
+                  <input
+                    className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
+                    name="email"
+                    type="email"
+                    placeholder="Email"
+                    value={form.email}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Phone Number</label>
+                  <input
+                    className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
+                    name="phone"
+                    placeholder="Phone"
+                    value={form.phone}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-ink/50">
+                    {editingId ? 'Reset Password' : 'Initial Password'}
+                  </label>
+                  <input
+                    className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
+                    name="password"
+                    type="password"
+                    placeholder={editingId ? "Leave blank to keep current" : "Password"}
+                    value={form.password}
+                    onChange={handleChange}
+                    required={!editingId}
+                  />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Gallery Photos (Multi)</label>
-                <div className="space-y-4">
+
+              <div className="grid gap-6 md:grid-cols-3">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Assigned Branch</label>
+                  <select
+                    className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
+                    name="locationId"
+                    value={form.locationId}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="">Select Location</option>
+                    {locations.map(loc => (
+                      <option key={loc._id} value={loc._id}>{loc.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Duty Status</label>
+                  <select
+                    className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
+                    name="status"
+                    value={form.status}
+                    onChange={handleChange}
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Avatar / Photo</label>
                   <div className="flex items-center gap-4">
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => handleFileUpload(e, true)}
+                      onChange={handleFileUpload}
                       className="block w-full text-xs text-slate-500
                         file:mr-4 file:py-2 file:px-4
                         file:rounded-full file:border-0
                         file:text-xs file:font-semibold
-                        file:bg-moss file:text-white
-                        hover:file:bg-moss-dark
+                        file:bg-ocean file:text-white
+                        hover:file:bg-ocean-dark
                         cursor-pointer"
                     />
-                    {uploading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-moss border-t-transparent" />}
+                    {form.avatarUrl && (
+                      <img 
+                        src={form.avatarUrl.startsWith('http') ? form.avatarUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${form.avatarUrl}`} 
+                        className="h-10 w-10 rounded-full object-cover border" 
+                        alt="Preview" 
+                      />
+                    )}
+                    {uploading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-ocean border-t-transparent" />}
                   </div>
-                  
-                  <div className="flex flex-wrap gap-3">
-                    {(form.gallery || []).map((img, idx) => (
-                      <div key={idx} className="relative group/img w-16 h-16 rounded-xl overflow-hidden border border-slate-200">
-                        <img 
-                          src={img.startsWith('http') ? img : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${img}`} 
-                          className="w-full h-full object-cover" 
-                          alt={`Gallery ${idx}`} 
-                        />
-                        <button 
-                          type="button"
-                          onClick={() => setForm(prev => ({ ...prev, gallery: prev.gallery.filter((_, i) => i !== idx) }))}
-                          className="absolute inset-0 bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"
-                        >
-                          <span className="text-[10px] font-bold">Delete</span>
-                        </button>
-                      </div>
-                    ))}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Gallery Photos (Multi)</label>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileUpload(e, true)}
+                        className="block w-full text-xs text-slate-500
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-full file:border-0
+                          file:text-xs file:font-semibold
+                          file:bg-moss file:text-white
+                          hover:file:bg-moss-dark
+                          cursor-pointer"
+                      />
+                      {uploading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-moss border-t-transparent" />}
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-3">
+                      {(form.gallery || []).map((img, idx) => (
+                        <div key={idx} className="relative group/img w-16 h-16 rounded-xl overflow-hidden border border-slate-200">
+                          <img 
+                            src={img.startsWith('http') ? img : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${img}`} 
+                            className="w-full h-full object-cover" 
+                            alt={`Gallery ${idx}`} 
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => setForm(prev => ({ ...prev, gallery: prev.gallery.filter((_, i) => i !== idx) }))}
+                            className="absolute inset-0 bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"
+                          >
+                            <span className="text-[10px] font-bold">Delete</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-ink/50 flex justify-between">
-                <span>Specialties</span>
-                <span className="text-[10px] text-ocean normal-case font-medium">Tip: Managed in Specialty Master</span>
-              </label>
-              <div className="space-y-3">
-                <div className="flex gap-3">
-                  <select
-                    className="flex-1 rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0 appearance-none cursor-pointer"
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (!val) return;
-                      const current = form.specialties.split(',').map(s => s.trim()).filter(Boolean);
-                      if (!current.includes(val)) {
-                        setForm({ ...form, specialties: [...current, val].join(', ') });
-                      }
-                      e.target.value = ""; // Reset dropdown
-                    }}
-                  >
-                    <option value="">Select Specialty to Add...</option>
-                    {specialtiesList.filter(s => s.status === 'active').map(spec => (
-                      <option key={spec._id} value={spec.name}>{spec.name}</option>
-                    ))}
-                  </select>
-                  <input
-                    className="w-1/3 rounded-2xl border-slate-200 bg-slate-100 p-3 text-sm text-ink/40 cursor-not-allowed"
-                    name="specialties"
-                    placeholder="Selected specialties"
-                    value={form.specialties}
-                    readOnly
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {form.specialties.split(',').map(s => s.trim()).filter(Boolean).map((specName, i) => (
-                    <span 
-                      key={i} 
-                      className="group/tag inline-flex items-center gap-1.5 rounded-lg bg-coral/10 px-2.5 py-1 text-[10px] font-bold text-coral"
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-ink/50 flex justify-between">
+                  <span>Specialties</span>
+                  <span className="text-[10px] text-ocean normal-case font-medium">Tip: Managed in Specialty Master</span>
+                </label>
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <select
+                      className="flex-1 rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0 appearance-none cursor-pointer"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        const current = form.specialties.split(',').map(s => s.trim()).filter(Boolean);
+                        if (!current.includes(val)) {
+                          setForm({ ...form, specialties: [...current, val].join(', ') });
+                        }
+                        e.target.value = ""; // Reset dropdown
+                      }}
                     >
-                      {specName}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const current = form.specialties.split(',').map(s => s.trim()).filter(Boolean);
-                          setForm({ ...form, specialties: current.filter(s => s !== specName).join(', ') });
-                        }}
-                        className="hover:scale-125 transition-transform"
+                      <option value="">Select Specialty to Add...</option>
+                      {specialtiesList.filter(s => s.status === 'active').map(spec => (
+                        <option key={spec._id} value={spec.name}>{spec.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      className="w-1/3 rounded-2xl border-slate-200 bg-slate-100 p-3 text-sm text-ink/40 cursor-not-allowed"
+                      name="specialties"
+                      placeholder="Selected specialties"
+                      value={form.specialties}
+                      readOnly
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {form.specialties.split(',').map(s => s.trim()).filter(Boolean).map((specName, i) => (
+                      <span 
+                        key={i} 
+                        className="group/tag inline-flex items-center gap-1.5 rounded-lg bg-coral/10 px-2.5 py-1 text-[10px] font-bold text-coral"
                       >
-                        ?
-                      </button>
-                    </span>
-                  ))}
-                  {form.specialties.trim() === "" && <p className="text-[10px] text-ink/20 italic">No specialties selected yet.</p>}
+                        {specName}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = form.specialties.split(',').map(s => s.trim()).filter(Boolean);
+                            setForm({ ...form, specialties: current.filter(s => s !== specName).join(', ') });
+                          }}
+                          className="hover:scale-125 transition-transform"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                    {form.specialties.trim() === "" && <p className="text-[10px] text-ink/20 italic">No specialties selected yet.</p>}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Professional Bio</label>
-              <textarea
-                className="min-h-[100px] w-full rounded-2xl border-slate-200 bg-slate-50 p-4 text-sm focus:border-coral focus:ring-0"
-                name="bio"
-                placeholder="Briefly describe the trainer's background and coaching philosophy..."
-                value={form.bio}
-                onChange={handleChange}
-              />
-            </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Professional Bio</label>
+                <textarea
+                  className="min-h-[100px] w-full rounded-2xl border-slate-200 bg-slate-50 p-4 text-sm focus:border-coral focus:ring-0"
+                  name="bio"
+                  placeholder="Briefly describe the trainer's background and coaching philosophy..."
+                  value={form.bio}
+                  onChange={handleChange}
+                />
+              </div>
 
-            <div className="flex gap-4">
-              <button className="flex-1 rounded-2xl bg-coral py-4 text-sm font-bold text-white shadow-lg transition hover:bg-coral-dark active:scale-[0.98]" type="submit">
-                {editingId ? 'Update Trainer' : 'Add Trainer to Roster'}
-              </button>
-              {editingId && (
-                <button
-                  type="button"
-                  className="px-10 rounded-2xl bg-slate-100 py-4 text-sm font-bold text-ink/40 hover:bg-slate-200 transition-all"
-                  onClick={handleCancel}
-                >
-                  Cancel
+              <div className="flex gap-4">
+                <button className="flex-1 rounded-2xl bg-coral py-4 text-sm font-bold text-white shadow-lg transition hover:bg-coral-dark active:scale-[0.98]" type="submit">
+                  {editingId ? 'Update Trainer' : 'Add Trainer to Roster'}
                 </button>
-              )}
-            </div>
-          </form>
-        </div>
+                {editingId && (
+                  <button
+                    type="button"
+                    className="px-10 rounded-2xl bg-slate-100 py-4 text-sm font-bold text-ink/40 hover:bg-slate-200 transition-all"
+                    onClick={handleCancel}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        ) : (
+          <div className="mb-10 rounded-[32px] bg-white p-8 text-center border border-slate-100 italic text-slate-400 text-sm">
+            You do not have permission to add or edit trainer profiles.
+          </div>
+        )}
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {trainers.map((trainer) => (
@@ -412,19 +422,26 @@ export default function TrainersManagement() {
                   <div className="pt-3 border-t border-slate-50 flex justify-between items-center text-[10px] font-medium text-ink/40">
                     <span>{trainer.email || 'No email'}</span>
                     <div className="flex gap-2">
-                       <button
-                        className="text-ocean hover:underline"
-                        onClick={() => handleEdit(trainer)}
-                      >
-                        Edit
-                      </button>
-                      <span className="text-slate-200">|</span>
-                      <button
-                        className="text-red-400 hover:text-red-600"
-                        onClick={() => handleDelete(trainer._id)}
-                      >
-                        Delete
-                      </button>
+                      {canEdit && (
+                        <>
+                          <button
+                            className="text-ocean hover:underline"
+                            onClick={() => handleEdit(trainer)}
+                          >
+                            Edit
+                          </button>
+                          {(canDelete) && <span className="text-slate-200">|</span>}
+                        </>
+                      )}
+                      {canDelete && (
+                        <button
+                          className="text-red-400 hover:text-red-600"
+                          onClick={() => handleDelete(trainer._id)}
+                        >
+                          Delete
+                        </button>
+                      )}
+                      {!canEdit && !canDelete && <span className="italic opacity-50">View Only</span>}
                     </div>
                   </div>
                 </div>

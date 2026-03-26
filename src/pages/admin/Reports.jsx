@@ -13,6 +13,7 @@ const REPORT_TYPES = [
   { id: 'payments', label: 'Payments Report' },
   { id: 'users', label: 'Users Report' },
   { id: 'trainer_sales', label: 'Trainer Sales Report' },
+  { id: 'attendance', label: 'Attendance Report' },
 ];
 
 export default function Reports() {
@@ -43,7 +44,20 @@ export default function Reports() {
         all: !locationId ? 'true' : 'false'
       };
       const res = await api.get(`/reports/${reportType}`, { params });
-      setReportData(res.data || []);
+      let data = res.data || [];
+      
+      // Process bookings to extract capacity and timing
+      if (reportType === 'bookings') {
+        data = data.map(item => ({
+          ...item,
+          capacity: item.classId?.capacity || 'N/A',
+          slotTiming: item.sessionId ? (
+            `${new Date(item.sessionId.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} - ${item.sessionId.endTime ? new Date(item.sessionId.endTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}`
+          ) : 'N/A'
+        }));
+      }
+      
+      setReportData(data);
     } catch (error) {
       console.error('Failed to fetch report:', error);
       alert('Failed to fetch report data');
@@ -80,6 +94,7 @@ export default function Reports() {
         }
         if (key === 'classId' && typeof value === 'object') {
           flat['Class'] = value?.title || 'N/A';
+          flat['Class Capacity'] = value?.capacity || 'N/A';
           return;
         }
         if (key === 'locationId' && typeof value === 'object') {
@@ -92,6 +107,9 @@ export default function Reports() {
         }
         if (key === 'sessionId' && typeof value === 'object') {
           flat['Trainer'] = value?.trainerId?.name || 'TBA';
+          if (value?.startTime) {
+            flat['Slot Timing'] = `${new Date(value.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} - ${value.endTime ? new Date(value.endTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}`;
+          }
           return;
         }
         if (key === 'participants' && Array.isArray(value)) {
@@ -112,7 +130,15 @@ export default function Reports() {
     const worksheet = XLSX.utils.json_to_sheet(flattenedData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
-    XLSX.writeFile(workbook, `${reportType}_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    
+    let filename = `${reportType}_report`;
+    if (startDate && endDate) {
+      filename += `_${startDate}_to_${endDate}`;
+    } else {
+      filename += `_${new Date().toISOString().split('T')[0]}`;
+    }
+    
+    XLSX.writeFile(workbook, `${filename}.xlsx`);
   };
 
   const COLUMNS = {
@@ -121,7 +147,9 @@ export default function Reports() {
       { key: 'userId', label: 'User' },
       { key: 'participants', label: 'Participants' },
       { key: 'classId', label: 'Class' },
+      { key: 'capacity', label: 'Capacity' },
       { key: 'sessionId', label: 'Trainer' },
+      { key: 'slotTiming', label: 'Slot Timing' },
       { key: 'date', label: 'Date' },
       { key: 'totalAmount', label: 'Amount' },
       { key: 'status', label: 'Status' },
@@ -170,7 +198,15 @@ export default function Reports() {
       { key: 'paymentMethod', label: 'Method' },
       { key: 'status', label: 'Status' },
       { key: 'reference', label: 'Reference' },
-      { key: 'createdAt', label: 'Date' },
+    ],
+    attendance: [
+      { key: 'bookingId', label: 'Booking' },
+      { key: 'sessionId', label: 'Session/Trainer' },
+      { key: 'childId', label: 'Child/Participant' },
+      { key: 'checkedInAt', label: 'Checked In' },
+      { key: 'status', label: 'Status' },
+      { key: 'method', label: 'Method' },
+      { key: 'locationId', label: 'Branch' },
     ],
     users: [
       { key: 'name', label: 'Name' },
@@ -178,7 +214,6 @@ export default function Reports() {
       { key: 'phone', label: 'Phone' },
       { key: 'role', label: 'Role' },
       { key: 'locationId', label: 'Branch' },
-      { key: 'createdAt', label: 'Joined' },
     ],
     trainer_sales: [
       { key: 'date', label: 'Session Date' },
@@ -194,11 +229,18 @@ export default function Reports() {
   const renderValue = (key, value) => {
     if (value === null || value === undefined) return <span className="text-ink/20">—</span>;
     
-    if (key === 'createdAt' || key === 'date' || key === 'paymentDate') {
+    if (key === 'createdAt' || key === 'date' || key === 'paymentDate' || key === 'checkedInAt') {
       try {
         const d = new Date(value);
         if (isNaN(d.getTime())) return String(value);
-        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const formattedDate = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const formattedTime = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        return (
+          <div className="flex flex-col">
+            <span>{formattedDate}</span>
+            <span className="text-[9px] text-ink/30 font-medium">{formattedTime}</span>
+          </div>
+        );
       } catch (e) { return String(value); }
     }
 
@@ -362,6 +404,25 @@ export default function Reports() {
             </div>
           </div>
         </div>
+
+        {/* Selected Range Display */}
+        {(startDate || endDate) && (
+          <div className="mb-6 flex items-center gap-2 bg-brand-blue/5 border border-brand-blue/10 rounded-2xl px-6 py-4">
+            <div className="bg-brand-blue/10 p-2 rounded-xl text-brand-blue">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black text-brand-blue/40 uppercase tracking-widest">Active Report Range</span>
+              <p className="text-xs font-bold text-ink">
+                {startDate ? new Date(startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : 'Beginning'}
+                <span className="mx-2 text-ink/30 italic">to</span>
+                {endDate ? new Date(endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : 'Present'}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Results Table */}
         <div className="bg-white rounded-[32px] overflow-hidden shadow-sm border border-slate-200/60">
