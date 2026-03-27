@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 const emptyForm = {
   name: '',
@@ -14,6 +15,11 @@ export default function SpecialtiesManagement() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState('');
   const [loading, setLoading] = useState(true);
+  const { can } = usePermissions();
+
+  const canCreate = can('specialties:create');
+  const canEdit = can('specialties:edit');
+  const canDelete = can('specialties:delete');
 
   const load = () => {
     setLoading(true);
@@ -83,9 +89,10 @@ export default function SpecialtiesManagement() {
           </div>
         </section>
 
-        <div className="grid gap-8 lg:grid-cols-3">
+        <div className={`grid gap-8 ${canCreate || editingId ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
           {/* Form Section */}
-          <div className="lg:col-span-1">
+          {(canCreate || editingId) && (
+            <div className="lg:col-span-1">
             <div className="sticky top-8 bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
               <h2 className="font-display text-xl text-ink mb-6">
                 {editingId ? 'Edit Specialty' : 'Add New Specialty'}
@@ -141,10 +148,11 @@ export default function SpecialtiesManagement() {
               </form>
             </div>
           </div>
+          )}
 
           {/* List Section */}
-          <div className="lg:col-span-2">
-            <div className="grid gap-4 sm:grid-cols-2">
+          <div className={canCreate || editingId ? 'lg:col-span-2' : 'lg:col-span-1'}>
+            <div className={`grid gap-4 ${canCreate || editingId ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
               {loading ? (
                 Array(4).fill(0).map((_, i) => (
                   <div key={i} className="h-32 animate-pulse rounded-3xl bg-slate-200" />
@@ -163,20 +171,24 @@ export default function SpecialtiesManagement() {
                     </div>
                     
                     <div className="mt-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        className="rounded-lg bg-slate-900 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white"
-                        onClick={() => handleEdit(spec)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="rounded-lg border border-red-50 bg-red-50 px-2.5 py-1.5 text-red-500 hover:bg-red-500 hover:text-white transition-all"
-                        onClick={() => handleDelete(spec._id)}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                      </button>
+                      {canEdit && (
+                        <button
+                          className="rounded-lg bg-slate-900 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white"
+                          onClick={() => handleEdit(spec)}
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          className="rounded-lg border border-red-50 bg-red-50 px-2.5 py-1.5 text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                          onClick={() => handleDelete(spec._id)}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))

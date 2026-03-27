@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
-import AdminHeader from '../../components/AdminHeader.jsx';
 import Footer from '../../components/Footer.jsx';
+import AdminHeader from '../../components/AdminHeader.jsx';
 import api from '../../api/api.js';
-import { getUser } from '../../utils/auth.js';
+import toast from 'react-hot-toast';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 const emptyForm = {
   name: '',
@@ -27,11 +28,11 @@ export default function TrainersManagement() {
 
   const [uploading, setUploading] = useState(false);
 
-  const user = getUser();
-  const isAdminOrSuper = user?.role === 'admin' || user?.role === 'superadmin';
-  const canCreate = isAdminOrSuper || user?.permissions?.includes('trainers:create');
-  const canEdit = isAdminOrSuper || user?.permissions?.includes('trainers:edit');
-  const canDelete = isAdminOrSuper || user?.permissions?.includes('trainers:delete');
+  const { can } = usePermissions();
+
+  const canCreate = can('trainers:create');
+  const canEdit = can('trainers:edit');
+  const canDelete = can('trainers:delete');
 
   const load = () => {
     api.get('/trainers').then((res) => setTrainers(res.data || [])).catch(() => { });

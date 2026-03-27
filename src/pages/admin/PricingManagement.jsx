@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
-import { getUser } from '../../utils/auth.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 const emptyForm = {
   name: '',
@@ -23,13 +23,11 @@ export default function PricingManagement() {
   const [editingId, setEditingId] = useState('');
   const [message, setMessage] = useState('');
 
-  const user = getUser();
-  const permissions = user?.permissions || [];
-  const isAdminOrSuper = user?.role === 'superadmin' || user?.role === 'admin';
-  const canCreate = isAdminOrSuper || permissions.includes('pricing:create');
-  const canEdit = isAdminOrSuper || permissions.includes('pricing:edit');
-  const canDelete = isAdminOrSuper || permissions.includes('pricing:delete');
-  const canView = isAdminOrSuper || permissions.includes('pricing:view');
+  const { can } = usePermissions();
+
+  const canCreate = can('pricing:create');
+  const canEdit = can('pricing:edit');
+  const canDelete = can('pricing:delete');
 
   const load = () => {
     api.get('/plans').then((res) => setPlans(res.data || [])).catch(() => { });

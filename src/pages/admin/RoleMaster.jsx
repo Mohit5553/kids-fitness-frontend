@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
-import api from '../../api/api.js';
 import toast from 'react-hot-toast';
-import { getUser } from '../../utils/auth.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
+import api from '../../api/api.js';
 
 const MODULES = [
   { id: 'classes', label: 'Classes' },
@@ -16,6 +16,7 @@ const MODULES = [
   { id: 'trials', label: 'Trial Requests' },
   { id: 'attendance', label: 'Attendance Tracker' },
   { id: 'payments', label: 'Payment Monitoring' },
+  { id: 'memberships', label: 'Membership Subscriptions' },
   { id: 'locations', label: 'Branch Management' },
   { id: 'specialties', label: 'Specialty Master' },
   { id: 'reports', label: 'Detailed Reports' },
@@ -40,12 +41,11 @@ export default function RoleMaster() {
     status: 'active'
   });
 
-  const user = getUser();
-  const permissions = user?.permissions || [];
-  const isAdminOrSuper = user?.role === 'superadmin' || user?.role === 'admin';
-  const canCreate = isAdminOrSuper || permissions.includes('roles:create');
-  const canEdit = isAdminOrSuper || permissions.includes('roles:edit');
-  const canDelete = isAdminOrSuper || permissions.includes('roles:delete');
+  const { can } = usePermissions();
+
+  const canCreate = can('roles:create');
+  const canEdit = can('roles:edit');
+  const canDelete = can('roles:delete');
 
   const load = () => {
     setLoading(true);

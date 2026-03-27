@@ -1,10 +1,14 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 export default function MembershipManagement() {
   const [memberships, setMemberships] = useState([]);
+  const { can } = usePermissions();
+  
+  const canEdit = can('memberships:edit');
 
   const load = () => {
     api.get('/memberships').then((res) => setMemberships(res.data || [])).catch(() => {});
@@ -34,15 +38,21 @@ export default function MembershipManagement() {
                   <p className="text-xs text-ink/70">Plan: {membership.planId?.name}</p>
                   <p className="text-xs text-ink/70">Ends: {membership.endDate ? new Date(membership.endDate).toLocaleDateString() : 'N/A'}</p>
                 </div>
-                <select
-                  className="rounded-xl border border-orange-200/70 p-2 text-xs"
-                  value={membership.status}
-                  onChange={(event) => updateStatus(membership._id, event.target.value)}
-                >
-                  <option value="active">Active</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="expired">Expired</option>
-                </select>
+                {canEdit ? (
+                  <select
+                    className="rounded-xl border border-orange-200/70 p-2 text-xs"
+                    value={membership.status}
+                    onChange={(event) => updateStatus(membership._id, event.target.value)}
+                  >
+                    <option value="active">Active</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="expired">Expired</option>
+                  </select>
+                ) : (
+                  <span className="text-[10px] font-black uppercase tracking-widest text-ink/30 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                    {membership.status}
+                  </span>
+                )}
               </div>
             </div>
           ))}

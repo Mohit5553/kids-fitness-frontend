@@ -5,7 +5,15 @@ export const getToken = () => localStorage.getItem(TOKEN_KEY);
 
 export const getUser = () => {
   const raw = localStorage.getItem(USER_KEY);
-  return raw ? JSON.parse(raw) : null;
+  if (!raw) return null;
+  const user = JSON.parse(raw);
+  // Migration: Ensure locationIds exists if not already present
+  if (!user.locationIds && user.locationId) {
+    user.locationIds = [user.locationId];
+  } else if (!user.locationIds) {
+    user.locationIds = [];
+  }
+  return user;
 };
 
 export const setAuth = (payload) => {
@@ -17,7 +25,7 @@ export const setAuth = (payload) => {
     name: payload?.name,
     email: payload?.email,
     role: payload?.role,
-    locationId: payload?.locationId,
+    locationIds: payload?.locationIds || [],
     trainerId: payload?.trainerId,
     permissions: payload?.permissions
   };

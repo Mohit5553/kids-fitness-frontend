@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 const formatSession = (session) => {
   const title = session.classId?.title || 'Class';
@@ -17,6 +18,9 @@ export default function AttendanceManagement() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const { can } = usePermissions();
+
+  const canCreate = can('attendance:create');
 
   const loadAttendance = () => {
     api.get('/attendance')
@@ -209,15 +213,21 @@ export default function AttendanceManagement() {
               </div>
             </div>
 
-            <div className="flex justify-end pt-4 border-t border-slate-100">
-              <button 
-                className="rounded-2xl bg-brand-blue px-12 py-4 text-sm font-black text-white shadow-xl shadow-brand-blue/20 transition-all hover:scale-105 active:scale-95 disabled:grayscale" 
-                type="submit"
-                disabled={!form.childId && !form.participantName}
-              >
-                Log Attendance
-              </button>
-            </div>
+            {canCreate ? (
+              <div className="flex justify-end pt-4 border-t border-slate-100">
+                <button 
+                  className="rounded-2xl bg-brand-blue px-12 py-4 text-sm font-black text-white shadow-xl shadow-brand-blue/20 transition-all hover:scale-105 active:scale-95 disabled:grayscale" 
+                  type="submit"
+                  disabled={!form.childId && !form.participantName}
+                >
+                  Log Attendance
+                </button>
+              </div>
+            ) : (
+              <div className="pt-4 border-t border-slate-100 text-center text-xs font-bold text-ink/20 italic">
+                You do not have permission to log attendance.
+              </div>
+            )}
           </form>
         </section>
 

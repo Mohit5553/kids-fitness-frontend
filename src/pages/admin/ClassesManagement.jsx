@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
-import { getUser } from '../../utils/auth.js';
+import toast from 'react-hot-toast';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 const emptyForm = {
   title: '',
@@ -24,13 +25,11 @@ export default function ClassesManagement() {
   const [editingId, setEditingId] = useState('');
   const [message, setMessage] = useState('');
 
-  const user = getUser();
-  const permissions = user?.permissions || [];
-  const isAdminOrSuper = user?.role === 'superadmin' || user?.role === 'admin';
-  const canCreate = isAdminOrSuper || permissions.includes('classes:create');
-  const canEdit = isAdminOrSuper || permissions.includes('classes:edit');
-  const canDelete = isAdminOrSuper || permissions.includes('classes:delete');
-  const canView = isAdminOrSuper || permissions.includes('classes:view');
+  const { can } = usePermissions();
+
+  const canCreate = can('classes:create');
+  const canEdit = can('classes:edit');
+  const canDelete = can('classes:delete');
 
   const load = () => {
     api.get('/classes').then((res) => setClasses(res.data || [])).catch(() => { });

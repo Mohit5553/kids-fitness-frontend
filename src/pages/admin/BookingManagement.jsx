@@ -2,12 +2,17 @@ import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 export default function BookingManagement() {
   const [bookings, setBookings] = useState([]);
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { can } = usePermissions();
+
+  const canEdit = can('bookings:edit');
+  const canDelete = can('bookings:delete');
 
   // Rejection Modal State
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -253,7 +258,7 @@ export default function BookingManagement() {
 
                 <div className="flex items-center gap-4">
                   <div className="text-right flex flex-col items-end gap-2">
-                    {booking.paymentMethod === 'center' && booking.paymentStatus === 'pending' && booking.status !== 'cancelled' && (
+                    {canEdit && booking.paymentMethod === 'center' && booking.paymentStatus === 'pending' && booking.status !== 'cancelled' && (
                       <button
                         onClick={() => confirmCenterPayment(booking._id)}
                         className="mb-2 bg-brand-blue text-white text-[10px] font-black px-4 py-2 rounded-xl shadow-lg shadow-brand-blue/20 hover:scale-[1.05] transition-all flex items-center gap-2"
@@ -266,20 +271,22 @@ export default function BookingManagement() {
                         <span className="text-[10px] font-black text-white uppercase tracking-widest bg-coral px-3 py-1 rounded-full shadow-lg shadow-coral/20 animate-pulse">
                           Refund Requested
                         </span>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => resolveRefund(booking._id, 'refunded')}
-                            className="bg-moss/10 text-moss text-[10px] font-bold px-3 py-1 rounded-lg hover:bg-moss/20 transition-colors"
-                          >
-                            Accept
-                          </button>
-                          <button
-                            onClick={() => resolveRefund(booking._id, 'declined')}
-                            className="bg-red-50 text-red-600 text-[10px] font-bold px-3 py-1 rounded-lg hover:bg-red-100 transition-colors"
-                          >
-                            Reject
-                          </button>
-                        </div>
+                        {canEdit && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => resolveRefund(booking._id, 'refunded')}
+                              className="bg-moss/10 text-moss text-[10px] font-bold px-3 py-1 rounded-lg hover:bg-moss/20 transition-colors"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => resolveRefund(booking._id, 'declined')}
+                              className="bg-red-50 text-red-600 text-[10px] font-bold px-3 py-1 rounded-lg hover:bg-red-100 transition-colors"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                     {booking.refundStatus === 'declined' && (
@@ -301,31 +308,43 @@ export default function BookingManagement() {
                     )}
                     <div>
                       <p className="text-xs font-black text-ink/30 uppercase tracking-widest mb-1 text-right">Status</p>
-                      <select
-                        className={`rounded-xl border-none p-2.5 text-xs font-bold transition-all outline-none focus:ring-2 ${
-                          booking.status === 'confirmed' ? 'bg-moss/10 text-moss focus:ring-moss/20' : 
-                          booking.status === 'pending' ? 'bg-amber-100 text-amber-700 focus:ring-amber-200' : 
-                          'bg-red-100 text-red-600 focus:ring-red-200'
-                        }`}
-                        value={booking.status}
-                        onChange={(event) => updateStatus(booking._id, event.target.value)}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
+                      {canEdit ? (
+                        <select
+                          className={`rounded-xl border-none p-2.5 text-xs font-bold transition-all outline-none focus:ring-2 ${
+                            booking.status === 'confirmed' ? 'bg-moss/10 text-moss focus:ring-moss/20' : 
+                            booking.status === 'pending' ? 'bg-amber-100 text-amber-700 focus:ring-amber-200' : 
+                            'bg-red-100 text-red-600 focus:ring-red-200'
+                          }`}
+                          value={booking.status}
+                          onChange={(event) => updateStatus(booking._id, event.target.value)}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="confirmed">Confirmed</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      ) : (
+                        <span className={`inline-block rounded-xl px-3 py-1.5 text-xs font-bold ${
+                          booking.status === 'confirmed' ? 'bg-moss/10 text-moss' : 
+                          booking.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
+                          'bg-red-100 text-red-600'
+                        }`}>
+                          {booking.status}
+                        </span>
+                      )}
                     </div>
                   </div>
                   
-                  <button
-                    className="p-3 rounded-2xl bg-slate-50 text-ink/20 hover:text-red-400 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
-                    onClick={() => handleDelete(booking._id)}
-                    title="Delete Booking"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+                  {canDelete && (
+                    <button
+                      className="p-3 rounded-2xl bg-slate-50 text-ink/20 hover:text-red-400 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                      onClick={() => handleDelete(booking._id)}
+                      title="Delete Booking"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
