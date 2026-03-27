@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 /* ── helpers ── */
 function formatDate(iso) {
@@ -79,6 +80,9 @@ export default function PaymentsManagement() {
   const [search, setSearch]       = useState('');
   const [statusFilter, setStatus] = useState('all');
   const [methodFilter, setMethod] = useState('all');
+  const { can } = usePermissions();
+
+  const canExport = can('payments:view'); // Assuming if they can view, they can export, or we can use another perm.
 
   useEffect(() => {
     setLoading(true);

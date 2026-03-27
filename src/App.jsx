@@ -15,6 +15,7 @@ import Calendar from './pages/Calendar.jsx';
 import MemberHealthDeclaration from './pages/MemberHealthDeclaration.jsx';
 import { RequireAuth, RequireAdmin, RequireTrainer, RequirePermission } from './components/ProtectedRoutes.jsx';
 import { SocketProvider } from './context/SocketContext.jsx';
+import { BranchProvider } from './context/BranchContext.jsx';
 import { Toaster } from 'react-hot-toast';
 
 import ParentDashboard from './pages/parent/ParentDashboard.jsx';
@@ -45,98 +46,101 @@ import TrainerDashboard from './pages/trainer/TrainerDashboard.jsx';
 export default function App() {
   return (
     <SocketProvider>
-      <Toaster />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/programs" element={<Programs />} />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/schedule" element={<Schedule />} />
-        <Route path="/gallery" element={<Gallery />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/book-trial" element={<BookTrial />} />
-        <Route path="/quick-checkin" element={<QuickCheckin />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/calendar" element={<Calendar />} />
-        <Route path="/book" element={<BookingFlow />} />
-        <Route path="/health-declaration" element={<MemberHealthDeclaration />} />
-
-        <Route element={<RequireAuth />}>
-          <Route path="/dashboard" element={<ParentDashboard />} />
-          <Route path="/dashboard/children" element={<MyChildren />} />
-          <Route path="/dashboard/book" element={<BookClasses />} />
-          <Route path="/dashboard/bookings" element={<MyBookings />} />
-          <Route path="/dashboard/payments" element={<PaymentHistory />} />
-          <Route path="/dashboard/membership" element={<Membership />} />
-          <Route path="/dashboard/attendance" element={<Attendance />} />
+      <BranchProvider>
+        <Toaster />
+        <Routes>
+          {/* ... existing routes ... */}
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/programs" element={<Programs />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/schedule" element={<Schedule />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/book-trial" element={<BookTrial />} />
+          <Route path="/quick-checkin" element={<QuickCheckin />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/calendar" element={<Calendar />} />
-        </Route>
+          <Route path="/book" element={<BookingFlow />} />
+          <Route path="/health-declaration" element={<MemberHealthDeclaration />} />
 
-        <Route element={<RequireTrainer />}>
-          <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
-        </Route>
+          <Route element={<RequireAuth />}>
+            <Route path="/dashboard" element={<ParentDashboard />} />
+            <Route path="/dashboard/children" element={<MyChildren />} />
+            <Route path="/dashboard/book" element={<BookClasses />} />
+            <Route path="/dashboard/bookings" element={<MyBookings />} />
+            <Route path="/dashboard/payments" element={<PaymentHistory />} />
+            <Route path="/dashboard/membership" element={<Membership />} />
+            <Route path="/dashboard/attendance" element={<Attendance />} />
+            <Route path="/calendar" element={<Calendar />} />
+          </Route>
 
-        <Route element={<RequireAdmin />}>
-          <Route path="/admin" element={<AdminDashboard />} />
-          
-          <Route element={<RequirePermission permission="classes:view" />}>
-            <Route path="/admin/classes" element={<ClassesManagement />} />
+          <Route element={<RequireTrainer />}>
+            <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
           </Route>
-          
-          <Route element={<RequirePermission permission="sessions:view" />}>
-            <Route path="/admin/sessions" element={<SessionsManagement />} />
+
+          <Route element={<RequireAdmin />}>
+            <Route path="/:roleSlug" element={<AdminDashboard />} />
+
+            <Route element={<RequirePermission permission="classes:view" />}>
+              <Route path="/:roleSlug/classes" element={<ClassesManagement />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="sessions:view" />}>
+              <Route path="/:roleSlug/sessions" element={<SessionsManagement />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="pricing:view" />}>
+              <Route path="/:roleSlug/pricing" element={<PricingManagement />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="bookings:view" />}>
+              <Route path="/:roleSlug/bookings" element={<BookingManagement />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="users:view" />}>
+              <Route path="/:roleSlug/users" element={<UsersManagement />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="reports:view" />}>
+              <Route path="/:roleSlug/reports" element={<Reports />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="trainers:view" />}>
+              <Route path="/:roleSlug/trainers" element={<TrainersManagement />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="attendance:view" />}>
+              <Route path="/:roleSlug/attendance" element={<AttendanceManagement />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="memberships:view" />}>
+              <Route path="/:roleSlug/memberships" element={<MembershipManagement />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="trials:view" />}>
+              <Route path="/:roleSlug/trials" element={<TrialsManagement />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="payments:view" />}>
+              <Route path="/:roleSlug/payments" element={<PaymentsManagement />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="locations:view" />}>
+              <Route path="/:roleSlug/locations" element={<LocationManagement />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="specialties:view" />}>
+              <Route path="/:roleSlug/specialties" element={<SpecialtiesManagement />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="roles:view" />}>
+              <Route path="/:roleSlug/roles" element={<RoleMaster />} />
+            </Route>
           </Route>
-          
-          <Route element={<RequirePermission permission="pricing:view" />}>
-            <Route path="/admin/pricing" element={<PricingManagement />} />
-          </Route>
-          
-          <Route element={<RequirePermission permission="bookings:view" />}>
-            <Route path="/admin/bookings" element={<BookingManagement />} />
-          </Route>
-          
-          <Route element={<RequirePermission permission="users:view" />}>
-            <Route path="/admin/users" element={<UsersManagement />} />
-          </Route>
-          
-          <Route element={<RequirePermission permission="reports:view" />}>
-            <Route path="/admin/reports" element={<Reports />} />
-          </Route>
-          
-          <Route element={<RequirePermission permission="trainers:view" />}>
-            <Route path="/admin/trainers" element={<TrainersManagement />} />
-          </Route>
-          
-          <Route element={<RequirePermission permission="attendance:view" />}>
-            <Route path="/admin/attendance" element={<AttendanceManagement />} />
-          </Route>
-          
-          <Route element={<RequirePermission permission="memberships:view" />}>
-            <Route path="/admin/memberships" element={<MembershipManagement />} />
-          </Route>
-          
-          <Route element={<RequirePermission permission="trials:view" />}>
-            <Route path="/admin/trials" element={<TrialsManagement />} />
-          </Route>
-          
-          <Route element={<RequirePermission permission="payments:view" />}>
-            <Route path="/admin/payments" element={<PaymentsManagement />} />
-          </Route>
-          
-          <Route element={<RequirePermission permission="locations:view" />}>
-            <Route path="/admin/locations" element={<LocationManagement />} />
-          </Route>
-          
-          <Route element={<RequirePermission permission="specialties:view" />}>
-            <Route path="/admin/specialties" element={<SpecialtiesManagement />} />
-          </Route>
-          
-          <Route element={<RequirePermission permission="roles:view" />}>
-            <Route path="/admin/roles" element={<RoleMaster />} />
-          </Route>
-        </Route>
-      </Routes>
+        </Routes>
+      </BranchProvider>
     </SocketProvider>
   );
 }

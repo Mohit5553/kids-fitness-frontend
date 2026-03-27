@@ -1,43 +1,46 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../api/api.js';
 import { getSelectedLocation, setSelectedLocation } from '../utils/location.js';
+import { useBranch } from '../context/BranchContext.jsx';
+import { getUser } from '../utils/auth.js';
 
 export default function LocationSelect({ allowAll = false }) {
+  const { selectedBranch, setSelectedBranch, setAvailableBranches } = useBranch();
   const [locations, setLocations] = useState([]);
-  const [selected, setSelected] = useState(getSelectedLocation());
+  const user = getUser();
 
   useEffect(() => {
     api
-      .get('/locations')
+      .get('/locations?all=true')
       .then((res) => {
         const list = res.data || [];
-        const options = allowAll ? [{ _id: 'all', slug: 'all', name: 'All locations' }, ...list] : list;
-        setLocations(options);
+        let filtered = list;
 
-        // Smarter default selection for sync across components
-        const saved = getSelectedLocation();
-        if (!saved && options.length) {
-          const user = JSON.parse(localStorage.getItem('kfb_user') || 'null');
-          const userLoc = user?.locationId ? options.find(l => l._id === user.locationId) : null;
-          const defaultLoc = userLoc || options[0];
-          setSelected(defaultLoc);
-          setSelectedLocation(defaultLoc);
+        // If not superadmin, only show assigned locations
+        if (user && user.role !== 'superadmin') {
+          const assignedIds = (user.locationIds || []).map(l => typeof l === 'string' ? l : l._id);
+          filtered = list.filter(l => assignedIds.includes(l._id));
+        }
+
+        const options = allowAll && (user?.role === 'superadmin') ? [{ _id: 'all', slug: 'all', name: 'All locations' }, ...filtered] : filtered;
+        setLocations(options);
+        setAvailableBranches(options.map(o => o._id));
+
+        // Default selection logic
+        if (!selectedBranch && options.length > 0) {
+          setSelectedBranch(options[0]._id);
         }
       })
       .catch(() => { });
-  }, [allowAll, selected]);
+  }, [allowAll, user?.role]);
 
-  useEffect(() => {
-    const handleChange = () => setSelected(getSelectedLocation());
-    window.addEventListener('location-change', handleChange);
-    return () => window.removeEventListener('location-change', handleChange);
-  }, []);
 
   const handleChange = (event) => {
-    const loc = locations.find((item) => item._id === event.target.value);
+    const locId = event.target.value;
+    const loc = locations.find((item) => item._id === locId);
     if (loc) {
-      setSelected(loc);
-      setSelectedLocation(loc);
+      setSelectedBranch(locId);
+      setSelectedLocation(loc); // Keep legacy sync if needed
       // Automatically refresh the page to update all data context
       window.location.reload();
     }
@@ -47,8 +50,8 @@ export default function LocationSelect({ allowAll = false }) {
 
   return (
     <select
-      className="rounded-full border border-ink/10 bg-white/80 px-3 py-2 text-xs font-semibold text-ink"
-      value={selected?._id || ''}
+      className="rounded-full border border-ink/10 bg-white/80 px-3 py-2 text-xs font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-brand-blue/20"
+      value={selectedBranch || ''}
       onChange={handleChange}
     >
       {locations.map((loc) => (

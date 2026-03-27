@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import api from '../../api/api.js';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
+import api from '../../api/api.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 export default function LocationManagement() {
     const [locations, setLocations] = useState([]);
@@ -17,6 +18,11 @@ export default function LocationManagement() {
     });
     const [editingId, setEditingId] = useState(null);
     const [uploading, setUploading] = useState(false);
+    const { can } = usePermissions();
+
+    const canCreate = can('locations:create');
+    const canEdit = can('locations:edit');
+    const canDelete = can('locations:delete');
 
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
@@ -123,21 +129,24 @@ export default function LocationManagement() {
                             <h1 className="mt-3 font-display text-3xl md:text-4xl">Location Management</h1>
                             <p className="mt-2 text-sm text-white/80">Manage your gym's physical and virtual presence.</p>
                         </div>
-                        <button
-                            onClick={() => setShowForm(!showForm)}
-                            className="rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-ocean transition hover:bg-opacity-90 active:scale-95"
-                        >
-                            {showForm ? 'Cancel' : 'Add New Location'}
-                        </button>
+                        {canCreate && (
+                            <button
+                                onClick={() => setShowForm(!showForm)}
+                                className="rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-ocean transition hover:bg-opacity-90 active:scale-95"
+                            >
+                                {showForm ? 'Cancel' : 'Add New Location'}
+                            </button>
+                        )}
                     </div>
                 </section>
 
-                {showForm && (
+                {(canCreate || (editingId && canEdit)) && showForm ? (
                     <div className="mb-10 rounded-[32px] bg-white p-8 shadow-sm border border-slate-100">
                         <h2 className="font-display text-2xl text-ink mb-6">
                             {editingId ? 'Edit Location' : 'Create New Location'}
                         </h2>
                         <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2">
+                            {/* Form fields... */}
                             <div className="space-y-2">
                                 <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Location Name</label>
                                 <input
@@ -245,7 +254,11 @@ export default function LocationManagement() {
                             </div>
                         </form>
                     </div>
-                )}
+                ) : showForm ? (
+                    <div className="mb-10 rounded-[32px] bg-white p-8 text-center border border-slate-100 italic text-slate-400 text-sm">
+                        You do not have permission to add or edit locations.
+                    </div>
+                ) : null}
 
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {loading ? (
@@ -267,16 +280,26 @@ export default function LocationManagement() {
                                             <span className="text-4xl">🏢</span>
                                         </div>
                                     )}
-                                    <button 
-                                        onClick={() => handleUpdateStatus(loc._id, loc.status)}
-                                        className={`absolute top-4 right-4 capitalize rounded-full px-3 py-1 text-[10px] font-bold tracking-widest backdrop-blur transition-colors ${
+                                    {canEdit ? (
+                                        <button 
+                                            onClick={() => handleUpdateStatus(loc._id, loc.status)}
+                                            className={`absolute top-4 right-4 capitalize rounded-full px-3 py-1 text-[10px] font-bold tracking-widest backdrop-blur transition-colors ${
+                                                loc.status === 'active' 
+                                                ? 'bg-green-500/90 text-white hover:bg-green-600' 
+                                                : 'bg-slate-500/90 text-white hover:bg-slate-600'
+                                            }`}
+                                        >
+                                            {loc.status}
+                                        </button>
+                                    ) : (
+                                        <span className={`absolute top-4 right-4 capitalize rounded-full px-3 py-1 text-[10px] font-bold tracking-widest backdrop-blur ${
                                             loc.status === 'active' 
-                                            ? 'bg-green-500/90 text-white hover:bg-green-600' 
-                                            : 'bg-slate-500/90 text-white hover:bg-slate-600'
-                                        }`}
-                                    >
-                                        {loc.status}
-                                    </button>
+                                            ? 'bg-green-500/90 text-white' 
+                                            : 'bg-slate-500/90 text-white'
+                                        }`}>
+                                            {loc.status}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="p-6">
                                     <div className="flex items-start justify-between">
@@ -296,12 +319,14 @@ export default function LocationManagement() {
                                     </div>
                                     <div className="mt-4 flex items-center justify-between border-t border-slate-50 pt-4">
                                         <span className="text-xs text-ink/40 font-medium">Slug: /{loc.slug}</span>
-                                        <button 
-                                            onClick={() => handleEdit(loc)}
-                                            className="text-xs font-bold text-ocean hover:underline"
-                                        >
-                                            Edit Details
-                                        </button>
+                                        {canEdit && (
+                                            <button 
+                                                onClick={() => handleEdit(loc)}
+                                                className="text-xs font-bold text-ocean hover:underline"
+                                            >
+                                                Edit Details
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>

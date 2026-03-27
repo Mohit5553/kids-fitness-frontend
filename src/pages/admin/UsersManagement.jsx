@@ -3,7 +3,7 @@ import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import toast from 'react-hot-toast';
-import { getUser } from '../../utils/auth.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 const MODULES = [
   { id: 'classes', label: 'Classes' },
@@ -16,6 +16,7 @@ const MODULES = [
   { id: 'trials', label: 'Trial Requests' },
   { id: 'attendance', label: 'Attendance Tracker' },
   { id: 'payments', label: 'Payment Monitoring' },
+  { id: 'memberships', label: 'Membership Subscriptions' },
   { id: 'locations', label: 'Branch Management' },
   { id: 'specialties', label: 'Specialty Master' },
   { id: 'reports', label: 'Detailed Reports' },
@@ -36,6 +37,7 @@ export default function UsersManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [customRoles, setCustomRoles] = useState([]);
+  const [locations, setLocations] = useState([]);
   
   // Staff Creation Form State
   const [showAddStaff, setShowAddStaff] = useState(false);
@@ -44,15 +46,15 @@ export default function UsersManagement() {
     email: '',
     password: '',
     role: 'admin',
-    phone: ''
+    phone: '',
+    locationIds: []
   });
 
-  const user = getUser();
-  const permissions = user?.permissions || [];
-  const isAdminOrSuper = user?.role === 'superadmin' || user?.role === 'admin';
-  const canCreate = isAdminOrSuper || permissions.includes('users:create');
-  const canEdit = isAdminOrSuper || permissions.includes('users:edit');
-  const canDelete = isAdminOrSuper || permissions.includes('users:delete');
+  const { can, user } = usePermissions();
+
+  const canCreate = can('users:create');
+  const canEdit = can('users:edit');
+  const canDelete = can('users:delete');
 
   const load = () => {
     setLoading(true);
@@ -65,6 +67,7 @@ export default function UsersManagement() {
   useEffect(() => {
     load();
     api.get('/roles').then(res => setCustomRoles(res.data || [])).catch(() => {});
+    api.get('/locations?all=true').then(res => setLocations(res.data || [])).catch(() => {});
   }, []);
 
   const updateRole = async (id, role) => {
@@ -104,7 +107,7 @@ export default function UsersManagement() {
       await api.post('/users', staffForm);
       toast.success('Staff user created successfully');
       setShowAddStaff(false);
-      setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '' });
+      setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '', locationIds: [] });
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create staff');
@@ -167,6 +170,34 @@ export default function UsersManagement() {
                     {customRoles.map(r => <option key={r._id} value={r.name}>{r.name}</option>)}
                   </select>
                 </div>
+                {user?.role === 'superadmin' && (
+                  <div className="md:col-span-2">
+                    <label className="text-[10px] font-black text-ink/30 uppercase tracking-widest block mb-4">Branch Assignment (Select multiple)</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {locations.map(loc => (
+                        <label key={loc._id} className={`flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer ${staffForm.locationIds.includes(loc._id) ? 'bg-coral/5 border-coral text-coral' : 'bg-slate-50 border-transparent text-ink/40'}`}>
+                          <input 
+                            type="checkbox" 
+                            className="hidden"
+                            checked={staffForm.locationIds.includes(loc._id)}
+                            onChange={(e) => {
+                              const ids = e.target.checked 
+                                ? [...staffForm.locationIds, loc._id]
+                                : staffForm.locationIds.filter(id => id !== loc._id);
+                              setStaffForm({...staffForm, locationIds: ids});
+                            }}
+                          />
+                          <div className={`h-5 w-5 rounded-lg border-2 flex items-center justify-center transition-all ${staffForm.locationIds.includes(loc._id) ? 'bg-coral border-coral' : 'border-slate-200'}`}>
+                            {staffForm.locationIds.includes(loc._id) && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-white" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                            )}
+                          </div>
+                          <span className="text-xs font-bold uppercase tracking-tight">{loc.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="md:col-span-2">
                   <button type="submit" className="w-full bg-coral text-white py-4 rounded-2xl text-sm font-black uppercase tracking-widest hover:brightness-110 shadow-lg shadow-coral/20">Create account</button>
                 </div>
@@ -215,6 +246,12 @@ export default function UsersManagement() {
                       <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm font-bold text-ink/50">
                         <span className="flex items-center gap-2"><svg className="h-4 w-4 text-coral/40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>{user.email}</span>
                         {user.phone && <span className="flex items-center gap-2"><svg className="h-4 w-4 text-coral/40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>{user.phone}</span>}
+                        {user.locationIds && user.locationIds.length > 0 && (
+                          <span className="flex items-center gap-2">
+                            <svg className="h-4 w-4 text-coral/40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            {user.locationIds.map(l => l.name).join(', ')}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

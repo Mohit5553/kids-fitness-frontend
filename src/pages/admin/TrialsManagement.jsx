@@ -1,7 +1,8 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 const statusLabels = {
   all: 'All requests',
@@ -15,6 +16,9 @@ export default function TrialsManagement() {
   const [trials, setTrials] = useState([]);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const { can } = usePermissions();
+  
+  const canEdit = can('trials:edit');
 
   const load = () => {
     api.get('/trials').then((res) => setTrials(res.data || [])).catch(() => {});
@@ -136,16 +140,18 @@ export default function TrialsManagement() {
                   <span className="rounded-full bg-ink/5 px-4 py-1 text-xs font-semibold text-ink">
                     {trial.status}
                   </span>
-                  <select
-                    className="rounded-2xl border border-orange-200/70 bg-white px-3 py-2 text-xs"
-                    value={trial.status}
-                    onChange={(event) => updateStatus(trial._id, event.target.value)}
-                  >
-                    <option value="new">New</option>
-                    <option value="contacted">Contacted</option>
-                    <option value="booked">Booked</option>
-                    <option value="closed">Closed</option>
-                  </select>
+                  {canEdit && (
+                    <select
+                      className="rounded-2xl border border-orange-200/70 bg-white px-3 py-2 text-xs"
+                      value={trial.status}
+                      onChange={(event) => updateStatus(trial._id, event.target.value)}
+                    >
+                      <option value="new">New</option>
+                      <option value="contacted">Contacted</option>
+                      <option value="booked">Booked</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  )}
                 </div>
               </div>
             </div>

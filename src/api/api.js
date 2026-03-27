@@ -15,6 +15,12 @@ api.interceptors.request.use((config) => {
   if (locationSlug && locationSlug !== 'all') {
     config.headers['x-location'] = locationSlug;
   }
+  
+  const selectedBranchId = localStorage.getItem('selectedBranch');
+  if (selectedBranchId && selectedBranchId !== 'all') {
+    config.headers['x-location-id'] = selectedBranchId;
+  }
+  
   return config;
 });
 

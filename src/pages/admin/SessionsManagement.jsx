@@ -3,7 +3,7 @@ import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import toast from 'react-hot-toast';
-import { getUser } from '../../utils/auth.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 const emptyForm = {
   classId: '',
@@ -26,13 +26,11 @@ export default function SessionsManagement() {
   const [classSearchQuery, setClassSearchQuery] = useState('');
   const [showClassDropdown, setShowClassDropdown] = useState(false);
 
-  const user = getUser();
-  const permissions = user?.permissions || [];
-  const isAdminOrSuper = user?.role === 'superadmin' || user?.role === 'admin';
-  const canCreate = isAdminOrSuper || permissions.includes('sessions:create');
-  const canEdit = isAdminOrSuper || permissions.includes('sessions:edit');
-  const canDelete = isAdminOrSuper || permissions.includes('sessions:delete');
-  const canView = isAdminOrSuper || permissions.includes('sessions:view');
+  const { can } = usePermissions();
+
+  const canCreate = can('sessions:create');
+  const canEdit = can('sessions:edit');
+  const canDelete = can('sessions:delete');
 
   const load = () => {
     setLoading(true);
