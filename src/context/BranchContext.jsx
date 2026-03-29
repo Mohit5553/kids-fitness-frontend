@@ -6,22 +6,28 @@ const BranchContext = createContext();
 export const BranchProvider = ({ children }) => {
   const [selectedBranch, setSelectedBranch] = useState(localStorage.getItem('selectedBranch') || '');
   const [availableBranches, setAvailableBranches] = useState([]);
-  const user = getUser();
+  const user = React.useMemo(() => getUser(), []);
 
   useEffect(() => {
     if (user) {
       // If superadmin, availableBranches will be set by the component that fetches all locations
       // For others, it's their assigned locationIds
       if (user.role !== 'superadmin') {
-        setAvailableBranches(user.locationIds || []);
-        if (!selectedBranch && user.locationIds?.length > 0) {
-          const firstBranch = typeof user.locationIds[0] === 'string' ? user.locationIds[0] : user.locationIds[0]._id;
+        const newUserBranches = user.locationIds || [];
+        
+        // Simple equality check to prevent infinite loop
+        if (JSON.stringify(newUserBranches) !== JSON.stringify(availableBranches)) {
+          setAvailableBranches(newUserBranches);
+        }
+
+        if (!selectedBranch && newUserBranches.length > 0) {
+          const firstBranch = typeof newUserBranches[0] === 'string' ? newUserBranches[0] : newUserBranches[0]._id;
           setSelectedBranch(firstBranch);
           localStorage.setItem('selectedBranch', firstBranch);
         }
       }
     }
-  }, [user, selectedBranch]);
+  }, [user, selectedBranch, availableBranches]);
 
   const selectBranch = (branchId) => {
     setSelectedBranch(branchId);

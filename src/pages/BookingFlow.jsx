@@ -10,6 +10,8 @@ export default function BookingFlow() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const classIdFromUrl = searchParams.get('classId');
+  const locationIdFromUrl = searchParams.get('locationId');
+  const sessionIdFromUrl = searchParams.get('sessionId');
   const isRestoringParam = searchParams.get('restoring') === 'true';
 
   const [step, setStep] = useState(1);
@@ -103,16 +105,27 @@ export default function BookingFlow() {
   // Step 1: Fetch Classes
   useEffect(() => {
     setLoading(true);
-    api.get('/classes')
+    const params = {
+      locationId: locationIdFromUrl || undefined
+    };
+    api.get('/classes', { params })
       .then(res => {
         setClasses(res.data);
         if (classIdFromUrl) {
           const found = res.data.find(c => c._id === classIdFromUrl);
           if (found) {
             setSelectedClass(found);
-            // Only set step 2 if we are NOT restoring
-            if (!isRestoringParam) {
+            // If we have a classId from URL, we should at least be on Step 2
+            if (step === 1 && !isRestoringParam) {
               setStep(2);
+            }
+            // Auto-select location from URL or Class data
+            if (!selectedLocation) {
+              if (locationIdFromUrl) {
+                setSelectedLocation(locationIdFromUrl);
+              } else if (found.locationId) {
+                setSelectedLocation(found.locationId._id || found.locationId);
+              }
             }
           }
         }
@@ -120,6 +133,24 @@ export default function BookingFlow() {
       })
       .catch(() => setLoading(false));
   }, [classIdFromUrl]);
+
+  // Step 1.1: Fetch specific session if sessionId is in URL
+  useEffect(() => {
+    if (sessionIdFromUrl && !isRestoringParam) {
+      setLoading(true);
+      api.get(`/sessions/${sessionIdFromUrl}`)
+        .then(res => {
+          const session = res.data;
+          if (session) {
+            setSelectedTrainer(session.trainerId?._id || session.trainerId);
+            setSelectedSessions([session]);
+            setStep(4);
+          }
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    }
+  }, [sessionIdFromUrl]);
 
   // Fetch Locations (Filtered by Class if selected)
   useEffect(() => {
@@ -157,7 +188,11 @@ export default function BookingFlow() {
     if (selectedClass && selectedLocation) {
       const classTrainers = selectedClass.availableTrainers || [];
       // Filter trainers by location
-      const filtered = classTrainers.filter(t => (t.locationId?._id || t.locationId) === selectedLocation);
+      const filtered = classTrainers.filter(t => {
+        const tLocationIds = t.locationIds || [];
+        // Check if current selectedLocation is in trainer's locations
+        return tLocationIds.some(loc => (loc._id || loc) === selectedLocation);
+      });
       setTrainers(filtered);
     }
   }, [selectedClass, selectedLocation]);
@@ -565,7 +600,12 @@ export default function BookingFlow() {
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue">Selected Program</p>
                     <p className="font-display text-xl mt-1 text-ink">{selectedClass.title} • {selectedClass.ageGroup}</p>
-                    <div className="mt-2 space-y-1">
+                    {selectedClass.minAge !== undefined && selectedClass.maxAge !== undefined && (
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 bg-amber-50 inline-block px-3 py-1 rounded-full mt-2">
+                        Required Age: {selectedClass.minAge} - {selectedClass.maxAge} Years
+                      </p>
+                    )}
+                    <div className="mt-3 space-y-1">
                       <p className="text-sm font-bold text-ink/60">
                         {locations.find(l => l._id === selectedLocation)?.name || 'Central'} • {selectedSessions.length} Session(s) Selected
                       </p>
@@ -619,11 +659,22 @@ export default function BookingFlow() {
                           <input
                             type="number"
                             placeholder="Age"
-                            className="w-full bg-white border-none rounded-2xl py-3 px-5 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
+                            className={`w-full bg-white border-none rounded-2xl py-3 px-5 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all ${
+                              p.age && (
+                                (selectedClass.minAge !== undefined && parseInt(p.age) < selectedClass.minAge) || 
+                                (selectedClass.maxAge !== undefined && parseInt(p.age) > selectedClass.maxAge)
+                              ) ? 'ring-2 ring-red-400 bg-red-50' : ''
+                            }`}
                             value={p.age}
                             onChange={(e) => updateParticipant(idx, 'age', e.target.value)}
                             disabled={p.childId}
                           />
+                          {p.age && selectedClass.minAge !== undefined && parseInt(p.age) < selectedClass.minAge && (
+                            <p className="text-[8px] font-bold text-red-500 mt-1 px-1">Too young</p>
+                          )}
+                          {p.age && selectedClass.maxAge !== undefined && parseInt(p.age) > selectedClass.maxAge && (
+                            <p className="text-[8px] font-bold text-red-500 mt-1 px-1">Too old</p>
+                          )}
                         </div>
                         <div>
                           <select

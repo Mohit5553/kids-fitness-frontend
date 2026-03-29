@@ -129,6 +129,7 @@ export default function Register() {
 
     const payload = {
       ...form,
+      locationIds: form.locationId ? [form.locationId] : [],
       name: `${form.firstName} ${form.lastName}`.trim()
     };
 
