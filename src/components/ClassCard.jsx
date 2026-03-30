@@ -22,7 +22,7 @@ export default function ClassCard({ item }) {
       <div className="mt-6 pt-6 border-t border-slate-50 flex items-center justify-between">
         <span className="text-xs font-bold text-ink/30 uppercase tracking-widest">{item.duration}</span>
         <Link 
-          to={`/book?classId=${item._id}`}
+          to={`/book?classId=${item._id}${item.locationId ? `&locationId=${item.locationId._id || item.locationId}` : ''}`}
           className="bg-brand-blue text-white px-8 py-3 rounded-full text-xs font-black uppercase tracking-widest shadow-lg hover:scale-105 active:scale-95 transition-all"
         >
           Book Now

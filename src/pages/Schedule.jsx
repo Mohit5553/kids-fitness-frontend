@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import LocationPicker from '../components/LocationPicker.jsx';
 import api from '../api/api.js';
+import { getLocationSlug, getLocationId } from '../utils/location.js';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -19,13 +20,15 @@ export default function Schedule() {
   const fetchSessions = () => {
     setLoading(true);
     const start = new Date();
-    start.setHours(0, 0, 0, 0);
     const end = new Date();
     end.setDate(end.getDate() + 7);
 
+    const locationId = getLocationId();
     api
-      .get('/sessions', { params: { start: start.toISOString(), end: end.toISOString() } })
+      .get('/sessions', { params: { start: start.toISOString(), end: end.toISOString(), locationId } })
       .then((res) => {
+        const slug = getLocationSlug();
+        console.log(`Fetched sessions for location [${slug || 'All'}]:`, res.data);
         setSessions(res.data || []);
         setLoading(false);
       })
@@ -44,7 +47,9 @@ export default function Schedule() {
   }, []);
 
   const grouped = useMemo(() => {
+    const now = new Date();
     const data = sessions.reduce((acc, session) => {
+      if (new Date(session.startTime) < now) return acc;
       const day = new Date(session.startTime).toLocaleDateString('en-US', { weekday: 'long' });
       if (!acc[day]) acc[day] = [];
       acc[day].push(session);
@@ -236,7 +241,7 @@ export default function Schedule() {
 
                     <div className="mt-8 flex justify-end">
                       <Link
-                        to={`/book?classId=${session.classId?._id}&sessionId=${session._id}`}
+                        to={`/book?classId=${session.classId?._id}&sessionId=${session._id}${session.locationId ? `&locationId=${session.locationId._id || session.locationId}` : ''}`}
                         className="group/btn flex items-center gap-2 rounded-2xl bg-brand-blue px-6 py-3 text-sm font-black text-white shadow-low transition-all hover:scale-105 active:scale-95"
                       >
                         <span>Book Now</span>

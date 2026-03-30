@@ -5,6 +5,7 @@ import SectionTitle from '../components/SectionTitle.jsx';
 import ClassCard from '../components/ClassCard.jsx';
 import LocationPicker from '../components/LocationPicker.jsx';
 import api from '../api/api.js';
+import { getLocationSlug, getLocationId } from '../utils/location.js';
 
 export default function Programs() {
   const [classes, setClasses] = useState([]);
@@ -14,9 +15,12 @@ export default function Programs() {
 
   const fetchClasses = () => {
     setLoading(true);
+    const locationId = getLocationId();
     api
-      .get('/classes')
+      .get('/classes', { params: { locationId } })
       .then((res) => {
+        const slug = getLocationSlug();
+        console.log(`Fetched classes for location [${slug || 'All'}]:`, res.data);
         if (Array.isArray(res.data)) {
           setClasses(res.data);
         }

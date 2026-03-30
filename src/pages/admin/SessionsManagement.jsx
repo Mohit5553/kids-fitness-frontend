@@ -4,6 +4,7 @@ import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import toast from 'react-hot-toast';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import { useBranch } from '../../context/BranchContext.jsx';
 
 const emptyForm = {
   classId: '',
@@ -19,6 +20,7 @@ export default function SessionsManagement() {
   const [sessions, setSessions] = useState([]);
   const [classes, setClasses] = useState([]);
   const [trainers, setTrainers] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,6 +29,7 @@ export default function SessionsManagement() {
   const [showClassDropdown, setShowClassDropdown] = useState(false);
 
   const { can } = usePermissions();
+  const { selectedBranch } = useBranch();
 
   const canCreate = can('sessions:create');
   const canEdit = can('sessions:edit');
@@ -42,7 +45,8 @@ export default function SessionsManagement() {
     });
     const p2 = api.get('/classes').then((res) => setClasses(res.data || []));
     const p3 = api.get('/trainers').then((res) => setTrainers(res.data || []));
-    Promise.all([p1, p2, p3]).finally(() => setLoading(false));
+    const p4 = api.get('/locations').then((res) => setLocations(res.data || []));
+    Promise.all([p1, p2, p3, p4]).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -56,7 +60,10 @@ export default function SessionsManagement() {
       // Autofill capacity if class is selected and capacity is empty
       if (name === 'classId' && value && !prev.capacity) {
         const cls = classes.find(c => c._id === value);
-        if (cls) updated.capacity = cls.capacity || '';
+        if (cls) {
+          updated.capacity = cls.capacity || '';
+          if (cls.locationId) updated.locationId = cls.locationId?._id || cls.locationId;
+        }
       }
       return updated;
     });
@@ -75,6 +82,7 @@ export default function SessionsManagement() {
     setForm({
       classId: session.classId?._id || session.classId || '',
       trainerId: session.trainerId?._id || session.trainerId || '',
+      locationId: session.locationId?._id || session.locationId || '',
       startTime: session.startTime ? new Date(session.startTime).toISOString().slice(0, 16) : '',
       endTime: session.endTime ? new Date(session.endTime).toISOString().slice(0, 16) : '',
       capacity: session.capacity ?? '',
@@ -91,6 +99,14 @@ export default function SessionsManagement() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!form.classId) {
+      return toast.error('Please select a class from the search results');
+    }
+
+    if (!selectedBranch || selectedBranch === 'all') {
+      return toast.error('Please select a specific branch in the header to create a session');
+    }
+
     const payload = {
       ...form,
       startTime: new Date(form.startTime).toISOString(),
@@ -98,17 +114,29 @@ export default function SessionsManagement() {
       capacity: form.capacity ? Number(form.capacity) : undefined
     };
 
+    console.log('Creating session with payload:', {
+      ...payload,
+      locationIds: [selectedBranch]
+    });
+
     try {
       if (editingId) {
         await api.put(`/sessions/${editingId}`, payload);
       } else {
-        await api.post('/sessions', payload);
+        // If superadmin has "all" selected, the backend will fail with "Location is required" 
+        // unless the class has one. We've added a UI warning below.
+        await api.post('/sessions', {
+          ...payload,
+          locationIds: selectedBranch && selectedBranch !== 'all' ? [selectedBranch] : []
+        });
       }
       toast.success(editingId ? 'Session updated successfully!' : 'Session created successfully!');
       handleCancel();
       load();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to save session');
+      const msg = err.response?.data?.message || 'Failed to save session';
+      console.error('Session save error:', err.response?.data);
+      toast.error(msg);
     }
   };
 
@@ -241,6 +269,17 @@ export default function SessionsManagement() {
                 </div>
               </div>
 
+              {selectedBranch === 'all' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 animate-pulse">
+                  <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <p className="text-xs font-bold text-amber-700">
+                    "All locations" is selected in the header. Please select a specific branch (e.g. Dubai Al Wasl) in the top switcher to create a session.
+                  </p>
+                </div>
+              )}
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Start Time & Date</label>
@@ -278,7 +317,7 @@ export default function SessionsManagement() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Studio / Location</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Studio / Room Name (Optional)</label>
                   <input
                     className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
                     name="location"
@@ -290,7 +329,11 @@ export default function SessionsManagement() {
               </div>
 
               <div className="flex items-center gap-3 mt-4">
-                <button className="bg-brand-blue text-white px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all" type="submit">
+                <button 
+                  className={`bg-brand-blue text-white px-10 py-4 rounded-full font-black shadow-lg transition-all ${selectedBranch === 'all' && !editingId ? 'opacity-50 cursor-not-allowed hover:scale-100' : 'hover:scale-105 active:scale-95'}`} 
+                  type="submit"
+                  disabled={selectedBranch === 'all' && !editingId}
+                >
                   {editingId ? 'Update Session' : 'Create Session'}
                 </button>
                 {editingId && (

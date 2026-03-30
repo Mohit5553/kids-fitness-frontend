@@ -27,7 +27,31 @@ const STATUS_COLORS = {
   pending: { bg: 'rgba(245,158,11,0.12)', text: '#b45309', dot: '#f59e0b', label: 'Pending' },
   failed:  { bg: 'rgba(239,68,68,0.12)',  text: '#dc2626', dot: '#ef4444', label: 'Failed' },
 };
-const METHOD_LABELS = { card: '💳 Card', cash: '💵 Cash', center: '🏢 At Center', online: '🌐 Online' };
+const METHOD_LABELS = {
+  card: '💳 Card',
+  cash: '💵 Cash',
+  online: '🌐 Online',
+  center: '🏫 At Center'
+};
+
+const formatPaymentMethod = (payment) => {
+  const method = payment.paymentMethod;
+  if (!method) return '💳 Card';
+  
+  const refText = payment.reference ? ` (#${payment.reference})` : '';
+
+  if (method.startsWith('center_')) {
+    const actualMethod = method.split('_')[1];
+    const icon = actualMethod === 'cash' ? '💵' : actualMethod === 'card' ? '💳' : '🌐';
+    return `${icon} Pay at Center: ${actualMethod.charAt(0).toUpperCase() + actualMethod.slice(1)}${refText}`;
+  }
+  
+  if (method === 'online' || method === 'card') {
+    return `${METHOD_LABELS[method] || '💳 Card'}${refText}`;
+  }
+
+  return METHOD_LABELS[method] || '💳 Card';
+};
 
 function StatusBadge({ status }) {
   const c = STATUS_COLORS[status] || STATUS_COLORS.pending;
@@ -205,6 +229,10 @@ export default function PaymentHistory() {
                               <p className="font-bold text-brand-black text-sm leading-tight">
                                 {payment.planId?.name
                                   ? `Plan: ${payment.planId.name}`
+                                  : payment.bookingId?.classId?.title
+                                  ? `Class: ${payment.bookingId.classId.title}`
+                                  : payment.membershipId?.planId?.name
+                                  ? `Membership: ${payment.membershipId.planId.name}`
                                   : payment.bookingId
                                   ? 'Class Booking'
                                   : payment.membershipId
@@ -212,7 +240,7 @@ export default function PaymentHistory() {
                                   : 'Payment'}
                               </p>
                               <p className="text-xs text-brand-black/40 mt-0.5">
-                                {METHOD_LABELS[payment.paymentMethod] || '💳 Card'}
+                                {formatPaymentMethod(payment)}
                                 {payment.last4 ? ` •••• ${payment.last4}` : ''}
                               </p>
                               {payment.reference && (

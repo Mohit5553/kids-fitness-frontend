@@ -10,19 +10,32 @@ export default function LocationSelect({ allowAll = false }) {
   const user = getUser();
 
   useEffect(() => {
-    api
-      .get('/locations?all=true')
-      .then((res) => {
-        const list = res.data || [];
+    const loadData = async () => {
+      try {
+        // 1. Fetch latest user profile to sync permissions (crucial for staff)
+        const meRes = await api.get('/auth/me');
+        const freshUser = meRes.data;
+        if (freshUser) {
+          const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+          localStorage.setItem('user', JSON.stringify({ ...localUser, ...freshUser }));
+        }
+
+        // 2. Fetch all locations
+        const locRes = await api.get('/locations?all=true');
+        const list = locRes.data || [];
+        const isSuper = freshUser?.role === 'superadmin';
+        
         let filtered = list;
 
         // If not superadmin, only show assigned locations
-        if (user && user.role !== 'superadmin') {
-          const assignedIds = (user.locationIds || []).map(l => typeof l === 'string' ? l : l._id);
+        if (!isSuper) {
+          const assignedIds = (freshUser.locationIds || []).map(l => typeof l === 'string' ? l : l._id);
           filtered = list.filter(l => assignedIds.includes(l._id));
         }
 
-        const options = allowAll && (user?.role === 'superadmin') ? [{ _id: 'all', slug: 'all', name: 'All locations' }, ...filtered] : filtered;
+        // Superadmins always get the 'All locations' option
+        const options = isSuper ? [{ _id: 'all', slug: 'all', name: 'All locations' }, ...list] : filtered;
+        
         setLocations(options);
         setAvailableBranches(options.map(o => o._id));
 
@@ -30,9 +43,13 @@ export default function LocationSelect({ allowAll = false }) {
         if (!selectedBranch && options.length > 0) {
           setSelectedBranch(options[0]._id);
         }
-      })
-      .catch(() => { });
-  }, [allowAll, user?.role]);
+      } catch (err) {
+        console.error("Error loading location data", err);
+      }
+    };
+
+    loadData();
+  }, [allowAll]);
 
 
   const handleChange = (event) => {

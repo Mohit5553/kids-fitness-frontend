@@ -6,6 +6,7 @@ import Footer from '../components/Footer.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
 import LocationPicker from '../components/LocationPicker.jsx';
 import { getUser } from '../utils/auth.js';
+import { getLocationId } from '../utils/location.js';
 
 export default function Pricing() {
   const navigate = useNavigate();
@@ -21,7 +22,8 @@ export default function Pricing() {
 
   const fetchPlans = async () => {
     try {
-      const res = await api.get('/plans');
+      const locationId = getLocationId();
+      const res = await api.get('/plans', { params: { locationId } });
       setPlans(res.data);
     } catch (err) {
       console.error('Failed to fetch plans', err);

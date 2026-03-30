@@ -76,12 +76,17 @@ export default function Login() {
               onChange={handleChange}
               required
             />
-            <button className="rounded-full bg-coral px-5 py-3 text-sm font-semibold text-white" type="submit">
+            <div className="text-right -mt-2">
+              <Link to="/forgot-password" size="sm" className="text-xs font-bold text-coral/80 hover:text-coral transition-colors">
+                Forgot Password?
+              </Link>
+            </div>
+            <button className="rounded-full bg-coral px-5 py-3 text-sm font-semibold text-white mt-2" type="submit">
               Login
             </button>
           </form>
           <p className="mt-4 text-sm text-ink/70">
-            New here? <Link className="text-coral" to={redirect ? `/register?redirect=${encodeURIComponent(redirect)}` : "/register"}>Create an account</Link>
+            New here? <Link className="text-coral font-bold" to={redirect ? `/register?redirect=${encodeURIComponent(redirect)}` : "/register"}>Create an account</Link>
           </p>
         </div>
       </main>

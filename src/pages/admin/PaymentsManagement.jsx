@@ -15,6 +15,24 @@ function formatTime(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' });
 }
+function formatPaymentMethod(payment) {
+  const method = payment.paymentMethod;
+  if (!method) return 'N/A';
+  
+  const refText = payment.reference ? ` (#${payment.reference})` : '';
+
+  if (method.startsWith('center_')) {
+    const actualMethod = method.split('_')[1];
+    return `Pay at Center: ${actualMethod.charAt(0).toUpperCase() + actualMethod.slice(1)}${refText}`;
+  }
+  
+  if (method === 'online' || method === 'card') {
+    return `${method.charAt(0).toUpperCase() + method.slice(1)}${refText}`;
+  }
+
+  if (method === 'center') return 'Pay at Center';
+  return method.charAt(0).toUpperCase() + method.slice(1);
+}
 function formatDateKey(iso) {
   if (!iso) return 'Unknown';
   const d = new Date(iso);
@@ -80,6 +98,7 @@ export default function PaymentsManagement() {
   const [search, setSearch]       = useState('');
   const [statusFilter, setStatus] = useState('all');
   const [methodFilter, setMethod] = useState('all');
+  const [typeFilter, setType]     = useState('all');
   const { can } = usePermissions();
 
   const canExport = can('payments:view'); // Assuming if they can view, they can export, or we can use another perm.
@@ -112,17 +131,44 @@ export default function PaymentsManagement() {
     const q = search.toLowerCase();
     return payments.filter(p => {
       if (statusFilter !== 'all' && p.status !== statusFilter) return false;
-      if (methodFilter !== 'all' && p.paymentMethod !== methodFilter) return false;
+      
+      if (methodFilter !== 'all') {
+        const method = p.paymentMethod || '';
+        if (methodFilter === 'center') {
+          if (!method.startsWith('center')) return false;
+        } else if (methodFilter === 'cash') {
+          if (method !== 'cash' && method !== 'center_cash') return false;
+        } else if (methodFilter === 'card') {
+          if (method !== 'card' && method !== 'center_card') return false;
+        } else if (methodFilter === 'online') {
+          if (method !== 'online' && method !== 'center_online') return false;
+        } else if (p.paymentMethod !== methodFilter) {
+          return false;
+        }
+      }
+
+      if (typeFilter !== 'all') {
+        if (typeFilter === 'booking' && !p.bookingId) return false;
+        if (typeFilter === 'plan' && !p.planId) return false;
+        if (typeFilter === 'membership' && !p.membershipId) return false;
+      }
       if (q) {
-        const name  = p.userId?.name?.toLowerCase() || '';
-        const email = p.userId?.email?.toLowerCase() || '';
-        const plan  = p.planId?.name?.toLowerCase() || '';
+        const name  = p.userId?.name?.toLowerCase() || p.bookingId?.guestDetails?.name?.toLowerCase() || '';
+        const email = p.userId?.email?.toLowerCase() || p.bookingId?.guestDetails?.email?.toLowerCase() || '';
+        const plan  = (p.planId?.name || p.membershipId?.planId?.name || '').toLowerCase();
+        const classTitle = (p.bookingId?.classId?.title || '').toLowerCase();
         const ref   = (p.reference || '').toLowerCase();
-        if (!name.includes(q) && !email.includes(q) && !plan.includes(q) && !ref.includes(q)) return false;
+        if (
+          !name.includes(q) && 
+          !email.includes(q) && 
+          !plan.includes(q) && 
+          !ref.includes(q) && 
+          !classTitle.includes(q)
+        ) return false;
       }
       return true;
     });
-  }, [payments, search, statusFilter, methodFilter]);
+  }, [payments, search, statusFilter, methodFilter, typeFilter]);
 
   /* ── group by date ── */
   const grouped = useMemo(() => {
@@ -222,6 +268,18 @@ export default function PaymentsManagement() {
             <option value="online">Online</option>
             <option value="center">At Center</option>
           </select>
+
+          {/* Type filter */}
+          <select
+            value={typeFilter}
+            onChange={e => setType(e.target.value)}
+            className="rounded-xl border border-brand-black/10 bg-white px-4 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue"
+          >
+            <option value="all">All Types</option>
+            <option value="booking">Enrollments</option>
+            <option value="plan">Paid Plans</option>
+            <option value="membership">Memberships</option>
+          </select>
         </div>
 
         {/* ── Count ── */}
@@ -281,7 +339,19 @@ export default function PaymentsManagement() {
                 <div className="flex flex-col gap-2">
                   {dayPayments.map((payment) => {
                     const sc = STATUS_COLORS[payment.status] || STATUS_COLORS.pending;
-                    const methodIcon = METHOD_ICONS[payment.paymentMethod] || '💳';
+                    
+                    // Logic to get correct icon for center subtypes
+                    let methodIcon = '💳';
+                    const method = payment.paymentMethod || '';
+                    if (method === 'cash' || method === 'center_cash') methodIcon = '💵';
+                    else if (method === 'card' || method === 'center_card') methodIcon = '💳';
+                    else if (method === 'online' || method === 'center_online') methodIcon = '🌐';
+                    else if (method === 'center') methodIcon = '🏢';
+                    
+                    const isGuest = !payment.userId;
+                    const displayName = payment.userId?.name || payment.bookingId?.guestDetails?.name || 'Guest User';
+                    const displayEmail = payment.userId?.email || payment.bookingId?.guestDetails?.email || 'No email provided';
+
                     return (
                       <div
                         key={payment._id}
@@ -294,17 +364,24 @@ export default function PaymentsManagement() {
                             className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white shrink-0"
                             style={{ background: '#1a6bff' }}
                           >
-                            {payment.userId?.name ? payment.userId.name.charAt(0).toUpperCase() : '?'}
+                            {displayName.charAt(0).toUpperCase()}
                           </div>
                           {/* Details */}
-                          <div className="min-w-0">
-                            <p className="font-bold text-brand-black text-sm leading-tight">
-                              {payment.userId?.name || 'Unknown User'}
-                            </p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-gray-900 truncate">
+                                {displayName}
+                              </h4>
+                              {isGuest && (
+                                <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-[10px] font-black text-amber-600 uppercase tracking-widest border border-amber-100">
+                                  Guest
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-brand-black/45 truncate">
-                              {payment.userId?.email || '—'}
+                              {displayEmail}
                             </p>
-                            {/* Type tag */}
+                            {/* Type tags */}
                             <div className="flex flex-wrap gap-1.5 mt-1">
                               {payment.planId?.name && (
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-100">
@@ -313,12 +390,12 @@ export default function PaymentsManagement() {
                               )}
                               {payment.bookingId && (
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
-                                  Booking
+                                  Class: {payment.bookingId.classId?.title || 'Enrollment'}
                                 </span>
                               )}
                               {payment.membershipId && (
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-100">
-                                  Membership
+                                  Membership{payment.membershipId.planId?.name ? `: ${payment.membershipId.planId.name}` : ''}
                                 </span>
                               )}
                               {!payment.planId && !payment.bookingId && !payment.membershipId && (
@@ -330,15 +407,15 @@ export default function PaymentsManagement() {
                           </div>
                         </div>
 
-                        {/* Middle: method + time */}
+                        {/* Middle: method icon (desktop) */}
                         <div className="hidden md:flex flex-col items-center gap-1 text-center">
                           <span className="text-xl">{methodIcon}</span>
-                          <span className="text-[10px] font-bold uppercase tracking-wide text-brand-black/40 capitalize">
-                            {payment.paymentMethod || 'card'}
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-brand-black/40">
+                            {formatPaymentMethod(payment)}
                           </span>
                         </div>
 
-                        {/* Right: amount + status + time */}
+                        {/* Right: amount + status */}
                         <div className="flex flex-col items-end gap-1.5 shrink-0">
                           <p
                             className="text-lg font-black"
@@ -348,9 +425,6 @@ export default function PaymentsManagement() {
                           </p>
                           <StatusBadge status={payment.status} />
                           <p className="text-[10px] text-brand-black/35">{formatTime(payment.createdAt)}</p>
-                          {payment.last4 && (
-                            <p className="text-[10px] text-brand-black/35">•••• {payment.last4}</p>
-                          )}
                         </div>
                       </div>
                     );

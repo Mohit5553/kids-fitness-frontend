@@ -12,6 +12,9 @@ import BookingFlow from './pages/BookingFlow.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Calendar from './pages/Calendar.jsx';
+import GuestBookingLookup from './pages/GuestBookingLookup.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 import MemberHealthDeclaration from './pages/MemberHealthDeclaration.jsx';
 import { RequireAuth, RequireAdmin, RequireTrainer, RequirePermission } from './components/ProtectedRoutes.jsx';
 import { SocketProvider } from './context/SocketContext.jsx';
@@ -63,6 +66,9 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/book" element={<BookingFlow />} />
+          <Route path="/lookup" element={<GuestBookingLookup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/health-declaration" element={<MemberHealthDeclaration />} />
 
           <Route element={<RequireAuth />}>

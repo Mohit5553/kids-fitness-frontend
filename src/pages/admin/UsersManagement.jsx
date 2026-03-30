@@ -38,6 +38,7 @@ export default function UsersManagement() {
   const [loading, setLoading] = useState(false);
   const [customRoles, setCustomRoles] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [editingUserId, setEditingUserId] = useState(null);
   
   // Staff Creation Form State
   const [showAddStaff, setShowAddStaff] = useState(false);
@@ -101,16 +102,40 @@ export default function UsersManagement() {
     }
   };
 
+  const handleEdit = (u) => {
+    setEditingUserId(u._id);
+    setStaffForm({
+      name: u.name || '',
+      email: u.email || '',
+      password: '', // Leave blank for security, only update if provided (backend might need adjustment if password is required)
+      role: u.role || 'customer',
+      phone: u.phone || '',
+      locationIds: (u.locationIds || []).map(l => l._id || l)
+    });
+    setShowAddStaff(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleCreateStaff = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/users', staffForm);
-      toast.success('Staff user created successfully');
+      if (editingUserId) {
+        // Prepare update payload (exclude password if blank)
+        const payload = { ...staffForm };
+        if (!payload.password) delete payload.password;
+        
+        await api.put(`/users/${editingUserId}`, payload);
+        toast.success('User updated successfully');
+      } else {
+        await api.post('/users', staffForm);
+        toast.success('Staff user created successfully');
+      }
       setShowAddStaff(false);
+      setEditingUserId(null);
       setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '', locationIds: [] });
       load();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create staff');
+      toast.error(err.response?.data?.message || 'Failed to save user');
     }
   };
 
@@ -131,7 +156,15 @@ export default function UsersManagement() {
           </div>
           {canCreate && (
             <button 
-              onClick={() => setShowAddStaff(!showAddStaff)}
+              onClick={() => {
+                if (showAddStaff) {
+                  setShowAddStaff(false);
+                  setEditingUserId(null);
+                  setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '', locationIds: [] });
+                } else {
+                  setShowAddStaff(true);
+                }
+              }}
               className="bg-ink text-white px-8 py-4 rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-ink/90 transition-all active:scale-95 shadow-xl flex items-center gap-3"
             >
               {showAddStaff ? 'Cancel' : (
@@ -144,11 +177,11 @@ export default function UsersManagement() {
           )}
         </div>
 
-        {/* Staff Creation Form */}
+        {/* Staff Creation / Edit Form */}
         {showAddStaff && (
           <div className="mb-10 animate-in fade-in slide-in-from-top-4 duration-500">
             <div className="bg-white rounded-[32px] p-8 shadow-2xl border border-slate-100 max-w-2xl mx-auto">
-              <h2 className="font-display text-xl font-bold text-ink mb-6">Create Staff Account</h2>
+              <h2 className="font-display text-xl font-bold text-ink mb-6">{editingUserId ? 'Edit User Profile' : 'Create Staff Account'}</h2>
               <form onSubmit={handleCreateStaff} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="text-[10px] font-black text-ink/30 uppercase tracking-widest block mb-2">Full Name</label>
@@ -159,14 +192,20 @@ export default function UsersManagement() {
                   <input type="email" required value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 text-sm font-bold" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-ink/30 uppercase tracking-widest block mb-2">Password</label>
-                  <input type="password" required value={staffForm.password} onChange={e => setStaffForm({...staffForm, password: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 text-sm font-bold" />
+                  <label className="text-[10px] font-black text-ink/30 uppercase tracking-widest block mb-2">Password {editingUserId && '(Leave blank to keep current)'}</label>
+                  <input type="password" required={!editingUserId} value={staffForm.password} onChange={e => setStaffForm({...staffForm, password: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 text-sm font-bold" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-ink/30 uppercase tracking-widest block mb-2">Initial Role</label>
+                  <label className="text-[10px] font-black text-ink/30 uppercase tracking-widest block mb-2">Phone Number</label>
+                  <input type="text" value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 text-sm font-bold" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-ink/30 uppercase tracking-widest block mb-2">Role</label>
                   <select value={staffForm.role} onChange={e => setStaffForm({...staffForm, role: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 text-sm font-bold">
-                    <option value="admin">Admin</option>
+                    <option value="customer">Customer</option>
                     <option value="trainer">Trainer</option>
+                    <option value="admin">Admin</option>
+                    <option value="superadmin">Superadmin</option>
                     {customRoles.map(r => <option key={r._id} value={r.name}>{r.name}</option>)}
                   </select>
                 </div>
@@ -199,7 +238,9 @@ export default function UsersManagement() {
                   </div>
                 )}
                 <div className="md:col-span-2">
-                  <button type="submit" className="w-full bg-coral text-white py-4 rounded-2xl text-sm font-black uppercase tracking-widest hover:brightness-110 shadow-lg shadow-coral/20">Create account</button>
+                  <button type="submit" className="w-full bg-coral text-white py-4 rounded-2xl text-sm font-black uppercase tracking-widest hover:brightness-110 shadow-lg shadow-coral/20">
+                    {editingUserId ? 'Update account info' : 'Create account'}
+                  </button>
                 </div>
               </form>
             </div>
@@ -274,6 +315,15 @@ export default function UsersManagement() {
                             ))}
                           </select>
                         </div>
+                      )}
+                      {canEdit && (
+                        <button
+                          onClick={() => handleEdit(user)}
+                          className="h-14 w-14 flex items-center justify-center rounded-2xl bg-amber-50 text-amber-500 hover:bg-amber-500 hover:text-white transition-all active:scale-95 shadow-sm"
+                          title="Edit Profile"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </button>
                       )}
                       <button 
                         onClick={() => {

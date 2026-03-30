@@ -12,7 +12,7 @@ const emptyForm = {
   phone: '',
   bio: '',
   specialties: '',
-  locationId: '',
+  locationIds: [],
   avatarUrl: '',
   gallery: [],
   status: 'active',
@@ -85,7 +85,7 @@ export default function TrainersManagement() {
       phone: trainer.phone || '',
       bio: trainer.bio || '',
       specialties: (trainer.specialties || []).join(', '),
-      locationId: trainer.locationId?._id || trainer.locationId || '',
+      locationIds: trainer.locationIds || (trainer.locationId ? [trainer.locationId?._id || trainer.locationId] : []),
       status: trainer.status || 'active',
       avatarUrl: trainer.avatarUrl || '',
       gallery: trainer.gallery || [],
@@ -203,20 +203,33 @@ export default function TrainersManagement() {
               </div>
 
               <div className="grid gap-6 md:grid-cols-3">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Assigned Branch</label>
-                  <select
-                    className="w-full rounded-2xl border-slate-200 bg-slate-50 p-3 text-sm focus:border-coral focus:ring-0"
-                    name="locationId"
-                    value={form.locationId}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">Select Location</option>
+                <div className="space-y-3 col-span-full">
+                  <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Assigned Branches</label>
+                  <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                     {locations.map(loc => (
-                      <option key={loc._id} value={loc._id}>{loc.name}</option>
+                      <label 
+                        key={loc._id} 
+                        className={`flex items-center gap-3 p-4 rounded-2xl border transition-all cursor-pointer ${form.locationIds.includes(loc._id) ? 'border-coral bg-coral/5 text-coral' : 'border-slate-100 bg-slate-50 text-ink/60 hover:border-slate-200'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300 text-coral focus:ring-coral"
+                          checked={form.locationIds.includes(loc._id)}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setForm(prev => ({
+                              ...prev,
+                              locationIds: checked 
+                                ? [...(prev.locationIds || []), loc._id]
+                                : (prev.locationIds || []).filter(id => id !== loc._id)
+                            }));
+                          }}
+                        />
+                        <span className="text-sm font-semibold">{loc.name}</span>
+                      </label>
                     ))}
-                  </select>
+                  </div>
+                  {form.locationIds.length === 0 && <p className="text-[10px] text-red-400 font-bold uppercase tracking-wider">Please select at least one branch</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-ink/50">Duty Status</label>
@@ -401,8 +414,8 @@ export default function TrainersManagement() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-display text-lg text-ink truncate">{trainer.name}</h3>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue truncate">
-                       {locations.find(l => l._id === (trainer.locationId?._id || trainer.locationId))?.name || 'Unassigned'}
+                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue truncate" title={trainer.locationIds?.map(id => locations.find(l => l._id === (id?._id || id))?.name).filter(Boolean).join(', ') || 'Unassigned'}>
+                       {trainer.locationIds?.map(id => locations.find(l => l._id === (id?._id || id))?.name).filter(Boolean).join(', ') || 'Unassigned'}
                     </p>
                   </div>
                   <div className={`h-2 w-2 rounded-full ${trainer.status === 'active' ? 'bg-green-500' : 'bg-slate-300'}`} />

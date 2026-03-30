@@ -10,6 +10,8 @@ export default function BookingFlow() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const classIdFromUrl = searchParams.get('classId');
+  const locationIdFromUrl = searchParams.get('locationId');
+  const sessionIdFromUrl = searchParams.get('sessionId');
   const isRestoringParam = searchParams.get('restoring') === 'true';
 
   const [step, setStep] = useState(1);
@@ -50,7 +52,9 @@ export default function BookingFlow() {
         selectedLocation,
         selectedTrainer,
         selectedSessions,
-        participants
+        participants,
+        guestDetails,
+        showGuestForm
       };
       sessionStorage.setItem('booking_pending_state', JSON.stringify(bookingState));
 
@@ -90,8 +94,10 @@ export default function BookingFlow() {
           setSelectedClass(parsed.selectedClass);
           setSelectedLocation(parsed.selectedLocation);
           setSelectedTrainer(parsed.selectedTrainer);
-          setSelectedSessions(parsed.selectedSessions);
+          setSessions(parsed.selectedSessions);
           setParticipants(parsed.participants);
+          if (parsed.guestDetails) setGuestDetails(parsed.guestDetails);
+          if (parsed.showGuestForm !== undefined) setShowGuestForm(parsed.showGuestForm);
           setTimeout(() => setIsRestoring(false), 100);
         }
       } catch (e) {
@@ -102,17 +108,35 @@ export default function BookingFlow() {
 
   // Step 1: Fetch Classes
   useEffect(() => {
+    if (step > 1 && !selectedClass && !loading && !isRestoring) {
+      setStep(1);
+    }
+  }, [step, selectedClass, loading, isRestoring]);
+
+  // Step 1: Fetch Classes
+  useEffect(() => {
     setLoading(true);
-    api.get('/classes')
+    const params = {
+      locationId: locationIdFromUrl || undefined
+    };
+    api.get('/classes', { params })
       .then(res => {
         setClasses(res.data);
         if (classIdFromUrl) {
           const found = res.data.find(c => c._id === classIdFromUrl);
           if (found) {
             setSelectedClass(found);
-            // Only set step 2 if we are NOT restoring
-            if (!isRestoringParam) {
+            // If we have a classId from URL, we should at least be on Step 2
+            if (step === 1 && !isRestoringParam) {
               setStep(2);
+            }
+            // Auto-select location from URL or Class data
+            if (!selectedLocation) {
+              if (locationIdFromUrl) {
+                setSelectedLocation(locationIdFromUrl);
+              } else if (found.locationId) {
+                setSelectedLocation(found.locationId._id || found.locationId);
+              }
             }
           }
         }
@@ -120,6 +144,24 @@ export default function BookingFlow() {
       })
       .catch(() => setLoading(false));
   }, [classIdFromUrl]);
+
+  // Step 1.1: Fetch specific session if sessionId is in URL
+  useEffect(() => {
+    if (sessionIdFromUrl && !isRestoringParam) {
+      setLoading(true);
+      api.get(`/sessions/${sessionIdFromUrl}`)
+        .then(res => {
+          const session = res.data;
+          if (session) {
+            setSelectedTrainer(session.trainerId?._id || session.trainerId);
+            setSelectedSessions([session]);
+            setStep(4);
+          }
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    }
+  }, [sessionIdFromUrl]);
 
   // Fetch Locations (Filtered by Class if selected)
   useEffect(() => {
@@ -157,7 +199,11 @@ export default function BookingFlow() {
     if (selectedClass && selectedLocation) {
       const classTrainers = selectedClass.availableTrainers || [];
       // Filter trainers by location
-      const filtered = classTrainers.filter(t => (t.locationId?._id || t.locationId) === selectedLocation);
+      const filtered = classTrainers.filter(t => {
+        const tLocationIds = t.locationIds || [];
+        // Check if current selectedLocation is in trainer's locations
+        return tLocationIds.some(loc => (loc._id || loc) === selectedLocation);
+      });
       setTrainers(filtered);
     }
   }, [selectedClass, selectedLocation]);
@@ -271,7 +317,7 @@ export default function BookingFlow() {
           date: sess.startTime,
           paymentMethod: paymentType || 'center',
           paymentStatus: paymentType === 'online' ? 'completed' : 'pending',
-          guestDetails: showGuestForm ? guestDetails : undefined
+          guestDetails: !getUser() ? guestDetails : undefined
         };
         const res = await api.post('/bookings', payload);
         results.push(res.data);
@@ -564,8 +610,13 @@ export default function BookingFlow() {
                 <div className="mb-8 p-6 rounded-[32px] bg-brand-blue/5 border border-brand-blue/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue">Selected Program</p>
-                    <p className="font-display text-xl mt-1 text-ink">{selectedClass.title} • {selectedClass.ageGroup}</p>
-                    <div className="mt-2 space-y-1">
+                    <p className="font-display text-xl mt-1 text-ink">{selectedClass?.title || 'N/A'} • {selectedClass?.ageGroup || 'N/A'}</p>
+                    {selectedClass?.minAge !== undefined && selectedClass?.maxAge !== undefined && (
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 bg-amber-50 inline-block px-3 py-1 rounded-full mt-2">
+                        Required Age: {selectedClass.minAge} - {selectedClass.maxAge} Years
+                      </p>
+                    )}
+                    <div className="mt-3 space-y-1">
                       <p className="text-sm font-bold text-ink/60">
                         {locations.find(l => l._id === selectedLocation)?.name || 'Central'} • {selectedSessions.length} Session(s) Selected
                       </p>
@@ -578,7 +629,7 @@ export default function BookingFlow() {
                     </div>
                   </div>
                   <div className="md:text-right">
-                    <p className="text-2xl font-black text-ink">AED {selectedClass.price}</p>
+                    <p className="text-2xl font-black text-ink">AED {selectedClass?.price || 0}</p>
                     <p className="text-[10px] font-black uppercase tracking-widest text-ink/40 mt-1">Per Participant</p>
                   </div>
                 </div>
@@ -619,11 +670,22 @@ export default function BookingFlow() {
                           <input
                             type="number"
                             placeholder="Age"
-                            className="w-full bg-white border-none rounded-2xl py-3 px-5 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
+                            className={`w-full bg-white border-none rounded-2xl py-3 px-5 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all ${
+                              p.age && (
+                                (selectedClass.minAge !== undefined && parseInt(p.age) < selectedClass.minAge) || 
+                                (selectedClass.maxAge !== undefined && parseInt(p.age) > selectedClass.maxAge)
+                              ) ? 'ring-2 ring-red-400 bg-red-50' : ''
+                            }`}
                             value={p.age}
                             onChange={(e) => updateParticipant(idx, 'age', e.target.value)}
                             disabled={p.childId}
                           />
+                          {p.age && selectedClass.minAge !== undefined && parseInt(p.age) < selectedClass.minAge && (
+                            <p className="text-[8px] font-bold text-red-500 mt-1 px-1">Too young</p>
+                          )}
+                          {p.age && selectedClass.maxAge !== undefined && parseInt(p.age) > selectedClass.maxAge && (
+                            <p className="text-[8px] font-bold text-red-500 mt-1 px-1">Too old</p>
+                          )}
                         </div>
                         <div>
                           <select
@@ -751,11 +813,11 @@ export default function BookingFlow() {
                   <div className="mt-10 pt-10 border-t-4 border-dashed border-slate-100 flex flex-col md:flex-row justify-between items-center gap-8">
                     <div className="text-center md:text-left">
                       <div className="flex items-baseline gap-2 justify-center md:justify-start">
-                        <span className="text-5xl font-black text-brand-blue tracking-tighter">AED {selectedClass.price * participants.length * selectedSessions.length}</span>
+                        <span className="text-5xl font-black text-brand-blue tracking-tighter">AED {(selectedClass?.price || 0) * participants.length * selectedSessions.length}</span>
                         <span className="text-sm font-bold text-ink/30 uppercase tracking-widest italic">Total</span>
                       </div>
                       <p className="text-[11px] text-ink/40 font-black uppercase tracking-[0.2em] mt-3 bg-slate-100/50 px-4 py-2 rounded-full border border-slate-100 inline-block font-body">
-                         {selectedClass.price} AED × {participants.length} PPL × {selectedSessions.length} SESS
+                         {selectedClass?.price || 0} AED × {participants.length} PPL × {selectedSessions.length} SESS
                       </p>
                     </div>
                     <button onClick={() => getUser() ? setStep(7) : setStep(6)} className="w-full md:w-auto bg-brand-blue text-white px-14 py-6 rounded-[2.5rem] font-black shadow-glow hover:scale-[1.03] active:scale-[0.98] transition-all text-xl hover:shadow-brand-blue/30 group">
@@ -854,7 +916,7 @@ export default function BookingFlow() {
               <div className="animate-rise text-center py-10">
                 {paymentType === 'online' ? (
                   <PaymentForm
-                    totalAmount={selectedClass.price * participants.length * selectedSessions.length}
+                    totalAmount={(selectedClass?.price || 0) * participants.length * selectedSessions.length}
                     onSubmit={handleCreateBooking}
                     onCancel={() => { setPaymentType(''); setStep(5); }}
                   />

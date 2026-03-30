@@ -19,6 +19,12 @@ export default function BookingManagement() {
   const [rejectionId, setRejectionId] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
+  // Payment Confirmation Modal State
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmingBookingId, setConfirmingBookingId] = useState('');
+  const [selectedMethod, setSelectedMethod] = useState('cash');
+  const [paymentRef, setPaymentRef] = useState('');
+
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -80,17 +86,26 @@ export default function BookingManagement() {
     load();
   };
 
-  const confirmCenterPayment = async (bookingId) => {
-    if (!window.confirm('Confirm that payment has been received at the center?')) return;
+  const confirmCenterPayment = (bookingId) => {
+    setConfirmingBookingId(bookingId);
+    setSelectedMethod('cash');
+    setPaymentRef('');
+    setShowConfirmModal(true);
+  };
+
+  const performConfirmCenterPayment = async () => {
+    setLoading(true);
     try {
-      await api.post('/payments/booking', { 
-        bookingId, 
-        paymentMethod: 'cash', 
-        reference: `center_${Date.now()}` 
+      await api.put(`/bookings/${confirmingBookingId}/status`, { 
+        status: 'confirmed',
+        paymentMethod: selectedMethod,
+        reference: paymentRef
       });
+      setShowConfirmModal(false);
       load();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to confirm payment');
+      setLoading(false);
     }
   };
   
@@ -131,6 +146,17 @@ export default function BookingManagement() {
     setStatusFilter('');
     setDateFilter('');
     setLocationFilter('');
+  };
+
+  const formatPaymentMethod = (method) => {
+    if (!method) return 'N/A';
+    if (method.startsWith('center_')) {
+      const actualMethod = method.split('_')[1];
+      return `Pay at Center: ${actualMethod.charAt(0).toUpperCase() + actualMethod.slice(1)}`;
+    }
+    if (method === 'center') return 'Pay at Center';
+    if (method === 'online') return 'Online';
+    return method.charAt(0).toUpperCase() + method.slice(1);
   };
 
   return (
@@ -245,6 +271,20 @@ export default function BookingManagement() {
                         📍 {typeof booking.locationId === 'object' ? booking.locationId.name : locations.find(l => l._id === booking.locationId)?.name || 'Central'}
                       </p>
                     )}
+                    <p className="text-[10px] text-brand-blue font-bold uppercase tracking-widest">
+                      💳 {formatPaymentMethod(booking.paymentMethod)}
+                    </p>
+                    {booking.processedByRole ? (
+                      <p className="text-[10px] text-brand-blue/50 font-bold uppercase tracking-widest flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-brand-blue/30"></span>
+                        Processed by: <span className="text-brand-blue">{booking.processedByRole}</span> {booking.processedBy?.name ? `(${booking.processedBy.name})` : ''}
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-indigo-200"></span>
+                        Source: Website / Parent
+                      </p>
+                    )}
                   </div>
                   {booking.sessionId?.startTime && (
                     <div className="mt-3 flex items-center gap-2">
@@ -316,7 +356,15 @@ export default function BookingManagement() {
                             'bg-red-100 text-red-600 focus:ring-red-200'
                           }`}
                           value={booking.status}
-                          onChange={(event) => updateStatus(booking._id, event.target.value)}
+                          onChange={(event) => {
+                            const newStatus = event.target.value;
+                            // If confirming a center booking that is still pending payment, show the modal
+                            if (newStatus === 'confirmed' && booking.paymentMethod === 'center' && booking.paymentStatus === 'pending') {
+                              confirmCenterPayment(booking._id);
+                            } else {
+                              updateStatus(booking._id, newStatus);
+                            }
+                          }}
                         >
                           <option value="pending">Pending</option>
                           <option value="confirmed">Confirmed</option>
@@ -359,6 +407,16 @@ export default function BookingManagement() {
         </div>
       </main>
       <Footer />
+      
+      <PaymentModal 
+        show={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={performConfirmCenterPayment}
+        method={selectedMethod}
+        setMethod={setSelectedMethod}
+        reference={paymentRef}
+        setReference={setPaymentRef}
+      />
 
       {/* Rejection Modal */}
       {showRejectModal && (
@@ -395,4 +453,75 @@ export default function BookingManagement() {
     </div>
   );
 }
+
+// Payment Confirmation Modal Component
+const PaymentModal = ({ show, onClose, onConfirm, method, setMethod, reference, setReference }) => {
+  if (!show) return null;
+
+  const methods = [
+    { id: 'cash', label: 'Cash', icon: '💵' },
+    { id: 'card', label: 'Card / POS', icon: '💳' },
+    { id: 'online', label: 'Manual Online Transfer', icon: '🌐' }
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-[32px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-brand-blue/10 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">💰</div>
+          <h2 className="font-display text-2xl font-black text-ink">Confirm Payment</h2>
+          <p className="text-sm text-ink/40 font-medium mt-2">How was the payment received at the center?</p>
+        </div>
+
+        <div className="space-y-3 mb-8">
+          {methods.map(m => (
+            <button
+              key={m.id}
+              onClick={() => setMethod(m.id)}
+              className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
+                method === m.id ? 'border-brand-blue bg-brand-blue/5 text-brand-blue' : 'border-slate-100 bg-white hover:border-brand-blue/20'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-xl">{m.icon}</span>
+                <span className="text-sm font-bold">{m.label}</span>
+              </div>
+              {method === m.id && (
+                <div className="w-5 h-5 bg-brand-blue text-white rounded-full flex items-center justify-center text-[10px]">✓</div>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="mb-8">
+          <label className="block text-[10px] font-black text-ink/30 uppercase tracking-[0.2em] mb-2 px-2">
+            {method === 'cash' ? 'Optional Reference / Note' : 'Transaction Number / Code (Required)'}
+          </label>
+          <input
+            type="text"
+            className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 text-xs font-bold text-ink focus:border-brand-blue/20 outline-none transition-all"
+            placeholder={method === 'cash' ? 'e.g. Received at reception' : 'Enter Transaction ID or Auth Code...'}
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+          />
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={onConfirm}
+            className="w-full bg-brand-blue text-white py-4 rounded-2xl font-black shadow-lg shadow-brand-blue/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          >
+            Confirm & Complete Booking
+          </button>
+          <button
+            onClick={onClose}
+            className="w-full bg-white text-ink/40 py-4 rounded-2xl font-black hover:bg-slate-50 transition-all text-xs uppercase tracking-widest"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
