@@ -12,11 +12,11 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-    const backendUrl = apiBaseUrl.replace('/api', '');
+    const backendUrl = apiBaseUrl.replace(/\/api$/, '');
     
     const newSocket = io(backendUrl, {
       withCredentials: true,
-      transports: ['websocket', 'polling']
+      transports: ['polling', 'websocket']
     });
 
     newSocket.on('connect', () => {
