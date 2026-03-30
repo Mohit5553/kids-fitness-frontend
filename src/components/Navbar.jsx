@@ -193,9 +193,14 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <NavLink to="/login" className="text-sm font-bold text-brand-black/60 hover:text-brand-black">
-                Member Login
-              </NavLink>
+              <div className="hidden xl:flex items-center gap-4">
+                <NavLink to="/lookup" className="text-sm font-bold text-brand-black/60 hover:text-brand-black transition-colors rounded-full border border-brand-black/10 px-5 py-2 hover:bg-brand-black/5">
+                  My Booking
+                </NavLink>
+                <NavLink to="/login" className="text-sm font-bold text-brand-black/60 hover:text-brand-black">
+                  Member Login
+                </NavLink>
+              </div>
             )}
 
             <NavLink to="/book-trial" className="rounded-full bg-brand-blue px-6 py-2 text-sm font-black text-white shadow-lg hover:scale-105 active:scale-95 transition-all">
@@ -268,8 +273,8 @@ export default function Navbar() {
           <div className="h-px w-full bg-brand-black/5 my-4"></div>
 
           <div className="flex flex-col gap-4 pb-12">
-            {user && (user.role === 'admin' || user.role === 'superadmin') ? (
-              <div className="mb-2">
+            {isStaff ? (
+              <div className="mb-2 px-1">
                 <LocationSelect allowAll={user.role === 'superadmin'} />
               </div>
             ) : null}
@@ -289,6 +294,13 @@ export default function Navbar() {
                 >
                   Calendar
                 </NavLink>
+                <NavLink
+                  to="/lookup"
+                  onClick={closeMenu}
+                  className="text-lg font-bold text-brand-blue"
+                >
+                  Check Booking Status
+                </NavLink>
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -298,13 +310,22 @@ export default function Navbar() {
                 </button>
               </>
             ) : (
-              <NavLink
-                to="/login"
-                onClick={closeMenu}
-                className="text-lg font-bold text-brand-black/80 hover:text-brand-black"
-              >
-                Member Login
-              </NavLink>
+              <>
+                <NavLink
+                  to="/lookup"
+                  onClick={closeMenu}
+                  className="text-lg font-bold text-brand-blue"
+                >
+                  Check Booking Status
+                </NavLink>
+                <NavLink
+                  to="/login"
+                  onClick={closeMenu}
+                  className="text-lg font-bold text-brand-black/80 hover:text-brand-black"
+                >
+                  Member Login
+                </NavLink>
+              </>
             )}
             <NavLink
               to="/book-trial"
