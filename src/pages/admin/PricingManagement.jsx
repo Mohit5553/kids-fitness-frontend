@@ -22,15 +22,21 @@ export default function PricingManagement() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState('');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const { can } = usePermissions();
 
   const canCreate = can('pricing:create');
   const canEdit = can('pricing:edit');
   const canDelete = can('pricing:delete');
+  const canToggle = can('pricing:edit');
 
   const load = () => {
-    api.get('/plans').then((res) => setPlans(res.data || [])).catch(() => { });
+    setLoading(true);
+    api.get('/plans?all=true')
+      .then((res) => setPlans(res.data || []))
+      .catch(() => { })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -89,10 +95,15 @@ export default function PricingManagement() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this plan?')) return;
-    await api.delete(`/plans/${id}`);
-    load();
+  const handleToggleStatus = async (plan) => {
+    const action = plan.status === 'active' ? 'disable' : 'enable';
+    if (!window.confirm(`Are you sure you want to ${action} this plan?`)) return;
+    try {
+      await api.patch(`/plans/${plan._id}/status`, { status: action === 'disable' ? 'inactive' : 'active' });
+      load();
+    } catch (err) {
+      setMessage(err.response?.data?.message || `Failed to ${action} plan`);
+    }
   };
 
   return (
@@ -222,7 +233,9 @@ export default function PricingManagement() {
         )}
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
-          {plans.map((plan) => (
+          {loading ? (
+            Array(4).fill(0).map((_, i) => <div key={i} className="h-32 animate-pulse bg-white rounded-2xl" />)
+          ) : plans.map((plan) => (
             <div key={plan._id} className="rounded-2xl bg-white/80 p-4 shadow-glow">
               <div className="flex items-start justify-between">
                 <div>
@@ -244,12 +257,12 @@ export default function PricingManagement() {
                     Edit
                   </button>
                 )}
-                {canDelete && (
+                {canToggle && (
                   <button
-                    className="rounded-full border border-ink/10 px-3 py-1 text-xs font-semibold"
-                    onClick={() => handleDelete(plan._id)}
+                    className={`rounded-full px-4 py-1 text-xs font-semibold transition-all ${plan.status === 'active' ? 'bg-red-50 text-red-400 border border-red-100 hover:bg-red-100' : 'bg-green-50 text-green-500 border border-green-100 hover:bg-green-100'}`}
+                    onClick={() => handleToggleStatus(plan)}
                   >
-                    Delete
+                    {plan.status === 'active' ? 'Disable' : 'Enable'}
                   </button>
                 )}
               </div>

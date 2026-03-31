@@ -11,6 +11,7 @@ export default function AdminDashboard() {
   const base = `/${roleSlug}`;
 
   const adminActions = [
+    { to: `${base}/walking-booking`, title: 'Walking Booking', desc: 'Book for walk-in customers.', perm: 'bookings:view' },
     { to: `${base}/classes`, title: 'Classes', desc: 'Create and update programs.', perm: 'classes:view' },
     { to: `${base}/sessions`, title: 'Session calendar', desc: 'Schedule classes and copy QR tokens.', perm: 'sessions:view' },
     { to: `${base}/trainers`, title: 'Trainers', desc: 'Manage coach profiles and status.', perm: 'trainers:view' },

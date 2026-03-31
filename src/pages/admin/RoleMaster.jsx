@@ -49,10 +49,10 @@ export default function RoleMaster() {
 
   const load = () => {
     setLoading(true);
-    api.get('/roles').then(res => {
-      setRoles(res.data || []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    api.get('/roles?all=true')
+      .then((res) => setRoles(res.data || []))
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -102,14 +102,16 @@ export default function RoleMaster() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this role?')) return;
+  const handleToggleStatus = async (role) => {
+    const action = role.status === 'active' ? 'disable' : 'enable';
+    if (!window.confirm(`Are you sure you want to ${action} this role?`)) return;
     try {
-      await api.delete(`/roles/${id}`);
-      toast.success('Role deleted');
+      await api.delete(`/roles/${role._id}`);
+      toast.success(`Role ${action}d successfully`);
       load();
     } catch (err) {
-      toast.error('Failed to delete role');
+      const msg = err.response?.data?.message || `Failed to ${action} role`;
+      toast.error(msg);
     }
   };
 
@@ -212,13 +214,13 @@ export default function RoleMaster() {
             ) : roles.length > 0 ? (
               <div className="grid gap-4">
                 {roles.map(role => (
-                  <div key={role._id} className="rounded-[32px] bg-white p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group">
+                  <div key={role._id} className={`rounded-[32px] bg-white p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group ${role.status === 'inactive' ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <div className="flex items-center gap-3">
                           <h3 className="font-display text-xl font-bold text-ink">{role.name}</h3>
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${role.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
-                            {role.status}
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${role.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                            {role.status || 'Active'}
                           </span>
                         </div>
                         <p className="text-xs text-ink/40 font-bold mt-1 uppercase tracking-widest">{role.description || 'No description'}</p>
@@ -230,8 +232,14 @@ export default function RoleMaster() {
                           </button>
                         )}
                         {canDelete && (
-                          <button onClick={() => handleDelete(role._id)} className="h-10 w-10 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          <button
+                            onClick={() => handleToggleStatus(role)}
+                            className={`h-10 px-4 flex items-center justify-center rounded-xl transition-all shadow-sm ${role.status === 'inactive' ? 'bg-green-50 text-green-500 hover:bg-green-500 hover:text-white' : 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white'}`}
+                            title={role.status === 'inactive' ? 'Enable Role' : 'Disable Role'}
+                          >
+                            <span className="text-[10px] font-black uppercase tracking-widest">
+                              {role.status === 'active' ? 'Disable' : 'Enable'}
+                            </span>
                           </button>
                         )}
                       </div>

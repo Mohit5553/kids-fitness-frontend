@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
@@ -8,6 +9,7 @@ import api from '../api/api.js';
 import { getLocationSlug, getLocationId } from '../utils/location.js';
 
 export default function Programs() {
+  const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -129,6 +131,51 @@ export default function Programs() {
              </button>
           </div>
         )}
+
+        {/* Corporate & Group Specials Section */}
+        <div className="mt-24 p-8 md:p-12 rounded-[48px] bg-ink text-white relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-brand-blue/20 to-transparent pointer-events-none"></div>
+          <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-ocean rounded-full blur-[100px] opacity-20 pointer-events-none group-hover:scale-150 transition-transform duration-1000"></div>
+          
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
+            <div className="max-w-2xl">
+              <span className="inline-block px-4 py-2 rounded-full bg-brand-blue text-[10px] font-black uppercase tracking-[0.2em] mb-6">Corporate & Events</span>
+              <h2 className="font-display text-4xl md:text-5xl font-black mb-6 leading-tight">Bring your whole team to the <span className="text-brand-blue">Kid Fitness</span> arena!</h2>
+              <p className="text-slate-400 text-lg leading-relaxed mb-8">
+                Looking for a unique corporate team-building event or a large-scale group booking? 
+                Our specialized corporate portal allows you to register multiple staff members, 
+                manage consolidated billing, and select custom session blocks in one seamless transaction.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <button 
+                  onClick={() => navigate('/book?mode=corporate')}
+                  className="bg-brand-blue hover:bg-brand-blue/90 text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-[0_10px_30px_rgba(40,116,252,0.3)] hover:-translate-y-1"
+                >
+                  Start Group Booking
+                </button>
+                <button className="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all backdrop-blur-md">
+                  Download Brochure
+                </button>
+              </div>
+            </div>
+            
+            <div className="w-full md:w-auto flex flex-col gap-4">
+              {[
+                { icon: "📄", title: "Consolidated Billing", desc: "One sales order, one payment." },
+                { icon: "👥", title: "Bulk Registration", desc: "Add dozens of staff in minutes." },
+                { icon: "🗓️", title: "Flexible Scheduling", desc: "Pick multiple dates at once." }
+              ].map((feature, idx) => (
+                <div key={idx} className="bg-white/5 backdrop-blur-sm p-6 rounded-3xl border border-white/10 hover:border-white/20 transition-all flex items-center gap-5 group/item">
+                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl group-hover/item:scale-110 transition-transform">{feature.icon}</div>
+                  <div>
+                    <h4 className="font-bold text-sm mb-1">{feature.title}</h4>
+                    <p className="text-xs text-slate-500">{feature.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </main>
       <Footer />
     </div>

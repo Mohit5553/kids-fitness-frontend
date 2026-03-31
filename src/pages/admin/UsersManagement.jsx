@@ -19,6 +19,7 @@ const MODULES = [
   { id: 'memberships', label: 'Membership Subscriptions' },
   { id: 'locations', label: 'Branch Management' },
   { id: 'specialties', label: 'Specialty Master' },
+  { id: 'disable', label: 'Disable', color: 'bg-red-50 text-red-600' },
   { id: 'reports', label: 'Detailed Reports' },
   { id: 'roles', label: 'Role Master' }
 ];
@@ -27,7 +28,7 @@ const ACTIONS = [
   { id: 'view', label: 'View' },
   { id: 'create', label: 'Create' },
   { id: 'edit', label: 'Edit' },
-  { id: 'delete', label: 'Delete' }
+  { id: 'deactivate', label: 'Deactivate' }
 ];
 
 export default function UsersManagement() {
@@ -59,10 +60,15 @@ export default function UsersManagement() {
 
   const load = () => {
     setLoading(true);
-    api.get('/users').then(res => {
-      setUsers(res.data || []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    api.get('/users?all=true')
+      .then((res) => {
+        setUsers(res.data || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -81,14 +87,16 @@ export default function UsersManagement() {
     }
   };
 
-  const deleteUser = async (id) => {
-    if (!window.confirm('Delete this user? This cannot be undone.')) return;
+  const handleToggleStatus = async (u) => {
+    const action = u.status === 'inactive' ? 'activate' : 'deactivate';
+    if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
     try {
-      await api.delete(`/users/${id}`);
-      toast.success('User removed');
+      await api.delete(`/users/${u._id}`);
+      toast.success(`User ${action}d successfully`);
       load();
     } catch (err) {
-      toast.error('Failed to delete user');
+      const msg = err.response?.data?.message || `Failed to ${action} user`;
+      toast.error(msg);
     }
   };
 
@@ -283,6 +291,9 @@ export default function UsersManagement() {
                         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${user.role === 'superadmin' ? 'bg-ink text-white' : user.role === 'admin' ? 'bg-coral/10 text-coral' : 'bg-slate-100 text-ink/40'}`}>
                           {user.role}
                         </span>
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${user.status === 'inactive' ? 'bg-red-100 text-red-500' : 'bg-green-100 text-green-500'}`}>
+                          {user.status || 'Active'}
+                        </span>
                       </div>
                       <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm font-bold text-ink/50">
                         <span className="flex items-center gap-2"><svg className="h-4 w-4 text-coral/40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>{user.email}</span>
@@ -337,10 +348,15 @@ export default function UsersManagement() {
                       </button>
                       {canDelete && (
                         <button
-                          onClick={() => deleteUser(user._id)}
-                          className="h-14 w-14 flex items-center justify-center rounded-2xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95 shadow-sm"
+                          onClick={() => handleToggleStatus(user)}
+                          className={`h-14 w-14 flex items-center justify-center rounded-2xl transition-all active:scale-95 shadow-sm ${user.status === 'inactive' ? 'bg-green-50 text-green-500 hover:bg-green-500 hover:text-white' : 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white'}`}
+                          title={user.status === 'inactive' ? 'Activate User' : 'Deactivate User'}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          {user.status === 'inactive' ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                          )}
                         </button>
                       )}
                     </div>

@@ -21,9 +21,11 @@ export default function SessionsManagement() {
   const [classes, setClasses] = useState([]);
   const [trainers, setTrainers] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [plans, setPlans] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [view, setView] = useState('active'); // 'active' or 'expired'
   const [classSearchQuery, setClassSearchQuery] = useState('');
   const [showClassDropdown, setShowClassDropdown] = useState(false);
@@ -37,7 +39,7 @@ export default function SessionsManagement() {
 
   const load = () => {
     setLoading(true);
-    const p1 = api.get('/sessions').then((res) => {
+    const p1 = api.get('/sessions?all=true').then((res) => {
       const data = res.data || [];
       // Sort latest date first
       const sorted = data.sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
@@ -46,7 +48,8 @@ export default function SessionsManagement() {
     const p2 = api.get('/classes').then((res) => setClasses(res.data || []));
     const p3 = api.get('/trainers').then((res) => setTrainers(res.data || []));
     const p4 = api.get('/locations').then((res) => setLocations(res.data || []));
-    Promise.all([p1, p2, p3, p4]).finally(() => setLoading(false));
+    const p5 = api.get('/plans?all=true').then((res) => setPlans(res.data || []));
+    Promise.all([p1, p2, p3, p4, p5]).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -140,14 +143,16 @@ export default function SessionsManagement() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this session? Existing bookings may be affected.')) return;
+  const handleToggleStatus = async (session) => {
+    const action = session.status === 'scheduled' ? 'cancel' : 'restore';
+    if (!window.confirm(`Are you sure you want to ${action} this session?`)) return;
     try {
-      await api.delete(`/sessions/${id}`);
-      toast.success('Session deleted');
+      await api.delete(`/sessions/${session._id}`);
+      toast.success(`Session ${action}led successfully`);
       load();
     } catch (err) {
-      toast.error('Failed to delete session');
+      const msg = err.response?.data?.message || `Failed to ${action} session`;
+      toast.error(msg);
     }
   };
 
@@ -161,10 +166,15 @@ export default function SessionsManagement() {
             <p className="mt-1 text-ink/50 font-medium">Schedule specific time slots for trainers and classes.</p>
           </div>
           <div className="flex flex-col items-end gap-3">
-            <div className="px-4 py-2 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-              <span className="text-xs font-black uppercase tracking-widest text-ink/60">{sessions.filter(s => new Date(s.startTime) >= new Date()).length} Active Slots</span>
-            </div>
+            <button
+              onClick={() => setShowBulkModal(true)}
+              className="bg-ink text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-ink/90 transition-all flex items-center gap-2 shadow-lg shadow-ink/10"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Bulk Generator
+            </button>
             <div className="flex bg-white p-1 rounded-xl shadow-sm border border-slate-100">
               <button
                 type="button"
@@ -378,7 +388,7 @@ export default function SessionsManagement() {
                       <p className="text-xs font-bold text-ink/40">Trainer: <span className={new Date(session.startTime) < new Date() ? 'text-ink/20' : 'text-brand-blue'}>{session.trainerId?.name || 'TBA'}</span></p>
                       <p className="text-xs font-bold text-ink/40">Occupancy: <span className={session.bookedParticipants >= session.capacity ? 'text-coral' : 'text-green-500'}>{session.bookedParticipants || 0} / {session.capacity}</span></p>
                     </div>
-                    <div className="mt-2 text-[10px] font-black uppercase tracking-widest">
+                    <div className="mt-2 text-[10px] font-black uppercase tracking-widest flex gap-2">
                       {new Date(session.startTime) < new Date() ? (
                         <span className="text-ink/30 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
                           Closed / Expired
@@ -386,6 +396,11 @@ export default function SessionsManagement() {
                       ) : (
                         <span className="text-moss bg-moss/10 px-3 py-1 rounded-full border border-moss/20">
                           Active
+                        </span>
+                      )}
+                      {session.status === 'cancelled' && (
+                        <span className="text-red-500 bg-red-50 px-3 py-1 rounded-full border border-red-100">
+                          Cancelled
                         </span>
                       )}
                     </div>
@@ -404,12 +419,12 @@ export default function SessionsManagement() {
                       Edit
                     </button>
                   )}
-                  {canDelete && new Date(session.startTime) < new Date() && (
+                  {canDelete && (
                     <button
-                      className="h-10 w-10 flex items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all"
-                      onClick={() => handleDelete(session._id)}
+                      className={`h-10 px-4 flex items-center justify-center rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${session.status === 'scheduled' ? 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-green-50 text-green-500 hover:bg-green-500 hover:text-white'}`}
+                      onClick={() => handleToggleStatus(session)}
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      {session.status === 'scheduled' ? 'Cancel Slot' : 'Restore'}
                     </button>
                   )}
                 </div>
@@ -422,6 +437,288 @@ export default function SessionsManagement() {
         </div>
       </main>
       <Footer />
+      {showBulkModal && (
+        <BulkSessionModal
+          onClose={() => setShowBulkModal(false)}
+          classes={classes}
+          trainers={trainers}
+          plans={plans}
+          onCreated={load}
+          selectedBranch={selectedBranch}
+        />
+      )}
+    </div>
+  );
+}
+
+function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, selectedBranch }) {
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState({
+    classId: '',
+    trainerId: '',
+    planId: '',
+    startTime: '',
+    durationMinutes: 60,
+    days: [], // 0 = Sun, 1 = Mon ...
+    startDate: '',
+    endDate: '',
+    occurences: 10,
+    room: ''
+  });
+  const [preview, setPreview] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const selectedClass = classes.find(c => c._id === form.classId);
+  const selectedPlan = plans.find(p => p._id === form.planId);
+
+  const filteredTrainers = useMemo(() => {
+    if (!form.classId) return trainers;
+    const cls = classes.find(c => c._id === form.classId);
+    if (!cls || !cls.availableTrainers) return trainers;
+    const availableIds = cls.availableTrainers.map(t => t._id || t);
+    return trainers.filter(t => availableIds.includes(t._id));
+  }, [form.classId, classes, trainers]);
+
+  useEffect(() => {
+    if (selectedClass) {
+      setForm(prev => ({ 
+        ...prev, 
+        durationMinutes: parseInt(selectedClass.duration) || 60 
+      }));
+    }
+  }, [selectedClass]);
+
+  useEffect(() => {
+    if (selectedPlan) {
+      // If it's a term plan, set total weeks or occurences
+      if (selectedPlan.durationWeeks) {
+        setForm(prev => ({ ...prev, occurences: selectedPlan.durationWeeks }));
+      }
+      if (selectedPlan.classesIncluded) {
+        setForm(prev => ({ ...prev, occurences: selectedPlan.classesIncluded }));
+      }
+    }
+  }, [selectedPlan]);
+
+  const generatePreview = () => {
+    if (!form.classId || !form.startDate || form.days.length === 0 || !form.startTime) {
+      return toast.error('Please fill all required fields');
+    }
+
+    const sessions = [];
+    const start = new Date(form.startDate);
+    let current = new Date(start);
+    const timeArr = form.startTime.split(':');
+    
+    // Safety break after 100 iterations or if we exceed endDate (if provided)
+    let iterations = 0;
+    while (sessions.length < form.occurences && iterations < 500) {
+      iterations++;
+      const day = current.getDay();
+      if (form.days.includes(day)) {
+        const sessionStart = new Date(current);
+        sessionStart.setHours(parseInt(timeArr[0]), parseInt(timeArr[1]), 0, 0);
+        
+        const sessionEnd = new Date(sessionStart);
+        sessionEnd.setMinutes(sessionEnd.getMinutes() + (parseInt(form.durationMinutes) || 60));
+
+        sessions.push({
+          classId: form.classId,
+          trainerId: form.trainerId,
+          startTime: sessionStart.toISOString(),
+          endTime: sessionEnd.toISOString(),
+          location: form.room,
+          locationId: selectedBranch && selectedBranch !== 'all' ? selectedBranch : selectedClass?.locationId
+        });
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    setPreview(sessions);
+    setStep(2);
+  };
+
+  const handleCreate = async () => {
+    setLoading(true);
+    try {
+      const res = await api.post('/sessions/bulk', { sessions: preview });
+      const { message, results } = res.data;
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+
+      if (failCount > 0) {
+        toast.success(`Created ${successCount} sessions. ${failCount} failed (conflicts).`);
+      } else {
+        toast.success(`Successfully created ${successCount} sessions!`);
+      }
+      onCreated();
+      onClose();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Bulk creation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-ink/60 backdrop-blur-xl animate-in fade-in duration-300">
+      <div className="bg-white rounded-[48px] shadow-2xl w-full max-w-4xl max-h-full flex flex-col overflow-hidden border border-white/20">
+        <div className="p-8 md:p-10 flex items-center justify-between border-b border-slate-100">
+          <div>
+            <h2 className="font-display text-3xl font-black text-ink">Bulk Session Generator</h2>
+            <p className="text-sm text-ink/40 font-medium tracking-wide">Generate a full term schedule in seconds.</p>
+          </div>
+          <button onClick={onClose} className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-ink/20 hover:bg-slate-100 hover:text-ink transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-8 md:p-10">
+          {step === 1 ? (
+            <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Choose Class</label>
+                  <select 
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink"
+                    value={form.classId}
+                    onChange={e => setForm({...form, classId: e.target.value})}
+                  >
+                    <option value="">Select Class...</option>
+                    {classes.map(c => <option key={c._id} value={c._id}>{c.title}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Duration Plan (Optional)</label>
+                  <select 
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink"
+                    value={form.planId}
+                    onChange={e => setForm({...form, planId: e.target.value})}
+                  >
+                    <option value="">No specific plan (Manual count)</option>
+                    {plans.map(p => <option key={p._id} value={p._id}>{p.name} ({p.durationWeeks || p.classesIncluded || '?'})</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-3">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Trainer</label>
+                  <select 
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink"
+                    value={form.trainerId}
+                    onChange={e => setForm({...form, trainerId: e.target.value})}
+                  >
+                    <option value="">Select Trainer...</option>
+                    {filteredTrainers.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Start Time</label>
+                  <input 
+                    type="time" 
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink" 
+                    value={form.startTime}
+                    onChange={e => setForm({...form, startTime: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Total Occurences</label>
+                  <input 
+                    type="number" 
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink" 
+                    value={form.occurences}
+                    onChange={e => setForm({...form, occurences: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4 block border-b border-slate-100 pb-2">Select Days of Week</label>
+                <div className="flex flex-wrap gap-3">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => {
+                        const next = form.days.includes(idx) 
+                          ? form.days.filter(d => d !== idx)
+                          : [...form.days, idx];
+                        setForm({...form, days: next});
+                      }}
+                      className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${form.days.includes(idx) ? 'bg-brand-blue text-white shadow-lg' : 'bg-slate-50 text-ink/20 hover:bg-slate-100'}`}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Start Date</label>
+                  <input 
+                    type="date" 
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink" 
+                    value={form.startDate}
+                    onChange={e => setForm({...form, startDate: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Studio / Room</label>
+                  <input 
+                    type="text" 
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink" 
+                    placeholder="e.g. Studio A"
+                    value={form.room}
+                    onChange={e => setForm({...form, room: e.target.value})}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="animate-in slide-in-from-right-4 duration-300">
+              <div className="mb-6 flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase tracking-widest text-ink/40">Preview ({preview.length} sessions)</h3>
+                <button onClick={() => setStep(1)} className="text-[10px] font-black uppercase tracking-widest text-brand-blue hover:underline">Back to Edit</button>
+              </div>
+              <div className="space-y-2">
+                {preview.map((s, i) => (
+                  <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="flex items-center gap-4">
+                       <span className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-[10px] font-black text-ink/30">{i + 1}</span>
+                       <div>
+                         <p className="text-sm font-black text-ink">{new Date(s.startTime).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
+                         <p className="text-[10px] font-bold text-ink/30">{new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                       </div>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tighter text-brand-blue bg-brand-blue/5 px-3 py-1 rounded-full">{selectedClass?.title}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="p-8 md:p-10 border-t border-slate-100 bg-slate-50/30 flex items-center justify-end gap-4">
+          <button onClick={onClose} className="px-8 py-3 text-sm font-bold text-ink/40 hover:text-ink transition-all">Cancel</button>
+          {step === 1 ? (
+            <button 
+              onClick={generatePreview}
+              className="bg-ink text-white px-10 py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:brightness-110 active:scale-95 shadow-xl transition-all"
+            >
+              Generate Preview
+            </button>
+          ) : (
+            <button 
+              onClick={handleCreate}
+              disabled={loading}
+              className="bg-brand-blue text-white px-10 py-4 rounded-2xl text-xs font-black uppercase tracking-widest hover:brightness-110 active:scale-95 shadow-xl transition-all flex items-center gap-2"
+            >
+              {loading ? 'Creating...' : <>Confirm & Create Sessions <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></>}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

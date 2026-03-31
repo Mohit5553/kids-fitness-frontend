@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -10,6 +11,7 @@ export default function BookingManagement() {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const { can } = usePermissions();
+  const { roleSlug } = useParams();
 
   const canEdit = can('bookings:edit');
   const canDelete = can('bookings:delete');
@@ -38,8 +40,8 @@ export default function BookingManagement() {
       setFilteredBookings(res.data || []);
       setLoading(false);
     }).catch(() => setLoading(false));
-    
-    api.get('/locations?all=true').then(res => setLocations(res.data || [])).catch(() => {});
+
+    api.get('/locations?all=true').then(res => setLocations(res.data || [])).catch(() => { });
   };
 
   useEffect(() => {
@@ -51,7 +53,7 @@ export default function BookingManagement() {
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(b => 
+      result = result.filter(b =>
         b.userId?.name?.toLowerCase().includes(q) ||
         b.participants?.some(p => p.name?.toLowerCase().includes(q)) ||
         b.classId?.title?.toLowerCase().includes(q) ||
@@ -80,10 +82,14 @@ export default function BookingManagement() {
     load();
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this booking?')) return;
-    await api.delete(`/bookings/${id}`);
-    load();
+  const handleCancelBooking = async (id) => {
+    if (!window.confirm('Are you sure you want to cancel this booking? This action is non-destructive.')) return;
+    try {
+      await api.delete(`/bookings/${id}`);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to cancel booking');
+    }
   };
 
   const confirmCenterPayment = (bookingId) => {
@@ -96,7 +102,7 @@ export default function BookingManagement() {
   const performConfirmCenterPayment = async () => {
     setLoading(true);
     try {
-      await api.put(`/bookings/${confirmingBookingId}/status`, { 
+      await api.put(`/bookings/${confirmingBookingId}/status`, {
         status: 'confirmed',
         paymentMethod: selectedMethod,
         reference: paymentRef
@@ -108,7 +114,7 @@ export default function BookingManagement() {
       setLoading(false);
     }
   };
-  
+
   const resolveRefund = async (id, status) => {
     if (status === 'declined') {
       setRejectionId(id);
@@ -130,9 +136,9 @@ export default function BookingManagement() {
   const submitRejection = async () => {
     if (!rejectionReason.trim()) return alert('Please enter a reason');
     try {
-      await api.put(`/bookings/${rejectionId}/refund-resolve`, { 
-        status: 'declined', 
-        reason: rejectionReason 
+      await api.put(`/bookings/${rejectionId}/refund-resolve`, {
+        status: 'declined',
+        reason: rejectionReason
       });
       setShowRejectModal(false);
       load();
@@ -171,6 +177,12 @@ export default function BookingManagement() {
           <div className="flex bg-white rounded-2xl p-2 shadow-sm border border-slate-100 italic text-[10px] font-bold text-ink/40 uppercase tracking-widest">
             Total Bookings: {bookings.length}
           </div>
+          <Link
+            to={`/${roleSlug}/corporate-booking`}
+            className="bg-brand-blue text-white px-6 py-4 rounded-2xl font-black shadow-xl shadow-brand-blue/20 hover:scale-[1.02] transition-all flex items-center gap-3"
+          >
+            <span className="text-xl">🏢</span> New Corporate Booking
+          </Link>
         </div>
 
         {/* Filters Section */}
@@ -182,7 +194,7 @@ export default function BookingManagement() {
                 <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink/25" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                <input 
+                <input
                   type="text"
                   placeholder="Booking No., Name, Class, or ID…"
                   className="w-full bg-slate-50 border-none rounded-2xl py-3 pl-8 pr-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all placeholder:text-ink/20"
@@ -193,7 +205,7 @@ export default function BookingManagement() {
             </div>
             <div>
               <label className="block text-[10px] font-black text-ink/30 uppercase tracking-[0.2em] mb-2 px-2">Status</label>
-              <select 
+              <select
                 className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
@@ -201,12 +213,14 @@ export default function BookingManagement() {
                 <option value="">All Statuses</option>
                 <option value="pending">Pending</option>
                 <option value="confirmed">Confirmed</option>
+                <option value="attended">Attended</option>
+                <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
             <div>
               <label className="block text-[10px] font-black text-ink/30 uppercase tracking-[0.2em] mb-2 px-2">Location</label>
-              <select 
+              <select
                 className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
                 value={locationFilter}
                 onChange={e => setLocationFilter(e.target.value)}
@@ -219,7 +233,7 @@ export default function BookingManagement() {
             </div>
             <div>
               <label className="block text-[10px] font-black text-ink/30 uppercase tracking-[0.2em] mb-2 px-2">Date</label>
-              <input 
+              <input
                 type="date"
                 className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
                 value={dateFilter}
@@ -227,10 +241,10 @@ export default function BookingManagement() {
               />
             </div>
           </div>
-          
+
           {(searchQuery || statusFilter || dateFilter || locationFilter) && (
             <div className="mt-4 flex justify-end">
-              <button 
+              <button
                 onClick={clearFilters}
                 className="text-[10px] font-black text-coral uppercase tracking-widest hover:underline"
               >
@@ -242,7 +256,7 @@ export default function BookingManagement() {
 
         <div className="space-y-4">
           {loading ? (
-             Array(3).fill(0).map((_, i) => <div key={i} className="h-24 animate-pulse bg-white/50 rounded-3xl" />)
+            Array(3).fill(0).map((_, i) => <div key={i} className="h-24 animate-pulse bg-white/50 rounded-3xl" />)
           ) : filteredBookings.length > 0 ? filteredBookings.map((booking) => (
             <div key={booking._id} className="group relative overflow-hidden rounded-3xl bg-white p-6 shadow-sm border border-slate-100 transition-all hover:shadow-xl hover:translate-y-[-2px]">
               <div className="flex flex-wrap items-center justify-between gap-6 relative z-10">
@@ -258,6 +272,9 @@ export default function BookingManagement() {
                     ) : (
                       <span className="text-[10px] font-black text-ink/20 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">#{booking._id.slice(-6)}</span>
                     )}
+                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-full tracking-widest">
+                      📅 {new Date(booking.sessionId?.startTime || booking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
                     <p className="text-xs font-bold text-brand-blue">{booking.classId?.title}</p>
@@ -267,7 +284,7 @@ export default function BookingManagement() {
                       </p>
                     )}
                     {booking.locationId && (
-                       <p className="text-[10px] text-ink/40 font-bold uppercase tracking-widest">
+                      <p className="text-[10px] text-ink/40 font-bold uppercase tracking-widest">
                         📍 {typeof booking.locationId === 'object' ? booking.locationId.name : locations.find(l => l._id === booking.locationId)?.name || 'Central'}
                       </p>
                     )}
@@ -285,6 +302,14 @@ export default function BookingManagement() {
                         Source: Website / Parent
                       </p>
                     )}
+                    <div className="mt-3 flex items-center gap-4">
+                       <Link 
+                          to={`/invoice/booking/${booking._id}`}
+                          className="text-[9px] font-black text-brand-blue/40 uppercase tracking-widest hover:text-brand-blue transition-colors flex items-center gap-1.5"
+                       >
+                          <span>📜</span> View & Print Invoice
+                       </Link>
+                    </div>
                   </div>
                   {booking.sessionId?.startTime && (
                     <div className="mt-3 flex items-center gap-2">
@@ -330,31 +355,32 @@ export default function BookingManagement() {
                       </div>
                     )}
                     {booking.refundStatus === 'declined' && (
-                       <div className="flex flex-col items-end gap-1">
-                          <span className="text-[10px] font-black text-red-400 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
-                            Refund Rejected
-                          </span>
-                          {booking.refundRejectionReason && (
-                            <p className="text-[9px] text-ink/40 font-medium max-w-[150px] text-right truncate" title={booking.refundRejectionReason}>
-                              Reason: {booking.refundRejectionReason}
-                            </p>
-                          )}
-                       </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[10px] font-black text-red-400 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
+                          Refund Rejected
+                        </span>
+                        {booking.refundRejectionReason && (
+                          <p className="text-[9px] text-ink/40 font-medium max-w-[150px] text-right truncate" title={booking.refundRejectionReason}>
+                            Reason: {booking.refundRejectionReason}
+                          </p>
+                        )}
+                      </div>
                     )}
                     {booking.refundStatus === 'refunded' && (
-                       <span className="text-[10px] font-black text-moss uppercase tracking-widest bg-moss/10 px-2 py-0.5 rounded-full border border-moss/20">
-                         Refunded
-                       </span>
+                      <span className="text-[10px] font-black text-moss uppercase tracking-widest bg-moss/10 px-2 py-0.5 rounded-full border border-moss/20">
+                        Refunded
+                      </span>
                     )}
                     <div>
                       <p className="text-xs font-black text-ink/30 uppercase tracking-widest mb-1 text-right">Status</p>
                       {canEdit ? (
                         <select
-                          className={`rounded-xl border-none p-2.5 text-xs font-bold transition-all outline-none focus:ring-2 ${
-                            booking.status === 'confirmed' ? 'bg-moss/10 text-moss focus:ring-moss/20' : 
-                            booking.status === 'pending' ? 'bg-amber-100 text-amber-700 focus:ring-amber-200' : 
-                            'bg-red-100 text-red-600 focus:ring-red-200'
-                          }`}
+                          className={`rounded-xl border-none p-2.5 text-xs font-bold transition-all outline-none focus:ring-2 ${booking.status === 'completed' ? 'bg-indigo-100 text-indigo-700 focus:ring-indigo-200' :
+                            booking.status === 'attended' ? 'bg-sky-100 text-sky-700 focus:ring-sky-200' :
+                            booking.status === 'confirmed' ? 'bg-moss/10 text-moss focus:ring-moss/20' :
+                            booking.status === 'pending' ? 'bg-amber-100 text-amber-700 focus:ring-amber-200' :
+                              'bg-red-100 text-red-600 focus:ring-red-200'
+                            }`}
                           value={booking.status}
                           onChange={(event) => {
                             const newStatus = event.target.value;
@@ -368,28 +394,29 @@ export default function BookingManagement() {
                         >
                           <option value="pending">Pending</option>
                           <option value="confirmed">Confirmed</option>
+                          <option value="attended">Attended</option>
+                          <option value="completed">Completed</option>
                           <option value="cancelled">Cancelled</option>
                         </select>
                       ) : (
-                        <span className={`inline-block rounded-xl px-3 py-1.5 text-xs font-bold ${
-                          booking.status === 'confirmed' ? 'bg-moss/10 text-moss' : 
-                          booking.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
-                          'bg-red-100 text-red-600'
-                        }`}>
+                        <span className={`inline-block rounded-xl px-3 py-1.5 text-xs font-bold ${booking.status === 'confirmed' ? 'bg-moss/10 text-moss' :
+                          booking.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                            'bg-red-100 text-red-600'
+                          }`}>
                           {booking.status}
                         </span>
                       )}
                     </div>
                   </div>
-                  
-                  {canDelete && (
+
+                  {canDelete && booking.status !== 'cancelled' && (
                     <button
                       className="p-3 rounded-2xl bg-slate-50 text-ink/20 hover:text-red-400 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
-                      onClick={() => handleDelete(booking._id)}
-                      title="Delete Booking"
+                      onClick={() => handleCancelBooking(booking._id)}
+                      title="Cancel Booking"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
                   )}
@@ -398,17 +425,17 @@ export default function BookingManagement() {
             </div>
           )) : (
             <div className="py-20 text-center soft-card rounded-[32px] bg-white border border-dashed border-slate-200">
-               <div className="text-4xl mb-4">🔍</div>
-               <h3 className="font-display text-xl text-ink/60">No bookings found</h3>
-               <p className="text-sm text-ink/30 mt-1">Try adjusting your filters or search query.</p>
-               <button onClick={clearFilters} className="mt-6 text-xs font-black text-brand-blue uppercase tracking-widest hover:underline">Clear all filters</button>
+              <div className="text-4xl mb-4">🔍</div>
+              <h3 className="font-display text-xl text-ink/60">No bookings found</h3>
+              <p className="text-sm text-ink/30 mt-1">Try adjusting your filters or search query.</p>
+              <button onClick={clearFilters} className="mt-6 text-xs font-black text-brand-blue uppercase tracking-widest hover:underline">Clear all filters</button>
             </div>
           )}
         </div>
       </main>
       <Footer />
-      
-      <PaymentModal 
+
+      <PaymentModal
         show={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
         onConfirm={performConfirmCenterPayment}
@@ -416,6 +443,8 @@ export default function BookingManagement() {
         setMethod={setSelectedMethod}
         reference={paymentRef}
         setReference={setPaymentRef}
+        confirmingBookingId={confirmingBookingId}
+        bookings={bookings}
       />
 
       {/* Rejection Modal */}
@@ -424,7 +453,7 @@ export default function BookingManagement() {
           <div className="bg-white rounded-[32px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200">
             <h2 className="font-display text-2xl font-black text-ink mb-2">Reject Refund</h2>
             <p className="text-sm text-ink/40 font-medium mb-6">Please provide a reason for declining this refund request.</p>
-            
+
             <textarea
               className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold text-ink focus:border-brand-blue/20 focus:ring-4 focus:ring-brand-blue/5 outline-none transition-all min-h-[120px] resize-none"
               placeholder="e.g. Booking date has already passed..."
@@ -432,15 +461,15 @@ export default function BookingManagement() {
               onChange={(e) => setRejectionReason(e.target.value)}
               autoFocus
             />
-            
+
             <div className="flex items-center gap-3 mt-8">
-              <button 
+              <button
                 onClick={submitRejection}
                 className="flex-1 bg-coral text-white py-4 rounded-2xl font-black shadow-lg shadow-coral/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
               >
                 Confirm Rejection
               </button>
-              <button 
+              <button
                 onClick={() => setShowRejectModal(false)}
                 className="flex-1 bg-slate-50 text-ink/40 py-4 rounded-2xl font-black hover:bg-slate-100 transition-all text-sm uppercase tracking-widest"
               >
@@ -455,7 +484,7 @@ export default function BookingManagement() {
 }
 
 // Payment Confirmation Modal Component
-const PaymentModal = ({ show, onClose, onConfirm, method, setMethod, reference, setReference }) => {
+const PaymentModal = ({ show, onClose, onConfirm, method, setMethod, reference, setReference, confirmingBookingId, bookings }) => {
   if (!show) return null;
 
   const methods = [
@@ -471,6 +500,11 @@ const PaymentModal = ({ show, onClose, onConfirm, method, setMethod, reference, 
           <div className="w-16 h-16 bg-brand-blue/10 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">💰</div>
           <h2 className="font-display text-2xl font-black text-ink">Confirm Payment</h2>
           <p className="text-sm text-ink/40 font-medium mt-2">How was the payment received at the center?</p>
+          {show && confirmingBookingId && (
+            <div className="mt-4 inline-block px-4 py-2 rounded-2xl bg-amber-50 border border-amber-100 text-amber-700 text-xs font-bold">
+              Session Date: {new Date(bookings.find(b => b._id === confirmingBookingId)?.sessionId?.startTime || bookings.find(b => b._id === confirmingBookingId)?.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </div>
+          )}
         </div>
 
         <div className="space-y-3 mb-8">
@@ -478,9 +512,8 @@ const PaymentModal = ({ show, onClose, onConfirm, method, setMethod, reference, 
             <button
               key={m.id}
               onClick={() => setMethod(m.id)}
-              className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
-                method === m.id ? 'border-brand-blue bg-brand-blue/5 text-brand-blue' : 'border-slate-100 bg-white hover:border-brand-blue/20'
-              }`}
+              className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${method === m.id ? 'border-brand-blue bg-brand-blue/5 text-brand-blue' : 'border-slate-100 bg-white hover:border-brand-blue/20'
+                }`}
             >
               <div className="flex items-center gap-3">
                 <span className="text-xl">{m.icon}</span>

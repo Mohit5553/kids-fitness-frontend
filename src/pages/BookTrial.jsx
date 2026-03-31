@@ -89,7 +89,7 @@ export default function BookTrial() {
 
   // Filter sessions by selected class to get available times
   const availableTimes = availableSessions
-    .filter(s => s.classId?.title === form.preferredClass)
+    .filter(s => s.classId?.title === form.preferredClass && (s.capacity - (s.bookedParticipants || 0)) > 0)
     .map(s => {
       const date = new Date(s.startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
       const time = new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

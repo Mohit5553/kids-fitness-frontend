@@ -389,9 +389,14 @@ export default function PaymentsManagement() {
                                 </span>
                               )}
                               {payment.bookingId && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
-                                  Class: {payment.bookingId.classId?.title || 'Enrollment'}
-                                </span>
+                                <>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                                    Class: {payment.bookingId.classId?.title || 'Enrollment'}
+                                  </span>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                    📅 {new Date(payment.bookingId.sessionId?.startTime || payment.bookingId.date).toLocaleDateString()}
+                                  </span>
+                                </>
                               )}
                               {payment.membershipId && (
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-100">

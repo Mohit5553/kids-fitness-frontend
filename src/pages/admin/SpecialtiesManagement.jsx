@@ -23,7 +23,7 @@ export default function SpecialtiesManagement() {
 
   const load = () => {
     setLoading(true);
-    api.get('/specialties')
+    api.get('/specialties?all=true')
       .then((res) => setSpecialties(res.data || []))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
@@ -67,13 +67,14 @@ export default function SpecialtiesManagement() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this specialty?')) return;
+  const handleToggleStatus = async (spec) => {
+    const action = spec.status === 'active' ? 'disable' : 'enable';
+    if (!window.confirm(`Are you sure you want to ${action} this specialty?`)) return;
     try {
-      await api.delete(`/specialties/${id}`);
+      await api.delete(`/specialties/${spec._id}`);
       load();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to delete specialty');
+      alert(err.response?.data?.message || `Failed to ${action} specialty`);
     }
   };
 
@@ -165,8 +166,8 @@ export default function SpecialtiesManagement() {
                         <h3 className="font-display text-lg font-black text-ink">{spec.name}</h3>
                         <p className="mt-1 text-xs text-ink/60 line-clamp-2">{spec.description || 'No description provided.'}</p>
                       </div>
-                      <span className={`rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-tighter ${spec.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
-                        {spec.status}
+                      <span className={`rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-tighter ${spec.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                        {spec.status || 'Active'}
                       </span>
                     </div>
                     
@@ -181,12 +182,10 @@ export default function SpecialtiesManagement() {
                       )}
                       {canDelete && (
                         <button
-                          className="rounded-lg border border-red-50 bg-red-50 px-2.5 py-1.5 text-red-500 hover:bg-red-500 hover:text-white transition-all"
-                          onClick={() => handleDelete(spec._id)}
+                          className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${spec.status === 'active' ? 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-green-50 text-green-500 hover:bg-green-500 hover:text-white'}`}
+                          onClick={() => handleToggleStatus(spec)}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
+                          {spec.status === 'active' ? 'Disable' : 'Enable'}
                         </button>
                       )}
                     </div>

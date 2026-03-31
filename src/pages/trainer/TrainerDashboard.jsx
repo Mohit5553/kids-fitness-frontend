@@ -17,24 +17,36 @@ export default function TrainerDashboard() {
   const [locations, setLocations] = useState([]);
   const [locationFilter, setLocationFilter] = useState('all');
   const [viewType, setViewType] = useState('upcoming'); // 'upcoming' or 'past'
+  const [profileError, setProfileError] = useState(false);
 
   const user = getUser();
 
-  const loadSessions = (trainerId) => {
-    if (trainerId) {
-      setLoading(true);
-      api.get(`/sessions?trainerId=${trainerId}`)
-        .then((res) => {
-          setSessions(res.data || []);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error('Failed to fetch schedule:', err);
-          setLoading(false);
-        });
-    } else {
+  const loadSessions = (trainerId, trainerName, trainerEmail) => {
+    // If no ID, Name, or Email provided, we can't search
+    if (!trainerId && !trainerName && !trainerEmail) {
       setLoading(false);
+      return;
     }
+
+    setLoading(true);
+    const params = {};
+    if (trainerId) params.trainerId = trainerId;
+    if (trainerName) params.trainerName = trainerName;
+    if (trainerEmail) params.trainerEmail = trainerEmail;
+
+    api.get('/sessions', { params })
+      .then((res) => {
+        setSessions(res.data || []);
+        setLoading(false);
+        // If we found sessions but have no trainerId, we have a link issue
+        if (!trainerId && res.data?.length > 0) {
+          setProfileError(true);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch schedule:', err);
+        setLoading(false);
+      });
   };
 
   const loadAllBookings = (trainerId) => {
@@ -69,16 +81,21 @@ export default function TrainerDashboard() {
       if (res.data) {
         // Update local storage so the rest of the app knows about the update
         setAuth(res.data);
-        // Refresh session data using the fresh IDs
+        // Refresh session data using fresh data
         loadLocations(res.data.locationIds);
-        loadSessions(res.data.trainerId);
+        loadSessions(res.data.trainerId, res.data.name, res.data.email);
         loadAllBookings(res.data.trainerId);
         loadTrials();
+        
+        // If trainerId is missing but role is trainer, we have a profile issue
+        if (res.data.role === 'trainer' && !res.data.trainerId) {
+          setProfileError(true);
+        }
       }
     } catch (err) {
       console.error('Failed to sync profile:', err);
       // Fallback to local data if sync fails
-      loadSessions(user?.trainerId);
+      loadSessions(user?.trainerId, user?.name, user?.email);
       loadLocations(user?.locationIds);
       loadAllBookings(user?.trainerId);
       loadTrials();
@@ -173,6 +190,20 @@ export default function TrainerDashboard() {
             </div>
           </div>
         </section>
+
+        {profileError && (
+          <div className="mb-8 bg-amber-50 border border-amber-200 rounded-[32px] p-6 flex flex-col md:flex-row items-center gap-6 animate-rise">
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-sm">⚠️</div>
+            <div className="flex-1 text-center md:text-left">
+              <h3 className="text-sm font-black text-amber-800 uppercase tracking-widest mb-1">Profile Link Warning</h3>
+              <p className="text-xs font-bold text-amber-700/70 leading-relaxed">
+                Your login account is not correctly linked to your professional Trainer Profile. 
+                While you can still see your sessions, some features like Roster management might be limited. 
+                <span className="block mt-2 font-black">Please contact an administrator to link your account.</span>
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-8">
           {activeTab === 'schedule' && (
