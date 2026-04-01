@@ -17,6 +17,8 @@ import ForgotPassword from './pages/ForgotPassword.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
 import MemberHealthDeclaration from './pages/MemberHealthDeclaration.jsx';
 import InvoiceView from './pages/InvoiceView.jsx';
+import HelpCenter from './pages/HelpCenter.jsx';
+import ManualView from './pages/ManualView.jsx';
 import { RequireAuth, RequireAdmin, RequireTrainer, RequirePermission } from './components/ProtectedRoutes.jsx';
 import { SocketProvider } from './context/SocketContext.jsx';
 import { BranchProvider } from './context/BranchContext.jsx';
@@ -73,6 +75,8 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/health-declaration" element={<MemberHealthDeclaration />} />
+          <Route path="/help" element={<HelpCenter />} />
+          <Route path="/manuals/:type" element={<ManualView />} />
           <Route path="/invoice/:id" element={<RequireAuth><InvoiceView /></RequireAuth>} />
           <Route path="/invoice/booking/:bookingId" element={<RequireAuth><InvoiceView /></RequireAuth>} />
 

@@ -10,6 +10,7 @@ const navLinks = [
   { to: '/pricing', label: 'Pricing' },
   { to: '/schedule', label: 'Schedule' },
   { to: '/gallery', label: 'Gallery' },
+  { to: '/help', label: 'Help' },
   { to: '/contact', label: 'Contact' }
 ];
 

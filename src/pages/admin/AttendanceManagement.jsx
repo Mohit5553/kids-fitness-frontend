@@ -38,7 +38,13 @@ export default function AttendanceManagement() {
     const end = new Date();
     end.setDate(end.getDate() + 14);
 
-    api.get('/sessions', { params: { start: start.toISOString(), end: end.toISOString() } })
+    const params = { 
+      start: start.toISOString(), 
+      end: end.toISOString(),
+      all: true 
+    };
+
+    api.get('/sessions', { params })
       .then((res) => setSessions(res.data || []))
       .catch(() => setError('Failed to load sessions.'));
   }, []);
@@ -278,7 +284,10 @@ export default function AttendanceManagement() {
                     </div>
                   </div>
                   <p className="text-xs font-bold text-ink/50 leading-relaxed text-left">
-                    {record.sessionId?.classId?.title || 'Class'} · {new Date(record.sessionId?.startTime || record.bookingId?.date || record.checkedInAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {record.sessionId?.classId?.title || 'Class'} · {record.sessionId?.trainerId?.name || 'No Trainer'}
+                  </p>
+                  <p className="text-[10px] font-bold text-ink/30 mt-1">
+                    {new Date(record.sessionId?.startTime || record.bookingId?.date || record.checkedInAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                   </p>
                 </div>
               </div>

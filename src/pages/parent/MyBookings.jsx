@@ -212,6 +212,29 @@ export default function MyBookings() {
                       </p>
                       <p className="text-[10px] text-ink/40">ID: {booking._id}</p>
                     </div>
+                    
+                    {['attended', 'completed'].includes(booking.status) && (
+                      <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 animate-in zoom-in-95 duration-500">
+                        <span className="text-[10px]">✅</span>
+                        <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Attendance Verified</span>
+                      </div>
+                    )}
+
+                    {/* Cancellation Notice */}
+                    {booking.status === 'cancelled' && (
+                      <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                          <span>📢</span> Session Status: Cancelled
+                        </p>
+                        <p className="text-[11px] font-bold text-red-700 leading-relaxed italic">
+                          "{booking.cancellationReason || 'No specific reason provided.'}"
+                        </p>
+                        <p className="mt-2 text-[8px] font-medium text-red-400 uppercase tracking-[0.05em]">
+                          Please contact support or check-in at the center for reschedule options.
+                        </p>
+                      </div>
+                    )}
+
                     {/* Progress Tracker */}
                     <div className="mt-4 flex items-center gap-1">
                       <div className="flex-1 flex flex-col gap-1.5">

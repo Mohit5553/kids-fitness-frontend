@@ -43,6 +43,8 @@ export default function WalkingBooking() {
 
   // Step 6: Success
   const [createdBookings, setCreatedBookings] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash', 'card', 'online'
+  const [transactionId, setTransactionId] = useState('');
 
   // Fetch initial data
   useEffect(() => {
@@ -197,7 +199,8 @@ export default function WalkingBooking() {
           sessionId: sess._id,
           locationId: selectedLocation,
           date: sess.startTime,
-          paymentMethod: 'center_cash',
+          paymentMethod: paymentMethod === 'cash' ? 'center_cash' : (paymentMethod === 'card' ? 'center_card' : 'online_bank'), // Mapping for desk consistency
+          transactionId: (paymentMethod === 'card' || paymentMethod === 'online') ? transactionId : '',
           paymentStatus: 'completed', // Staff marking as paid at desk
           userId: finalUser._id
         };
@@ -636,24 +639,50 @@ export default function WalkingBooking() {
                     </div>
 
                     <div className="space-y-6">
-                        <div className="p-8 rounded-[40px] bg-ink text-white shadow-xl">
-                            <h4 className="text-xs font-black uppercase tracking-widest mb-6 text-white/40">Checkout Action</h4>
-                            <div className="space-y-4">
-                                <div className="p-5 rounded-3xl bg-white/5 border border-white/10 flex items-center gap-4">
-                                    <span className="text-2xl">💸</span>
-                                    <div>
-                                        <p className="font-black text-sm uppercase">Collect Payment</p>
-                                        <p className="text-[10px] text-white/40">Cash or Card at desk</p>
-                                    </div>
-                                </div>
-                                <button 
-                                    onClick={handleFinalBooking}
-                                    className="w-full bg-brand-blue text-white py-5 rounded-[24px] font-display text-xl font-black shadow-glow-blue hover:scale-105 active:scale-95 transition-all"
-                                >
-                                    Complete & Confirm
-                                </button>
+                        <div className="p-8 rounded-[40px] bg-black text-white shadow-xl border border-white/5">
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] mb-8 text-white/30 text-center">Payment Mode Selection</h4>
+                            
+                            <div className="flex flex-col gap-4 mb-10">
+                                {[
+                                    { id: 'cash', label: 'CASH', icon: '💸' },
+                                    { id: 'card', label: 'CARD', icon: '💳' },
+                                    { id: 'online', label: 'ONLINE', icon: '🌐' }
+                                ].map(mode => (
+                                    <button
+                                        key={mode.id}
+                                        onClick={() => { setPaymentMethod(mode.id); setTransactionId(''); }}
+                                        className={`p-5 rounded-[24px] border-2 transition-all flex items-center justify-between group ${paymentMethod === mode.id ? 'border-brand-blue bg-brand-blue/10 text-white shadow-glow-blue' : 'border-white/5 bg-white/5 hover:border-white/20 text-white/40'}`}
+                                    >
+                                        <div className="flex items-center gap-5">
+                                            <span className="text-2xl group-hover:scale-110 transition-transform">{mode.icon}</span>
+                                            <span className="font-black text-sm tracking-[0.1em] uppercase">{mode.label}</span>
+                                        </div>
+                                        {paymentMethod === mode.id && <div className="w-2.5 h-2.5 rounded-full bg-brand-blue ring-4 ring-brand-blue/20 animate-pulse"></div>}
+                                    </button>
+                                ))}
                             </div>
-                            <p className="mt-8 text-[10px] text-center text-white/30 font-bold leading-relaxed">By clicking confirm, you acknowledge the payment has been collected and the booking details are accurate.</p>
+
+                            {(paymentMethod === 'card' || paymentMethod === 'online') && (
+                                <div className="mb-10 animate-rise">
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-white/30 px-1 italic">Enter Transaction Number</label>
+                                    <input 
+                                        type="text"
+                                        placeholder="e.g. TXN-987654321"
+                                        className="w-full bg-white/5 border border-white/20 rounded-[24px] py-6 px-8 text-lg font-black text-white focus:ring-4 focus:ring-brand-blue/30 outline-none transition-all placeholder:text-white/5 placeholder:font-bold"
+                                        value={transactionId}
+                                        onChange={(e) => setTransactionId(e.target.value)}
+                                    />
+                                    <p className="mt-3 text-[10px] font-bold text-white/20 px-2 leading-relaxed">Required for digital reconciliation.</p>
+                                </div>
+                            )}
+
+                            <button 
+                                onClick={handleFinalBooking}
+                                className="w-full bg-brand-blue text-white py-5 rounded-[24px] font-display text-xl font-black shadow-glow-blue hover:scale-105 active:scale-95 transition-all"
+                            >
+                                Complete & Confirm
+                            </button>
+                            <p className="mt-8 text-[10px] text-center text-white/30 font-bold leading-relaxed px-4">By clicking confirm, you acknowledge that <span className="text-white/60">{paymentMethod.toUpperCase()}</span> payment has been received accurately.</p>
                         </div>
                         <button onClick={() => setStep(5)} className="w-full py-4 text-sm font-black text-ink/30 hover:text-ink transition-colors uppercase tracking-widest">Modified selection</button>
                     </div>

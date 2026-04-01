@@ -29,6 +29,9 @@ export default function SessionsManagement() {
   const [view, setView] = useState('active'); // 'active' or 'expired'
   const [classSearchQuery, setClassSearchQuery] = useState('');
   const [showClassDropdown, setShowClassDropdown] = useState(false);
+  const [cancellingSession, setCancellingSession] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
 
   const { can } = usePermissions();
   const { selectedBranch } = useBranch();
@@ -145,14 +148,38 @@ export default function SessionsManagement() {
 
   const handleToggleStatus = async (session) => {
     const action = session.status === 'scheduled' ? 'cancel' : 'restore';
-    if (!window.confirm(`Are you sure you want to ${action} this session?`)) return;
+    
+    if (action === 'cancel') {
+      setCancellingSession(session);
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to restore this session?`)) return;
     try {
       await api.delete(`/sessions/${session._id}`);
-      toast.success(`Session ${action}led successfully`);
+      toast.success(`Session restored successfully`);
       load();
     } catch (err) {
-      const msg = err.response?.data?.message || `Failed to ${action} session`;
+      const msg = err.response?.data?.message || `Failed to restore session`;
       toast.error(msg);
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelReason.trim()) {
+      return toast.error('Please provide a reason for cancellation');
+    }
+    setIsSubmittingCancel(true);
+    try {
+      await api.delete(`/sessions/${cancellingSession._id}`, { data: { reason: cancelReason } });
+      toast.success('Session cancelled successfully');
+      setCancellingSession(null);
+      setCancelReason('');
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to cancel session');
+    } finally {
+      setIsSubmittingCancel(false);
     }
   };
 
@@ -404,6 +431,12 @@ export default function SessionsManagement() {
                         </span>
                       )}
                     </div>
+                    {session.status === 'cancelled' && session.cancellationReason && (
+                      <div className="mt-3 p-3 rounded-xl bg-red-50/50 border border-red-100/50 max-w-md">
+                        <p className="text-[8px] font-black text-red-400 uppercase tracking-widest mb-0.5">Reason</p>
+                        <p className="text-[10px] font-bold text-red-700/70 leading-relaxed italic">"{session.cancellationReason}"</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -437,6 +470,65 @@ export default function SessionsManagement() {
         </div>
       </main>
       <Footer />
+
+      {/* Cancellation Reason Modal */}
+      {cancellingSession && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-2xl font-black text-ink">Cancel Session</h3>
+              <button 
+                onClick={() => {
+                  setCancellingSession(null);
+                  setCancelReason('');
+                }} 
+                className="text-3xl text-ink/20 hover:text-ink/60 transition-colors"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="mb-8">
+              <p className="text-xs font-bold text-ink/50 leading-relaxed">
+                Provide a reason for cancelling the <span className="text-brand-blue font-black">{cancellingSession.classId?.title}</span> session on <span className="font-black text-ink">{new Date(cancellingSession.startTime).toLocaleDateString()}</span>.
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-3 block">Cancellation Reason</label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="e.g., Trainer unavailable, Low occupancy, Facility maintenance..."
+                  className="w-full h-32 bg-slate-50 border-2 border-slate-100 rounded-3xl p-6 text-sm font-medium text-ink outline-none focus:border-brand-blue/30 focus:ring-4 focus:ring-brand-blue/5 transition-all resize-none"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-4 pt-2">
+                <button
+                  onClick={() => {
+                    setCancellingSession(null);
+                    setCancelReason('');
+                  }}
+                  className="flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest text-ink/40 hover:bg-slate-50 transition-all font-black"
+                >
+                  Go Back
+                </button>
+                <button
+                  onClick={handleConfirmCancel}
+                  disabled={isSubmittingCancel}
+                  className="flex-1 py-4 rounded-2xl bg-red-500 text-white text-xs font-black uppercase tracking-widest shadow-xl shadow-red-500/20 hover:bg-red-600 transition-all disabled:opacity-50"
+                >
+                  {isSubmittingCancel ? 'Processing...' : 'Cancel Session'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showBulkModal && (
         <BulkSessionModal
           onClose={() => setShowBulkModal(false)}
