@@ -38,7 +38,13 @@ export default function AttendanceManagement() {
     const end = new Date();
     end.setDate(end.getDate() + 14);
 
-    api.get('/sessions', { params: { start: start.toISOString(), end: end.toISOString() } })
+    const params = { 
+      start: start.toISOString(), 
+      end: end.toISOString(),
+      all: true 
+    };
+
+    api.get('/sessions', { params })
       .then((res) => setSessions(res.data || []))
       .catch(() => setError('Failed to load sessions.'));
   }, []);
@@ -253,12 +259,35 @@ export default function AttendanceManagement() {
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1 text-left">
                     <p className="text-sm font-black text-ink">{record.childId?.name || record.participantName || 'Guest Participant'}</p>
-                    <span className="text-[10px] font-bold text-ink/20 uppercase tracking-widest text-right">
-                       {new Date(record.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                    <div className="flex items-center gap-2">
+                       {record.bookingId?.status === 'confirmed' && (
+                         <button
+                           onClick={async () => {
+                             try {
+                               await api.put(`/bookings/${record.bookingId._id}/status`, { status: 'attended' });
+                               loadAttendance();
+                             } catch(err) { alert(err.response?.data?.message || 'Failed to verify'); }
+                           }}
+                           className="text-[9px] font-black text-white bg-sky-500 px-2 py-0.5 rounded-full hover:bg-sky-600 transition-colors uppercase tracking-widest"
+                         >
+                           Verify Attendance
+                         </button>
+                       )}
+                       {record.bookingId?.status === 'attended' && (
+                         <span className="text-[9px] font-black text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full uppercase tracking-widest border border-sky-100">
+                           Verified
+                         </span>
+                       )}
+                       <span className="text-[10px] font-bold text-ink/20 uppercase tracking-widest text-right">
+                          {new Date(record.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                       </span>
+                    </div>
                   </div>
                   <p className="text-xs font-bold text-ink/50 leading-relaxed text-left">
-                    {record.sessionId?.classId?.title || 'Class'} · {new Date(record.checkedInAt).toLocaleDateString()}
+                    {record.sessionId?.classId?.title || 'Class'} · {record.sessionId?.trainerId?.name || 'No Trainer'}
+                  </p>
+                  <p className="text-[10px] font-bold text-ink/30 mt-1">
+                    {new Date(record.sessionId?.startTime || record.bookingId?.date || record.checkedInAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                   </p>
                 </div>
               </div>

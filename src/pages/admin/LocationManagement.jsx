@@ -108,13 +108,14 @@ export default function LocationManagement() {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this location?')) return;
+    const handleToggleStatus = async (loc) => {
+        const action = loc.status === 'active' ? 'disable' : 'enable';
+        if (!window.confirm(`Are you sure you want to ${action} this location?`)) return;
         try {
-            await api.delete(`/locations/${id}`);
+            await api.delete(`/locations/${loc._id}`);
             fetchLocations();
         } catch (err) {
-            alert(err.response?.data?.message || 'Failed to delete location');
+            alert(err.response?.data?.message || `Failed to ${action} location`);
         }
     };
 
@@ -292,13 +293,13 @@ export default function LocationManagement() {
                                             {loc.status}
                                         </button>
                                     ) : (
-                                        <span className={`absolute top-4 right-4 capitalize rounded-full px-3 py-1 text-[10px] font-bold tracking-widest backdrop-blur ${
-                                            loc.status === 'active' 
-                                            ? 'bg-green-500/90 text-white' 
-                                            : 'bg-slate-500/90 text-white'
-                                        }`}>
-                                            {loc.status}
-                                        </span>
+                                    <span className={`absolute top-4 right-4 capitalize rounded-full px-3 py-1 text-[10px] font-bold tracking-widest backdrop-blur ${
+                                        loc.status === 'active' 
+                                        ? 'bg-green-500/90 text-white' 
+                                        : 'bg-red-500/90 text-white'
+                                    }`}>
+                                        {loc.status || 'Active'}
+                                    </span>
                                     )}
                                 </div>
                                 <div className="p-6">
@@ -308,13 +309,11 @@ export default function LocationManagement() {
                                             <p className="text-sm text-ink/60">{loc.city || 'No city specified'}</p>
                                         </div>
                                         <button
-                                            onClick={() => handleDelete(loc._id)}
-                                            className="rounded-full bg-red-50 p-2 text-red-500 transition hover:bg-red-500 hover:text-white"
-                                            title="Delete Location"
+                                            onClick={() => handleToggleStatus(loc)}
+                                            className={`rounded-full px-4 py-1.5 transition-all text-[10px] font-black uppercase tracking-widest ${loc.status === 'active' ? 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-green-50 text-green-500 hover:bg-green-500 hover:text-white'}`}
+                                            title={loc.status === 'active' ? 'Disable Location' : 'Enable Location'}
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                            </svg>
+                                            {loc.status === 'active' ? 'Disable' : 'Enable'}
                                         </button>
                                     </div>
                                     <div className="mt-4 flex items-center justify-between border-t border-slate-50 pt-4">

@@ -17,15 +17,14 @@ export default function ParentDashboard() {
     upcomingClassesCount: 0,
     membershipStatus: 'None'
   });
+  const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/reports/parent-summary')
-      .then(res => {
-        setStats(res.data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    const p1 = api.get('/reports/parent-summary').then(res => setStats(res.data));
+    const p2 = api.get('/attendance/mine').then(res => setAttendance(res.data?.slice(0, 3) || []));
+    
+    Promise.all([p1, p2]).finally(() => setLoading(false));
   }, []);
 
   const quickStats = [
@@ -90,8 +89,31 @@ export default function ParentDashboard() {
           <div className="soft-card rounded-3xl p-6">
             <h3 className="font-display text-lg">Attendance snapshot</h3>
             <p className="mt-2 text-sm text-ink/70">See check-ins and missed classes at a glance.</p>
-            <div className="mt-4 rounded-2xl bg-slate-50/70 p-4 text-sm text-ink/70 border border-slate-100 italic">
-              No attendance recorded yet.
+            <div className="mt-4 space-y-3">
+              {attendance.length > 0 ? (
+                attendance.map(record => (
+                  <div key={record._id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 animate-in fade-in slide-in-from-bottom-1">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-black">
+                      {record.status === 'present' ? '✔' : record.status[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black text-ink">
+                        {record.childId?.name || record.participantName || 'Guest Participant'}
+                      </p>
+                      <p className="text-[9px] font-bold text-ink/40 uppercase tracking-tighter">
+                        {record.sessionId?.classId?.title} • {record.sessionId?.trainerId?.name || 'No Trainer'}
+                      </p>
+                      <p className="text-[8px] font-medium text-ink/20 mt-0.5">
+                        {new Date(record.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(record.checkedInAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl bg-slate-50/70 p-4 text-sm text-ink/70 border border-slate-100 italic">
+                  No attendance recorded yet.
+                </div>
+              )}
             </div>
           </div>
           <Link to="/dashboard/payments" className="soft-card rounded-3xl p-6 transition hover:-translate-y-1 group block">

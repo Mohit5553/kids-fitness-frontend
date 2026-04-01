@@ -140,20 +140,31 @@ export default function Schedule() {
               const hasClasses = !!grouped[day];
               const isSelected = selectedDay === day;
 
+              // Calculate the date for this day of the week relative to current date
+              const today = new Date();
+              const todayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1;
+              const targetIndex = daysOfWeek.indexOf(day);
+              const diff = targetIndex - todayIndex;
+              const dateForDay = new Date(today);
+              dateForDay.setDate(today.getDate() + diff);
+
               return (
                 <button
                   key={day}
                   onClick={() => { setSelectedDay(day); setSearchTerm(''); }}
                   disabled={!hasClasses && !loading}
                   className={`relative flex shrink-0 flex-col items-center rounded-2xl px-6 py-3 transition-all duration-300 ${isSelected
-                      ? 'bg-brand-blue text-white shadow-xl scale-105'
-                      : hasClasses
-                        ? 'bg-white text-ink/70 hover:bg-slate-100 border border-slate-200 opacity-100 cursor-pointer'
-                        : 'bg-slate-100 text-ink/20 border border-slate-50 opacity-50 cursor-not-allowed'
+                    ? 'bg-brand-blue text-white shadow-xl scale-105'
+                    : hasClasses
+                      ? 'bg-white text-ink/70 hover:bg-slate-100 border border-slate-200 opacity-100 cursor-pointer'
+                      : 'bg-slate-100 text-ink/20 border border-slate-50 opacity-50 cursor-not-allowed'
                     }`}
                 >
                   <span className="text-[10px] font-black uppercase tracking-widest">{day.substring(0, 3)}</span>
                   <span className="mt-1 text-sm font-bold">{day}</span>
+                  <span className={`text-[10px] font-bold ${isSelected ? 'text-white/60' : 'text-ink/30'}`}>
+                    {dateForDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
                   {isSelected && (
                     <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-[2px] bg-white/50 rounded-full"></div>
                   )}

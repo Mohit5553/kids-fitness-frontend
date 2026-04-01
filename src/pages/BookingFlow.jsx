@@ -42,6 +42,8 @@ export default function BookingFlow() {
   const [createdBookings, setCreatedBookings] = useState([]);
   const [isRestoring, setIsRestoring] = useState(false);
   const [myChildren, setMyChildren] = useState([]);
+  const [isCorporateMode, setIsCorporateMode] = useState(false);
+  const [corporateName, setCorporateName] = useState('');
 
   // Persistence: Save to sessionStorage
   useEffect(() => {
@@ -307,24 +309,41 @@ export default function BookingFlow() {
   const handleCreateBooking = async () => {
     setLoading(true);
     try {
-      const results = [];
-      for (const sess of selectedSessions) {
+      if (isCorporateMode) {
+        // Consolidated Group Booking for Corporate
         const payload = {
           participants,
+          sessionIds: selectedSessions.map(s => s._id),
           classId: selectedClass._id,
-          sessionId: sess._id,
           locationId: selectedLocation,
-          date: sess.startTime,
-          paymentMethod: paymentType || 'center',
-          paymentStatus: paymentType === 'online' ? 'completed' : 'pending',
-          guestDetails: !getUser() ? guestDetails : undefined
+          corporateName: corporateName || getUser()?.companyName || 'Corporate Booking',
+          paymentMethod: paymentType || 'center'
         };
-        const res = await api.post('/bookings', payload);
-        results.push(res.data);
+        const res = await api.post('/bookings/group', payload);
+        sessionStorage.removeItem('booking_pending_state');
+        setCreatedBookings(res.data.bookings || [res.data]);
+        setStep(8);
+      } else {
+        // Individual Sequential Bookings for Families
+        const results = [];
+        for (const sess of selectedSessions) {
+          const payload = {
+            participants,
+            classId: selectedClass._id,
+            sessionId: sess._id,
+            locationId: selectedLocation,
+            date: sess.startTime,
+            paymentMethod: paymentType || 'center',
+            paymentStatus: paymentType === 'online' ? 'completed' : 'pending',
+            guestDetails: !getUser() ? guestDetails : undefined
+          };
+          const res = await api.post('/bookings', payload);
+          results.push(res.data);
+        }
+        sessionStorage.removeItem('booking_pending_state');
+        setCreatedBookings(results);
+        setStep(8);
       }
-      sessionStorage.removeItem('booking_pending_state'); // Clear persistence on success
-      setCreatedBookings(results);
-      setStep(8); // Success step
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create booking');
     } finally {
@@ -419,20 +438,70 @@ export default function BookingFlow() {
             )}
 
             {step === 1 && (
-              <div className="animate-rise">
-                <h2 className="font-display text-3xl font-black text-ink mb-6">Select a class</h2>
-                <div className="grid gap-4 md:grid-cols-2">
+              <div className="animate-rise text-center md:text-left">
+                <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+                  <div>
+                    <h2 className="font-display text-4xl font-black text-ink tracking-tight">Select a program</h2>
+                    <p className="text-ink/60 mt-2">Choose the perfect activity to get started</p>
+                  </div>
+                  <div className="flex bg-slate-100 p-1 rounded-2xl shrink-0">
+                    <button
+                      onClick={() => setIsCorporateMode(false)}
+                      className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${!isCorporateMode ? 'bg-white text-brand-blue shadow-sm' : 'text-ink/40 hover:text-ink'}`}
+                    >
+                      Family
+                    </button>
+                    <button
+                      onClick={() => setIsCorporateMode(true)}
+                      className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${isCorporateMode ? 'bg-brand-blue text-white shadow-md' : 'text-ink/40 hover:text-ink'}`}
+                    >
+                      Corporate
+                    </button>
+                  </div>
+                </div>
+                
+                {isCorporateMode && (
+                  <div className="mb-10 p-6 rounded-[32px] bg-brand-blue/5 border border-brand-blue/20 animate-rise">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-brand-blue/10 flex items-center justify-center text-2xl">🏢</div>
+                      <div>
+                        <h3 className="font-display text-xl text-ink">Corporate Group Booking</h3>
+                        <p className="text-xs text-ink/60">Register multiple staff members for team building sessions</p>
+                      </div>
+                    </div>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-brand-blue mb-2 ml-2">Company Name</label>
+                    <input 
+                      type="text"
+                      className="w-full bg-white border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink shadow-sm focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
+                      placeholder="Enter your company name (e.g., TechCorp Solutions)"
+                      value={corporateName}
+                      onChange={(e) => setCorporateName(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                <div className="grid gap-6 md:grid-cols-2">
                   {classes.map(c => (
                     <button
                       key={c._id}
                       onClick={() => { setSelectedClass(c); setStep(2); }}
-                      className="p-6 rounded-3xl border-2 border-slate-100 hover:border-brand-blue transition-all bg-white hover:shadow-xl text-left group"
+                      className="group relative p-6 rounded-[40px] border-2 border-slate-100 hover:border-brand-blue transition-all bg-white hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] text-left flex flex-col h-full"
                     >
-                      <h3 className="font-display text-xl group-hover:text-brand-blue transition-colors">{c.title}</h3>
-                      <p className="mt-2 text-sm text-ink/60 line-clamp-2">{c.description}</p>
-                      <div className="mt-4 flex items-center justify-between">
-                        <span className="bg-ocean/10 text-ocean text-xs font-bold px-3 py-1 rounded-full">{c.duration}</span>
-                        <span className="text-lg font-black text-brand-blue">AED {c.price}</span>
+                      <div className="mb-4 aspect-[4/3] rounded-[32px] bg-slate-50 overflow-hidden relative">
+                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent group-hover:opacity-0 transition-opacity"></div>
+                         <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-brand-blue shadow-sm">
+                           {c.ageGroup}
+                         </div>
+                         <img src={`https://source.unsplash.com/featured/?fitness,kids,${c.title.split(' ')[0]}`} alt={c.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                      </div>
+                      <h3 className="font-display text-2xl text-ink leading-tight mb-2 group-hover:text-brand-blue transition-colors">{c.title}</h3>
+                      <p className="text-sm text-ink/50 line-clamp-2 mb-6 leading-relaxed">{c.description}</p>
+                      <div className="mt-auto flex items-center justify-between">
+                        <span className="bg-ocean/5 text-ocean text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border border-ocean/10">{c.duration}</span>
+                        <div className="text-right">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-ink/30 block mb-0.5">Per Person</span>
+                          <span className="text-xl font-black text-ink">AED {c.price}</span>
+                        </div>
                       </div>
                     </button>
                   ))}
@@ -560,19 +629,21 @@ export default function BookingFlow() {
                                     <button
                                       key={s._id}
                                       onClick={() => {
+                                        if (spotsLeft <= 0 && !isSelected) return; // Prevent selecting full slots
                                         if (isSelected) {
                                           setSelectedSessions(selectedSessions.filter(sess => sess._id !== s._id));
                                         } else {
                                           setSelectedSessions([...selectedSessions, s]);
                                         }
                                       }}
-                                      className={`p-5 rounded-3xl border-2 transition-all text-left flex flex-col justify-center items-center gap-1 ${isSelected ? 'border-brand-blue bg-brand-blue/5 text-brand-blue shadow-glow' : 'border-slate-100 bg-white hover:border-brand-blue/30 hover:bg-slate-50 text-ink/80'}`}
+                                      disabled={spotsLeft <= 0 && !isSelected}
+                                      className={`p-5 rounded-3xl border-2 transition-all text-left flex flex-col justify-center items-center gap-1 ${isSelected ? 'border-brand-blue bg-brand-blue/5 text-brand-blue shadow-glow' : spotsLeft <= 0 ? 'border-slate-100 bg-slate-50/50 opacity-50 cursor-not-allowed text-ink/20' : 'border-slate-100 bg-white hover:border-brand-blue/30 hover:bg-slate-50 text-ink/80'}`}
                                     >
                                       <span className="text-xl font-black font-display">
                                         {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                       </span>
-                                      <span className={`text-[10px] font-bold uppercase tracking-widest ${isSelected ? 'text-brand-blue/70' : 'text-ink/40'}`}>
-                                        {spotsLeft} spots left
+                                      <span className={`text-[10px] font-bold uppercase tracking-widest ${isSelected ? 'text-brand-blue/70' : spotsLeft <= 0 ? 'text-coral' : 'text-ink/40'}`}>
+                                        {spotsLeft <= 0 ? 'FULL' : `${spotsLeft} spots left`}
                                       </span>
                                     </button>
                                   );
@@ -950,11 +1021,19 @@ export default function BookingFlow() {
               <div className="animate-rise text-center py-12">
                 <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-8 animate-bounce transition-transform">✓</div>
                 <h2 className="font-display text-4xl font-black text-ink mb-4">Awesome!</h2>
-                <div className="mb-8 space-y-2">
+                <div className="mb-8 space-y-4">
                   {createdBookings.map((b, i) => (
-                    <p key={i} className="text-brand-blue font-black tracking-widest text-sm uppercase">
-                      Booking #{b.bookingNumber}
-                    </p>
+                    <div key={i} className="bg-slate-50 p-4 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 max-w-md mx-auto border border-slate-100">
+                      <p className="text-brand-blue font-black tracking-widest text-sm uppercase">
+                        #{b.bookingNumber}
+                      </p>
+                      <button 
+                         onClick={() => window.open(`/invoice/booking/${b._id}`, '_blank')}
+                         className="bg-white text-brand-blue px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:shadow-md transition-all flex items-center gap-2 border border-brand-blue/10"
+                      >
+                         <span>📄</span> Print Invoice
+                      </button>
+                    </div>
                   ))}
                 </div>
                 <p className="text-ink/60 text-lg mb-10 max-w-md mx-auto">Your booking for {participants.length} participant(s) has been successfully placed. We've sent an email confirmation.</p>

@@ -27,6 +27,7 @@ export default function TrainersManagement() {
   const [editingId, setEditingId] = useState('');
 
   const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const { can } = usePermissions();
 
@@ -35,9 +36,10 @@ export default function TrainersManagement() {
   const canDelete = can('trainers:delete');
 
   const load = () => {
-    api.get('/trainers').then((res) => setTrainers(res.data || [])).catch(() => { });
-    api.get('/locations').then((res) => setLocations(res.data || [])).catch(() => { });
-    api.get('/specialties').then((res) => setSpecialtiesList(res.data || [])).catch(() => { });
+    setLoading(true);
+    api.get('/trainers?all=true').then((res) => setTrainers(res.data || [])).catch(() => { });
+    api.get('/locations?all=true').then((res) => setLocations(res.data || [])).catch(() => { });
+    api.get('/specialties?all=true').then((res) => setSpecialtiesList(res.data || [])).catch(() => { }).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -119,13 +121,16 @@ export default function TrainersManagement() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this trainer?')) return;
+  const handleToggleStatus = async (trainer) => {
+    const action = trainer.status === 'active' ? 'disable' : 'enable';
+    if (!window.confirm(`Are you sure you want to ${action} this trainer?`)) return;
     try {
-      await api.delete(`/trainers/${id}`);
+      await api.delete(`/trainers/${trainer._id}`);
+      toast.success(`Trainer ${action}d successfully`);
       load();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to delete trainer');
+      const msg = err.response?.data?.message || `Failed to ${action} trainer`;
+      toast.error(msg);
     }
   };
 
@@ -399,7 +404,11 @@ export default function TrainersManagement() {
         )}
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {trainers.map((trainer) => (
+          {loading ? (
+             Array(6).fill(0).map((_, i) => (
+                <div key={i} className="h-64 animate-pulse bg-white rounded-[32px] border border-slate-100 shadow-sm" />
+             ))
+          ) : trainers.map((trainer) => (
             <div key={trainer._id} className="group relative overflow-hidden rounded-[32px] bg-white border border-slate-100 shadow-sm transition-all hover:shadow-md">
               <div className="p-6">
                 <div className="flex items-center gap-4 mb-4">
@@ -449,10 +458,10 @@ export default function TrainersManagement() {
                       )}
                       {canDelete && (
                         <button
-                          className="text-red-400 hover:text-red-600"
-                          onClick={() => handleDelete(trainer._id)}
+                          className={`${trainer.status === 'active' ? 'text-red-400 hover:text-red-600' : 'text-green-500 hover:text-green-600'}`}
+                          onClick={() => handleToggleStatus(trainer)}
                         >
-                          Delete
+                          {trainer.status === 'active' ? 'Disable' : 'Enable'}
                         </button>
                       )}
                       {!canEdit && !canDelete && <span className="italic opacity-50">View Only</span>}
@@ -462,7 +471,7 @@ export default function TrainersManagement() {
               </div>
             </div>
           ))}
-          {trainers.length === 0 && (
+          {!loading && trainers.length === 0 && (
             <div className="col-span-full py-20 text-center">
                <p className="text-slate-400 italic">No trainers found. Use the form above to add your first coach.</p>
             </div>

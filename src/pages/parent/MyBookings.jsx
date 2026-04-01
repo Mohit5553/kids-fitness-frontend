@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -211,6 +212,53 @@ export default function MyBookings() {
                       </p>
                       <p className="text-[10px] text-ink/40">ID: {booking._id}</p>
                     </div>
+                    
+                    {['attended', 'completed'].includes(booking.status) && (
+                      <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 animate-in zoom-in-95 duration-500">
+                        <span className="text-[10px]">✅</span>
+                        <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Attendance Verified</span>
+                      </div>
+                    )}
+
+                    {/* Cancellation Notice */}
+                    {booking.status === 'cancelled' && (
+                      <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                          <span>📢</span> Session Status: Cancelled
+                        </p>
+                        <p className="text-[11px] font-bold text-red-700 leading-relaxed italic">
+                          "{booking.cancellationReason || 'No specific reason provided.'}"
+                        </p>
+                        <p className="mt-2 text-[8px] font-medium text-red-400 uppercase tracking-[0.05em]">
+                          Please contact support or check-in at the center for reschedule options.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Progress Tracker */}
+                    <div className="mt-4 flex items-center gap-1">
+                      <div className="flex-1 flex flex-col gap-1.5">
+                        <div className="flex justify-between text-[8px] font-black uppercase tracking-wider text-ink/30 px-1">
+                           <span>Paid</span>
+                           <span>Attended</span>
+                           <span>Finalized</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden flex">
+                           <div className={`h-full transition-all duration-500 ${booking.status !== 'pending' && booking.status !== 'cancelled' ? 'w-1/3 bg-emerald-400' : 'w-0'}`} />
+                           <div className={`h-full transition-all duration-500 border-l border-white ${['attended', 'completed'].includes(booking.status) ? 'w-1/3 bg-sky-400' : 'w-0'}`} />
+                           <div className={`h-full transition-all duration-500 border-l border-white ${booking.status === 'completed' ? 'w-1/3 bg-indigo-400' : 'w-0'}`} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-slate-50 flex justify-end">
+                       <Link 
+                          to={`/invoice/booking/${booking._id}`} 
+                          className="text-[9px] font-black text-brand-blue uppercase tracking-widest hover:underline flex items-center gap-1.5"
+                       >
+                          <span>📜</span> View Official Invoice
+                       </Link>
+                    </div>
                   </div>
 
                   <div className="flex flex-col items-end gap-3">
@@ -254,6 +302,14 @@ export default function MyBookings() {
                         Request Refund
                       </button>
                     ) : null}
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-slate-50 flex items-center gap-4">
+                     <Link 
+                        to={`/invoice/booking/${booking._id}`}
+                        className="text-[9px] font-black text-brand-blue/40 uppercase tracking-widest hover:text-brand-blue transition-colors flex items-center gap-1.5"
+                     >
+                        <span>📜</span> View Invoice
+                     </Link>
                   </div>
                 </div>
               </div>

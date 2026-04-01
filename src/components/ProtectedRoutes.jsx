@@ -1,22 +1,22 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { getUser, getRoleSlug } from '../utils/auth.js';
 
-export function RequireAuth() {
+export function RequireAuth({ children }) {
   const user = getUser();
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  return <Outlet />;
+  return children || <Outlet />;
 }
 
-export const RequireTrainer = () => {
+export const RequireTrainer = ({ children }) => {
   const user = getUser();
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== 'trainer') return <Navigate to="/dashboard" replace />;
-  return <Outlet />;
+  return children || <Outlet />;
 };
 
-export function RequireAdmin() {
+export function RequireAdmin({ children }) {
   const user = getUser();
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -28,10 +28,10 @@ export function RequireAdmin() {
   if (!isStaff) {
     return <Navigate to="/dashboard" replace />;
   }
-  return <Outlet />;
+  return children || <Outlet />;
 }
 
-export function RequirePermission({ permission }) {
+export function RequirePermission({ permission, children }) {
   const user = getUser();
   if (!user) return <Navigate to="/login" replace />;
   
@@ -40,5 +40,5 @@ export function RequirePermission({ permission }) {
   if (!hasPerm) {
     return <Navigate to={`/${getRoleSlug(user.role)}`} replace />;
   }
-  return <Outlet />;
+  return children || <Outlet />;
 }

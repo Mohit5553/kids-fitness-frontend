@@ -16,25 +16,38 @@ export default function TrainerDashboard() {
   const [selectedSession, setSelectedSession] = useState(null);
   const [locations, setLocations] = useState([]);
   const [locationFilter, setLocationFilter] = useState('all');
-  const [viewType, setViewType] = useState('upcoming'); // 'upcoming' or 'past'
+  const [viewType, setViewType] = useState('upcoming'); // 'upcoming', 'past', or 'cancelled'
+  const [profileError, setProfileError] = useState(false);
+  const [cancellingSession, setCancellingSession] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
 
   const user = getUser();
 
-  const loadSessions = (trainerId) => {
-    if (trainerId) {
-      setLoading(true);
-      api.get(`/sessions?trainerId=${trainerId}`)
-        .then((res) => {
-          setSessions(res.data || []);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error('Failed to fetch schedule:', err);
-          setLoading(false);
-        });
-    } else {
+  const loadSessions = (trainerId, trainerName, trainerEmail) => {
+    if (!trainerId && !trainerName && !trainerEmail) {
       setLoading(false);
+      return;
     }
+
+    setLoading(true);
+    const params = { all: true };
+    if (trainerId) params.trainerId = trainerId;
+    if (trainerName) params.trainerName = trainerName;
+    if (trainerEmail) params.trainerEmail = trainerEmail;
+
+    api.get('/sessions', { params })
+      .then((res) => {
+        setSessions(res.data || []);
+        setLoading(false);
+        if (!trainerId && res.data?.length > 0) {
+          setProfileError(true);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch schedule:', err);
+        setLoading(false);
+      });
   };
 
   const loadAllBookings = (trainerId) => {
@@ -69,16 +82,21 @@ export default function TrainerDashboard() {
       if (res.data) {
         // Update local storage so the rest of the app knows about the update
         setAuth(res.data);
-        // Refresh session data using the fresh IDs
+        // Refresh session data using fresh data
         loadLocations(res.data.locationIds);
-        loadSessions(res.data.trainerId);
+        loadSessions(res.data.trainerId, res.data.name, res.data.email);
         loadAllBookings(res.data.trainerId);
         loadTrials();
+        
+        // If trainerId is missing but role is trainer, we have a profile issue
+        if (res.data.role === 'trainer' && !res.data.trainerId) {
+          setProfileError(true);
+        }
       }
     } catch (err) {
       console.error('Failed to sync profile:', err);
       // Fallback to local data if sync fails
-      loadSessions(user?.trainerId);
+      loadSessions(user?.trainerId, user?.name, user?.email);
       loadLocations(user?.locationIds);
       loadAllBookings(user?.trainerId);
       loadTrials();
@@ -94,12 +112,30 @@ export default function TrainerDashboard() {
     return sessions
       .filter(s => {
         const isLocationMatch = locationFilter === 'all' || (s.locationId?._id || s.locationId) === locationFilter;
-        const isPast = new Date(s.startTime) < now;
-        const isViewMatch = viewType === 'past' ? isPast : !isPast;
-        return isLocationMatch && isViewMatch;
+        if (s.status === 'cancelled') {
+           return viewType === 'cancelled' && isLocationMatch;
+        }
+        
+        if (viewType === 'cancelled') return false; // Non-cancelled sessions shouldn't show in cancelled tab
+
+        const sStart = new Date(s.startTime);
+        const sEnd = s.endTime ? new Date(s.endTime) : new Date(sStart.getTime() + 60 * 60000); // 1h default
+
+        const graceStart = new Date(sStart.getTime() - 30 * 60000);
+        const graceEnd = new Date(sEnd.getTime() + 30 * 60000);
+
+        const isCurrent = now >= graceStart && now <= graceEnd;
+        const isPast = now > graceEnd;
+        const isUpcoming = now < graceStart;
+
+        if (viewType === 'current') return isLocationMatch && isCurrent;
+        if (viewType === 'past') return isLocationMatch && isPast;
+        if (viewType === 'upcoming') return isLocationMatch && isUpcoming;
+
+        return isLocationMatch;
       })
       .sort((a, b) => {
-        if (viewType === 'upcoming') {
+        if (viewType === 'upcoming' || viewType === 'current') {
           return new Date(a.startTime) - new Date(b.startTime);
         } else {
           return new Date(b.startTime) - new Date(a.startTime);
@@ -122,6 +158,7 @@ export default function TrainerDashboard() {
   }, [sessions, viewType, filteredSessions]);
 
   const handleViewRoster = async (session) => {
+    if (session.status === 'cancelled') return;
     setSelectedSession(session);
     setLoadingRoster(true);
     setRoster([]);
@@ -132,6 +169,36 @@ export default function TrainerDashboard() {
     } catch (err) {
       toast.error('Failed to load roster');
       setLoadingRoster(false);
+    }
+  };
+
+  const handleCancelSession = async () => {
+    if (!cancelReason.trim()) {
+      toast.error('Please provide a reason for cancellation');
+      return;
+    }
+    setIsSubmittingCancel(true);
+    try {
+      await api.delete(`/sessions/${cancellingSession._id}`, { data: { reason: cancelReason } });
+      toast.success('Session cancelled successfully');
+      setCancellingSession(null);
+      setCancelReason('');
+      syncUserProfile(); // Refresh data
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to cancel session');
+    } finally {
+      setIsSubmittingCancel(false);
+    }
+  };
+
+  const handleApproveAttendance = async (bookingId) => {
+    try {
+      await api.put(`/bookings/${bookingId}/status`, { status: 'attended' });
+      toast.success('Attendance approved');
+      // Refresh roster for the selected session
+      handleViewRoster(selectedSession);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to approve attendance');
     }
   };
 
@@ -174,6 +241,20 @@ export default function TrainerDashboard() {
           </div>
         </section>
 
+        {profileError && (
+          <div className="mb-8 bg-amber-50 border border-amber-200 rounded-[32px] p-6 flex flex-col md:flex-row items-center gap-6 animate-rise">
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-sm">⚠️</div>
+            <div className="flex-1 text-center md:text-left">
+              <h3 className="text-sm font-black text-amber-800 uppercase tracking-widest mb-1">Profile Link Warning</h3>
+              <p className="text-xs font-bold text-amber-700/70 leading-relaxed">
+                Your login account is not correctly linked to your professional Trainer Profile. 
+                While you can still see your sessions, some features like Roster management might be limited. 
+                <span className="block mt-2 font-black">Please contact an administrator to link your account.</span>
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="grid lg:grid-cols-3 gap-8">
           {activeTab === 'schedule' && (
             <>
@@ -186,7 +267,13 @@ export default function TrainerDashboard() {
                     </h2>
 
                     {/* View Type Switcher */}
-                    <div className="flex bg-slate-100 p-1 rounded-xl self-start">
+                    <div className="flex bg-slate-100 p-1 rounded-xl gap-1 self-start">
+                      <button
+                        onClick={() => setViewType('current')}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${viewType === 'current' ? 'bg-white text-emerald-500 shadow-sm' : 'text-ink/30 hover:text-ink/60'}`}
+                      >
+                        Current
+                      </button>
                       <button
                         onClick={() => setViewType('upcoming')}
                         className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${viewType === 'upcoming' ? 'bg-white text-coral shadow-sm' : 'text-ink/30 hover:text-ink/60'}`}
@@ -198,6 +285,12 @@ export default function TrainerDashboard() {
                         className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${viewType === 'past' ? 'bg-white text-coral shadow-sm' : 'text-ink/30 hover:text-ink/60'}`}
                       >
                         Past
+                      </button>
+                      <button
+                        onClick={() => setViewType('cancelled')}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${viewType === 'cancelled' ? 'bg-white text-coral shadow-sm' : 'text-ink/30 hover:text-ink/60'}`}
+                      >
+                        Cancelled
                       </button>
                     </div>
                   </div>
@@ -259,13 +352,30 @@ export default function TrainerDashboard() {
                           <span className="text-[10px] font-black text-ink/30 uppercase tracking-[0.2em]">
                             {session.bookedParticipants} / {session.capacity} Attendees
                           </span>
-                          <button
-                            onClick={() => handleViewRoster(session)}
-                            className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${selectedSession?._id === session._id ? 'bg-coral text-white' : 'text-coral hover:bg-coral/10'}`}
-                          >
-                            {selectedSession?._id === session._id ? 'Selected' : 'View Roster'}
-                          </button>
+                          <div className="flex gap-2">
+                            {viewType === 'upcoming' && session.status !== 'cancelled' && (
+                              <button
+                                onClick={() => setCancellingSession(session)}
+                                className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl text-red-500 hover:bg-red-50 transition-all border border-red-100"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleViewRoster(session)}
+                              disabled={session.status === 'cancelled'}
+                              className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${session.status === 'cancelled' ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : selectedSession?._id === session._id ? 'bg-coral text-white' : 'text-coral hover:bg-coral/10'}`}
+                            >
+                              {session.status === 'cancelled' ? 'Cancelled' : selectedSession?._id === session._id ? 'Selected' : 'View Roster'}
+                            </button>
+                          </div>
                         </div>
+                        {session.status === 'cancelled' && session.cancellationReason && (
+                          <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-100">
+                            <p className="text-[8px] font-black text-red-400 uppercase tracking-widest mb-1">Cancellation Reason</p>
+                            <p className="text-[10px] font-bold text-red-700 leading-relaxed italic">"{session.cancellationReason}"</p>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -342,7 +452,22 @@ export default function TrainerDashboard() {
                           </div>
 
                           <div className="mt-4 pt-4 border-t border-slate-200/50 flex justify-between items-center">
-                            <span className="text-[9px] font-black text-ink/20 uppercase tracking-[0.2em]">{booking.paymentMethod === 'online' ? 'Paid Online' : 'Pay at Center'}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-[9px] font-black text-ink/20 uppercase tracking-[0.2em]">{booking.paymentMethod === 'online' ? 'Paid Online' : 'Pay at Center'}</span>
+                                {viewType === 'current' && booking.status === 'confirmed' && (
+                                  <button
+                                    onClick={() => handleApproveAttendance(booking._id)}
+                                    className="px-4 py-1.5 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-md active:scale-95"
+                                  >
+                                    Approve Attendance
+                                  </button>
+                                )}
+                                {booking.status === 'attended' && (
+                                  <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase tracking-widest rounded-lg border border-emerald-100 flex items-center gap-1.5">
+                                    <span>✔</span> Verified
+                                  </span>
+                                )}
+                            </div>
                             <span className="text-[10px] font-black text-ink/70">AED {booking.totalAmount}</span>
                           </div>
                         </div>
@@ -495,6 +620,53 @@ export default function TrainerDashboard() {
             </div>
           )}
         </div>
+
+        {/* Cancellation Modal */}
+        {cancellingSession && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 duration-300">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-2xl font-black text-ink">Cancel Session</h3>
+                <button onClick={() => setCancellingSession(null)} className="text-3xl text-ink/20 hover:text-ink/60 transition-colors">×</button>
+              </div>
+              
+              <div className="mb-8">
+                <p className="text-xs font-bold text-ink/50 leading-relaxed">
+                  Please provide a reason for cancelling the <span className="text-coral font-black">{cancellingSession.classId?.title}</span> session on <span className="font-black">{new Date(cancellingSession.startTime).toLocaleDateString()}</span>.
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-3 block">Reason for Cancellation</label>
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder="e.g., Staff emergency, Maintenance, Low occupancy..."
+                    className="w-full h-32 bg-slate-50 border-2 border-slate-100 rounded-3xl p-6 text-sm font-medium text-ink outline-none focus:border-coral/30 focus:ring-4 focus:ring-coral/5 transition-all resize-none"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex gap-4 pt-2">
+                  <button
+                    onClick={() => setCancellingSession(null)}
+                    className="flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest text-ink/40 hover:bg-slate-50 transition-all"
+                  >
+                    Go Back
+                  </button>
+                  <button
+                    onClick={handleCancelSession}
+                    disabled={isSubmittingCancel}
+                    className="flex-1 py-4 rounded-2xl bg-red-500 text-white text-xs font-black uppercase tracking-widest shadow-xl shadow-red-500/20 hover:bg-red-600 transition-all disabled:opacity-50"
+                  >
+                    {isSubmittingCancel ? 'Cancelling...' : 'Confirm Cancellation'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
       <Footer />
     </div>

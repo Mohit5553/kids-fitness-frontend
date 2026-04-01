@@ -15,7 +15,8 @@ const emptyForm = {
   duration: '',
   availableTrainers: [],
   price: '',
-  capacity: ''
+  capacity: '',
+  status: 'active'
 };
 
 export default function ClassesManagement() {
@@ -24,6 +25,7 @@ export default function ClassesManagement() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState('');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const { can } = usePermissions();
 
@@ -32,8 +34,10 @@ export default function ClassesManagement() {
   const canDelete = can('classes:delete');
 
   const load = () => {
-    api.get('/classes').then((res) => setClasses(res.data || [])).catch(() => { });
-    api.get('/trainers').then((res) => setTrainers(res.data || [])).catch(() => { });
+    setLoading(true);
+    const p1 = api.get('/classes?all=true').then((res) => setClasses(res.data || [])).catch(() => { });
+    const p2 = api.get('/trainers?all=true').then((res) => setTrainers(res.data || [])).catch(() => { });
+    Promise.all([p1, p2]).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -56,7 +60,8 @@ export default function ClassesManagement() {
       duration: item.duration || '',
       availableTrainers: (item.availableTrainers || []).map(t => t._id || t),
       price: item.price ?? '',
-      capacity: item.capacity ?? ''
+      capacity: item.capacity ?? '',
+      status: item.status || 'active'
     });
   };
 
@@ -89,10 +94,16 @@ export default function ClassesManagement() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this class?')) return;
-    await api.delete(`/classes/${id}`);
-    load();
+  const handleToggleStatus = async (item) => {
+    const action = item.status === 'active' ? 'disable' : 'enable';
+    if (!window.confirm(`Are you sure you want to ${action} this class?`)) return;
+    try {
+      await api.delete(`/classes/${item._id}`);
+      toast.success(`Class ${action}d successfully`);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || `Failed to ${action} class`);
+    }
   };
 
   return (
@@ -205,14 +216,28 @@ export default function ClassesManagement() {
                 required
               />
             </div>
-            <input
-              className="rounded-xl border border-orange-200/70 p-3"
-              name="capacity"
-              type="number"
-              placeholder="Capacity"
-              value={form.capacity}
-              onChange={handleChange}
-            />
+            <div className="grid gap-3 md:grid-cols-2">
+              <input
+                className="rounded-xl border border-orange-200/70 p-3"
+                name="capacity"
+                type="number"
+                placeholder="Capacity"
+                value={form.capacity}
+                onChange={handleChange}
+              />
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Visibility Status</label>
+                <select
+                  className="w-full rounded-xl border border-orange-200/70 p-3"
+                  name="status"
+                  value={form.status}
+                  onChange={handleChange}
+                >
+                  <option value="active">Active (Visible)</option>
+                  <option value="inactive">Inactive (Hidden)</option>
+                </select>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-3">
               <button className="rounded-full bg-brand-blue px-8 py-3 text-sm font-black text-white shadow-lg hover:scale-105 transition-all" type="submit">
                 {editingId ? 'Update class' : 'Create class'}
@@ -235,7 +260,9 @@ export default function ClassesManagement() {
         )}
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
-          {classes.map((item) => (
+          {loading ? (
+             Array(4).fill(0).map((_, i) => <div key={i} className="h-48 animate-pulse bg-white rounded-3xl" />)
+          ) : classes.map((item) => (
             <div key={item._id} className="soft-card rounded-[32px] p-6 transition-all hover:shadow-xl group">
               <div className="flex items-start justify-between">
                 <div>
@@ -259,7 +286,12 @@ export default function ClassesManagement() {
                     </div>
                   </div>
                 </div>
-                <p className="text-xl font-black text-brand-blue">AED {item.price}</p>
+                <div className="flex flex-col items-end gap-2">
+                  <p className="text-xl font-black text-brand-blue">AED {item.price}</p>
+                  <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${item.status === 'inactive' ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-green-50 text-green-500 border border-green-100'}`}>
+                    {item.status || 'Active'}
+                  </span>
+                </div>
               </div>
               <div className="mt-6 pt-6 border-t border-slate-50 flex gap-3">
                 {canEdit && (
@@ -272,10 +304,10 @@ export default function ClassesManagement() {
                 )}
                 {canDelete && (
                   <button
-                    className="rounded-full bg-red-50 px-6 py-2 text-xs font-black uppercase tracking-widest text-red-400 hover:bg-red-100 transition-all"
-                    onClick={() => handleDelete(item._id)}
+                    className={`rounded-full px-6 py-2 text-xs font-black uppercase tracking-widest transition-all ${item.status === 'active' ? 'bg-red-50 text-red-400 hover:bg-red-100' : 'bg-green-50 text-green-500 hover:bg-green-100'}`}
+                    onClick={() => handleToggleStatus(item)}
                   >
-                    Delete
+                    {item.status === 'active' ? 'Disable' : 'Enable'}
                   </button>
                 )}
               </div>

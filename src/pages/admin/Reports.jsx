@@ -154,6 +154,7 @@ export default function Reports() {
       { key: 'totalAmount', label: 'Amount' },
       { key: 'status', label: 'Status' },
       { key: 'paymentMethod', label: 'Method' },
+      { key: 'transactionId', label: 'Txn ID' },
       { key: 'paymentStatus', label: 'Payment' },
       { key: 'locationId', label: 'Location' },
     ],

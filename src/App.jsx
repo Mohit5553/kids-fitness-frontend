@@ -16,6 +16,9 @@ import GuestBookingLookup from './pages/GuestBookingLookup.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
 import MemberHealthDeclaration from './pages/MemberHealthDeclaration.jsx';
+import InvoiceView from './pages/InvoiceView.jsx';
+import HelpCenter from './pages/HelpCenter.jsx';
+import ManualView from './pages/ManualView.jsx';
 import { RequireAuth, RequireAdmin, RequireTrainer, RequirePermission } from './components/ProtectedRoutes.jsx';
 import { SocketProvider } from './context/SocketContext.jsx';
 import { BranchProvider } from './context/BranchContext.jsx';
@@ -30,6 +33,7 @@ import Attendance from './pages/parent/Attendance.jsx';
 import MyBookings from './pages/parent/MyBookings.jsx';
 
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
+import WalkingBooking from './pages/admin/WalkingBooking.jsx';
 import ClassesManagement from './pages/admin/ClassesManagement.jsx';
 import PricingManagement from './pages/admin/PricingManagement.jsx';
 import BookingManagement from './pages/admin/BookingManagement.jsx';
@@ -44,6 +48,7 @@ import PaymentsManagement from './pages/admin/PaymentsManagement.jsx';
 import LocationManagement from './pages/admin/LocationManagement.jsx';
 import SpecialtiesManagement from './pages/admin/SpecialtiesManagement.jsx';
 import RoleMaster from './pages/admin/RoleMaster.jsx';
+import CorporateBooking from './pages/admin/CorporateBooking.jsx';
 import TrainerDashboard from './pages/trainer/TrainerDashboard.jsx';
 
 export default function App() {
@@ -70,6 +75,10 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/health-declaration" element={<MemberHealthDeclaration />} />
+          <Route path="/help" element={<HelpCenter />} />
+          <Route path="/manuals/:type" element={<ManualView />} />
+          <Route path="/invoice/:id" element={<RequireAuth><InvoiceView /></RequireAuth>} />
+          <Route path="/invoice/booking/:bookingId" element={<RequireAuth><InvoiceView /></RequireAuth>} />
 
           <Route element={<RequireAuth />}>
             <Route path="/dashboard" element={<ParentDashboard />} />
@@ -88,6 +97,7 @@ export default function App() {
 
           <Route element={<RequireAdmin />}>
             <Route path="/:roleSlug" element={<AdminDashboard />} />
+            <Route path="/:roleSlug/walking-booking" element={<WalkingBooking />} />
 
             <Route element={<RequirePermission permission="classes:view" />}>
               <Route path="/:roleSlug/classes" element={<ClassesManagement />} />
@@ -103,6 +113,7 @@ export default function App() {
 
             <Route element={<RequirePermission permission="bookings:view" />}>
               <Route path="/:roleSlug/bookings" element={<BookingManagement />} />
+              <Route path="/:roleSlug/corporate-booking" element={<CorporateBooking />} />
             </Route>
 
             <Route element={<RequirePermission permission="users:view" />}>
