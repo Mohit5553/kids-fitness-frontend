@@ -1,6 +1,6 @@
-export default function Footer() {
+export default function Footer({ className }) {
   return (
-    <footer className="mt-12 border-t border-white/70 bg-white/80">
+    <footer className={`site-footer mt-12 border-t border-white/70 bg-white/80 ${className || ''}`}>
       <div className="page-shell grid gap-6 py-10 md:grid-cols-3">
         <div>
           <h3 className="font-display text-lg">JTS Booking</h3>

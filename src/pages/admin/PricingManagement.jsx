@@ -14,7 +14,14 @@ const emptyForm = {
   billingCycle: 'none',
   benefits: '',
   tagline: '',
-  isFeatured: false
+  isFeatured: false,
+  sessionType: 'group',
+  validDays: 'both',
+  timeSlots: '',
+  trainerAllocation: 'random',
+  trainerId: '',
+  maxAllowedMissed: 2,
+  expiryBufferDays: 7
 };
 
 export default function PricingManagement() {
@@ -23,6 +30,7 @@ export default function PricingManagement() {
   const [editingId, setEditingId] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [trainers, setTrainers] = useState([]);
 
   const { can } = usePermissions();
 
@@ -39,8 +47,15 @@ export default function PricingManagement() {
       .finally(() => setLoading(false));
   };
 
+  const loadTrainers = () => {
+    api.get('/trainers')
+      .then(res => setTrainers(res.data || []))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     load();
+    loadTrainers();
   }, []);
 
   const handleChange = (event) => {
@@ -59,7 +74,14 @@ export default function PricingManagement() {
       billingCycle: plan.billingCycle || 'none',
       benefits: (plan.benefits || []).join(', '),
       tagline: plan.tagline || '',
-      isFeatured: !!plan.isFeatured
+      isFeatured: !!plan.isFeatured,
+      sessionType: plan.sessionType || 'group',
+      validDays: plan.validDays || 'both',
+      timeSlots: (plan.timeSlots || []).join(', '),
+      trainerAllocation: plan.trainerAllocation || 'random',
+      trainerId: plan.trainerId?._id || plan.trainerId || '',
+      maxAllowedMissed: plan.extensionRules?.maxAllowedMissed ?? 2,
+      expiryBufferDays: plan.extensionRules?.expiryBufferDays ?? 7
     });
   };
 
@@ -77,7 +99,13 @@ export default function PricingManagement() {
       price: Number(form.price),
       classesIncluded: form.classesIncluded ? Number(form.classesIncluded) : undefined,
       durationWeeks: form.durationWeeks ? Number(form.durationWeeks) : undefined,
-      benefits: form.benefits.split(',').map((item) => item.trim()).filter(Boolean)
+      benefits: form.benefits.split(',').map((item) => item.trim()).filter(Boolean),
+      timeSlots: form.timeSlots.split(',').map((item) => item.trim()).filter(Boolean),
+      extensionRules: {
+        maxAllowedMissed: Number(form.maxAllowedMissed),
+        expiryBufferDays: Number(form.expiryBufferDays)
+      },
+      trainerId: (form.trainerAllocation === 'fixed' && form.trainerId) ? form.trainerId : null
     };
 
     try {
@@ -202,6 +230,72 @@ export default function PricingManagement() {
                   className="h-5 w-5 rounded border-orange-200 text-coral focus:ring-coral"
                 />
                 <label htmlFor="isFeatured" className="text-sm font-medium text-ink/70">Featured (Best Value)</label>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Session Type</label>
+                <select className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" name="sessionType" value={form.sessionType} onChange={handleChange}>
+                  <option value="group">Group Session</option>
+                  <option value="personal">Personal Training</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Valid Days</label>
+                <select className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" name="validDays" value={form.validDays} onChange={handleChange}>
+                  <option value="weekday">Weekdays (Mon-Fri)</option>
+                  <option value="weekend">Weekends (Sat-Sun)</option>
+                  <option value="both">All Days</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Trainer allocation</label>
+                <select className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" name="trainerAllocation" value={form.trainerAllocation} onChange={handleChange}>
+                  <option value="random">Random (Auto)</option>
+                  <option value="fixed">Fixed (Manual)</option>
+                </select>
+              </div>
+
+              {form.trainerAllocation === 'fixed' ? (
+                <div className="space-y-1 animate-rise">
+                    <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Select Fixed Trainer</label>
+                    <select 
+                        className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" 
+                        name="trainerId" 
+                        value={form.trainerId} 
+                        onChange={handleChange}
+                        required={form.trainerAllocation === 'fixed'}
+                    >
+                        <option value="">Choose a trainer...</option>
+                        {trainers.map(t => (
+                            <option key={t._id} value={t._id}>{t.name}</option>
+                        ))}
+                    </select>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Time Slots (comma separated)</label>
+                    <input className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" name="timeSlots" placeholder="10:00 AM, 04:00 PM" value={form.timeSlots} onChange={handleChange} />
+                </div>
+              )}
+            </div>
+
+            {form.trainerAllocation === 'fixed' && (
+                <div className="grid gap-3 md:grid-cols-1">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Time Slots (comma separated)</label>
+                        <input className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" name="timeSlots" placeholder="10:00 AM, 04:00 PM" value={form.timeSlots} onChange={handleChange} />
+                    </div>
+                </div>
+            )}
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Max Missed Sessions (Allow rescue)</label>
+                <input className="w-full rounded-xl border border-orange-200/70 p-3" name="maxAllowedMissed" type="number" value={form.maxAllowedMissed} onChange={handleChange} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Expiry Buffer (Days)</label>
+                <input className="w-full rounded-xl border border-orange-200/70 p-3" name="expiryBufferDays" type="number" value={form.expiryBufferDays} onChange={handleChange} />
               </div>
             </div>
             <textarea

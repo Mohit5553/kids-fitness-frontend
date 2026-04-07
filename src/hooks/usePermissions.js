@@ -1,7 +1,7 @@
-import { getUser } from '../utils/auth.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export function usePermissions() {
-  const user = getUser();
+  const { user } = useAuth();
   
   // Superadmins and Admins have all permissions implicitly
   const isAdminOrSuper = user?.role === 'superadmin' || user?.role === 'admin';

@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext.jsx';
 import Home from './pages/Home.jsx';
 import About from './pages/About.jsx';
 import Programs from './pages/Programs.jsx';
@@ -23,6 +25,8 @@ import { RequireAuth, RequireAdmin, RequireTrainer, RequirePermission } from './
 import { SocketProvider } from './context/SocketContext.jsx';
 import { BranchProvider } from './context/BranchContext.jsx';
 import { Toaster } from 'react-hot-toast';
+import api from './api/api.js';
+import { getToken, setAuth } from './utils/auth.js';
 
 import ParentDashboard from './pages/parent/ParentDashboard.jsx';
 import MyChildren from './pages/parent/MyChildren.jsx';
@@ -49,12 +53,15 @@ import LocationManagement from './pages/admin/LocationManagement.jsx';
 import SpecialtiesManagement from './pages/admin/SpecialtiesManagement.jsx';
 import RoleMaster from './pages/admin/RoleMaster.jsx';
 import CorporateBooking from './pages/admin/CorporateBooking.jsx';
+import SystemSettings from './pages/admin/SystemSettings.jsx';
+import ExtensionPanel from './pages/admin/ExtensionPanel.jsx';
 import TrainerDashboard from './pages/trainer/TrainerDashboard.jsx';
 
 export default function App() {
   return (
     <SocketProvider>
-      <BranchProvider>
+      <AuthProvider>
+        <BranchProvider>
         <Toaster />
         <Routes>
           {/* ... existing routes ... */}
@@ -155,9 +162,16 @@ export default function App() {
             <Route element={<RequirePermission permission="roles:view" />}>
               <Route path="/:roleSlug/roles" element={<RoleMaster />} />
             </Route>
+
+            <Route element={<RequirePermission permission="settings:edit" />}>
+              <Route path="/:roleSlug/settings" element={<SystemSettings />} />
+            </Route>
+
+            <Route path="/:roleSlug/extensions" element={<ExtensionPanel />} />
           </Route>
         </Routes>
       </BranchProvider>
-    </SocketProvider>
+    </AuthProvider>
+  </SocketProvider>
   );
 }

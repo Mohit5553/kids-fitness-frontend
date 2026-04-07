@@ -21,6 +21,13 @@ export default function TrainerDashboard() {
   const [cancellingSession, setCancellingSession] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
+  const [now, setNow] = useState(new Date());
+
+  // Live updates to the dashboard time every minute
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const user = getUser();
 
@@ -108,7 +115,6 @@ export default function TrainerDashboard() {
   }, []);
 
   const filteredSessions = useMemo(() => {
-    const now = new Date();
     return sessions
       .filter(s => {
         const isLocationMatch = locationFilter === 'all' || (s.locationId?._id || s.locationId) === locationFilter;
@@ -121,12 +127,14 @@ export default function TrainerDashboard() {
         const sStart = new Date(s.startTime);
         const sEnd = s.endTime ? new Date(s.endTime) : new Date(sStart.getTime() + 60 * 60000); // 1h default
 
-        const graceStart = new Date(sStart.getTime() - 30 * 60000);
-        const graceEnd = new Date(sEnd.getTime() + 30 * 60000);
+        // Refined categorization
+        // 1. Current: Strictly in progress or just about to start (15-min check-in grace)
+        const checkInWindow = new Date(sStart.getTime() - 15 * 60000);
+        const currentEndWindow = new Date(sEnd.getTime() + 5 * 60000); // Give 5 mins after official end
 
-        const isCurrent = now >= graceStart && now <= graceEnd;
-        const isPast = now > graceEnd;
-        const isUpcoming = now < graceStart;
+        const isCurrent = now >= checkInWindow && now <= currentEndWindow;
+        const isPast = now > currentEndWindow;
+        const isUpcoming = now < checkInWindow;
 
         if (viewType === 'current') return isLocationMatch && isCurrent;
         if (viewType === 'past') return isLocationMatch && isPast;
@@ -141,7 +149,7 @@ export default function TrainerDashboard() {
           return new Date(b.startTime) - new Date(a.startTime);
         }
       });
-  }, [sessions, locationFilter, viewType]);
+  }, [sessions, locationFilter, viewType, now]);
 
   const filteredBookings = useMemo(() => {
     return allBookings.filter(b => locationFilter === 'all' || (b.locationId?._id || b.locationId) === locationFilter);
@@ -199,6 +207,16 @@ export default function TrainerDashboard() {
       handleViewRoster(selectedSession);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to approve attendance');
+    }
+  };
+
+  const handleUpdateTrainerStatus = async (sessionId, trainerStatus) => {
+    try {
+      await api.put(`/sessions/${sessionId}/trainer-status`, { trainerStatus });
+      toast.success(`Session ${trainerStatus === 'accepted' ? 'accepted' : 'rejected'}`);
+      syncUserProfile(); // Refresh data
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update status');
     }
   };
 
@@ -354,12 +372,34 @@ export default function TrainerDashboard() {
                           </span>
                           <div className="flex gap-2">
                             {viewType === 'upcoming' && session.status !== 'cancelled' && (
-                              <button
-                                onClick={() => setCancellingSession(session)}
-                                className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl text-red-500 hover:bg-red-50 transition-all border border-red-100"
-                              >
-                                Cancel
-                              </button>
+                              <>
+                                {session.trainerStatus === 'pending' ? (
+                                  <div className="flex gap-1.5 mr-2 pr-2 border-r border-slate-200">
+                                    <button
+                                      onClick={() => handleUpdateTrainerStatus(session._id, 'accepted')}
+                                      className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/10"
+                                    >
+                                      Accept
+                                    </button>
+                                    <button
+                                      onClick={() => handleUpdateTrainerStatus(session._id, 'rejected')}
+                                      className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-slate-100 text-slate-400 hover:bg-slate-200 transition-all"
+                                    >
+                                      Reject
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-xl border mr-2 ${session.trainerStatus === 'accepted' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                                    {session.trainerStatus}
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => setCancellingSession(session)}
+                                  className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl text-red-500 hover:bg-red-50 transition-all border border-red-100"
+                                >
+                                  Cancel
+                                </button>
+                              </>
                             )}
                             <button
                               onClick={() => handleViewRoster(session)}

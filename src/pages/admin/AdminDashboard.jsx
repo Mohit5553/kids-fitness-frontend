@@ -4,7 +4,7 @@ import Navbar from '../../components/Navbar.jsx';
 import AdminHeader from '../../components/AdminHeader.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
-import { getUser } from '../../utils/auth.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
 
 export default function AdminDashboard() {
   const { roleSlug } = useParams();
@@ -24,7 +24,9 @@ export default function AdminDashboard() {
     { to: `${base}/payments`, title: 'Payments', desc: 'Monitor transactions and exports.', perm: 'payments:view' },
     { to: `${base}/locations`, title: 'Locations', desc: 'Add or remove gym branches.', perm: 'locations:view' },
     { to: `${base}/specialties`, title: 'Specialty Master', desc: 'Manage trainer expertise areas.', perm: 'specialties:view' },
-    { to: `${base}/reports`, title: 'Reports', desc: 'View detailed activity & export Excel.', perm: 'reports:view' }
+    { to: `${base}/reports`, title: 'Reports', desc: 'View detailed activity & export Excel.', perm: 'reports:view' },
+    { to: `${base}/settings`, title: 'System Setup', desc: 'Configure invoice sequences and global settings.', perm: 'settings:edit' },
+    { to: `${base}/extensions`, title: 'Extension requests', desc: 'Handle missed session reschedule or duration extensions.', perm: 'memberships:view' }
   ];
 
   const [stats, setStats] = useState({
@@ -34,8 +36,7 @@ export default function AdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
 
-  const user = getUser();
-  const isAdminOrSuper = user?.role === 'superadmin' || user?.role === 'admin';
+  const { can, isAdminOrSuper, user } = usePermissions();
   const permissions = user?.permissions || [];
 
   useEffect(() => {

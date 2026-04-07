@@ -32,6 +32,9 @@ export default function SessionsManagement() {
   const [cancellingSession, setCancellingSession] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
+  const [viewingParticipantsSession, setViewingParticipantsSession] = useState(null);
+  const [participantsList, setParticipantsList] = useState([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
 
   const { can } = usePermissions();
   const { selectedBranch } = useBranch();
@@ -42,7 +45,7 @@ export default function SessionsManagement() {
 
   const load = () => {
     setLoading(true);
-    const p1 = api.get('/sessions?all=true').then((res) => {
+    const p1 = api.get('/sessions?all=true&includeMemberships=true').then((res) => {
       const data = res.data || [];
       // Sort latest date first
       const sorted = data.sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
@@ -180,6 +183,24 @@ export default function SessionsManagement() {
       toast.error(err.response?.data?.message || 'Failed to cancel session');
     } finally {
       setIsSubmittingCancel(false);
+    }
+  };
+
+  const handleShowParticipants = async (session) => {
+    if (session.bookedParticipants === 0) {
+      return toast.error('No participants booked for this session');
+    }
+    setViewingParticipantsSession(session);
+    setLoadingParticipants(true);
+    setParticipantsList([]);
+    try {
+      const res = await api.get(`/bookings?sessionId=${session._id}`);
+      setParticipantsList(res.data || []);
+      setLoadingParticipants(false);
+    } catch (err) {
+      toast.error('Failed to load participant list');
+      setLoadingParticipants(false);
+      setViewingParticipantsSession(null);
     }
   };
 
@@ -413,7 +434,14 @@ export default function SessionsManagement() {
                         )}
                       </p>
                       <p className="text-xs font-bold text-ink/40">Trainer: <span className={new Date(session.startTime) < new Date() ? 'text-ink/20' : 'text-brand-blue'}>{session.trainerId?.name || 'TBA'}</span></p>
-                      <p className="text-xs font-bold text-ink/40">Occupancy: <span className={session.bookedParticipants >= session.capacity ? 'text-coral' : 'text-green-500'}>{session.bookedParticipants || 0} / {session.capacity}</span></p>
+                      <button 
+                        onClick={() => handleShowParticipants(session)}
+                        className={`text-xs font-bold transition-all group/occ ${session.bookedParticipants > 0 ? 'cursor-pointer hover:underline' : 'cursor-default'}`}
+                      >
+                        Occupancy: <span className={`${session.bookedParticipants >= session.capacity ? 'text-coral' : 'text-green-500'} ${session.bookedParticipants > 0 ? 'group-hover/occ:text-brand-blue' : ''}`}>
+                          {session.bookedParticipants || 0} / {session.capacity}
+                        </span>
+                      </button>
                     </div>
                     <div className="mt-2 text-[10px] font-black uppercase tracking-widest flex gap-2">
                       {new Date(session.startTime) < new Date() ? (
@@ -428,6 +456,15 @@ export default function SessionsManagement() {
                       {session.status === 'cancelled' && (
                         <span className="text-red-500 bg-red-50 px-3 py-1 rounded-full border border-red-100">
                           Cancelled
+                        </span>
+                      )}
+                      {session.trainerId && (
+                        <span className={`px-3 py-1 rounded-full border ${
+                          session.trainerStatus === 'accepted' ? 'text-emerald-500 bg-emerald-50 border-emerald-100' :
+                          session.trainerStatus === 'rejected' ? 'text-red-500 bg-red-50 border-red-100' :
+                          'text-amber-500 bg-amber-50 border-amber-100'
+                        }`}>
+                          Trainer: {session.trainerStatus || 'pending'}
                         </span>
                       )}
                     </div>
@@ -524,6 +561,81 @@ export default function SessionsManagement() {
                   {isSubmittingCancel ? 'Processing...' : 'Cancel Session'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Participant List Pop-up */}
+      {viewingParticipantsSession && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-2xl bg-white rounded-[40px] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h3 className="text-2xl font-black text-ink">Participants List</h3>
+                <p className="text-[10px] font-black text-brand-blue uppercase tracking-widest mt-1">
+                  {viewingParticipantsSession.classId?.title} • {new Date(viewingParticipantsSession.startTime).toLocaleDateString()}
+                </p>
+              </div>
+              <button 
+                onClick={() => setViewingParticipantsSession(null)} 
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white text-ink/20 hover:text-ink/60 shadow-sm border border-slate-100 transition-all font-black text-xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8">
+              {loadingParticipants ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-4">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-blue border-t-transparent" />
+                  <p className="text-xs font-bold text-ink/30 uppercase tracking-widest leading-none">Loading participants...</p>
+                </div>
+              ) : participantsList.length > 0 ? (
+                <div className="space-y-4">
+                  {participantsList.map((booking) => (
+                    <div key={booking._id} className="p-6 rounded-3xl bg-slate-50 border border-slate-100">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest leading-none mb-1">Parent / Contact</p>
+                          <h4 className="text-sm font-black text-ink">{booking.userId?.name || booking.guestDetails?.name || 'Guest'}</h4>
+                          <p className="text-[10px] font-bold text-ink/40 mt-0.5">{booking.userId?.phone || booking.guestDetails?.phone || 'No phone'}</p>
+                        </div>
+                        <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${booking.status === 'confirmed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                          {booking.status}
+                        </span>
+                      </div>
+                      
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {booking.participants?.map((p, idx) => (
+                          <div key={idx} className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-[10px] font-black text-brand-blue/30 uppercase">
+                              {p.name?.charAt(0) || '?'}
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-ink leading-none">{p.name || p.childId?.name}</p>
+                              <p className="text-[9px] font-bold text-ink/30 uppercase mt-1">{p.age || p.childId?.age}Y • {p.gender || p.childId?.gender}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-12 text-center">
+                  <p className="text-sm font-bold text-ink/30 italic">No bookings found for this session.</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => setViewingParticipantsSession(null)}
+                className="px-8 py-3 rounded-2xl bg-white border border-slate-200 text-ink/40 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all font-black"
+              >
+                Close View
+              </button>
             </div>
           </div>
         </div>
