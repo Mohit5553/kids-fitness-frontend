@@ -1,8 +1,12 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { getUser, getRoleSlug } from '../utils/auth.js';
+import { getRoleSlug } from '../utils/auth.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export function RequireAuth({ children }) {
-  const user = getUser();
+  const { user, loading } = useAuth();
+  
+  if (loading) return null; // Wait for initial sync
+  
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -10,14 +14,20 @@ export function RequireAuth({ children }) {
 }
 
 export const RequireTrainer = ({ children }) => {
-  const user = getUser();
+  const { user, loading } = useAuth();
+  
+  if (loading) return null;
+  
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== 'trainer') return <Navigate to="/dashboard" replace />;
   return children || <Outlet />;
 };
 
 export function RequireAdmin({ children }) {
-  const user = getUser();
+  const { user, loading } = useAuth();
+  
+  if (loading) return null;
+  
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -32,7 +42,10 @@ export function RequireAdmin({ children }) {
 }
 
 export function RequirePermission({ permission, children }) {
-  const user = getUser();
+  const { user, loading } = useAuth();
+  
+  if (loading) return null;
+  
   if (!user) return <Navigate to="/login" replace />;
   
   const hasPerm = user.role === 'superadmin' || user.role === 'admin' || (user.permissions && user.permissions.includes(permission));

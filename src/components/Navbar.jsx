@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { getUser, clearAuth, getRoleSlug } from '../utils/auth.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import LocationSelect from './LocationSelect.jsx';
 
 const navLinks = [
@@ -33,9 +34,9 @@ function getRoleColor(role) {
   return { bg: '#1a6bff', text: '#fff' };
 }
 
-export default function Navbar() {
+export default function Navbar({ className = '' }) {
   const navigate = useNavigate();
-  const user = getUser();
+  const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -52,7 +53,7 @@ export default function Navbar() {
   }, []);
 
   const handleLogout = () => {
-    clearAuth();
+    logout();
     setIsMobileMenuOpen(false);
     setIsProfileOpen(false);
     navigate('/');
@@ -72,7 +73,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="site-header sticky top-0 z-50 bg-white/90 backdrop-blur-md shadow-sm">
+      <header className={`site-header sticky top-0 z-50 bg-white/90 backdrop-blur-md shadow-sm ${className}`}>
         <div className="page-shell flex items-center justify-between py-3 relative z-20">
           <NavLink to="/" onClick={closeMenu} className="flex items-center gap-3 group">
             <span className="brand-mark group-hover:scale-110 transition-transform">JTS</span>
@@ -175,6 +176,18 @@ export default function Navbar() {
                         </svg>
                         Calendar
                       </NavLink>
+                      {isStaff && (
+                         <NavLink
+                           to={`/${getRoleSlug(user.role)}/extensions`}
+                           onClick={() => setIsProfileOpen(false)}
+                           className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-brand-black/70 hover:bg-brand-blue/5 hover:text-brand-blue transition-colors"
+                         >
+                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                           </svg>
+                           Extensions
+                         </NavLink>
+                      )}
                     </div>
 
                     <div className="border-t border-brand-black/5 pt-1">

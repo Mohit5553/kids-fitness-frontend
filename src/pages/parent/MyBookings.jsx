@@ -220,14 +220,14 @@ export default function MyBookings() {
                       </div>
                     )}
 
-                    {/* Cancellation Notice */}
-                    {booking.status === 'cancelled' && (
+                    {/* Cancellation Notice (Only shown for trainer/admin cancellations, hidden if already refunded) */}
+                    {booking.status === 'cancelled' && booking.refundStatus !== 'refunded' && booking.cancellationReason && (
                       <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-100 animate-in fade-in slide-in-from-top-2 duration-300">
                         <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
                           <span>📢</span> Session Status: Cancelled
                         </p>
                         <p className="text-[11px] font-bold text-red-700 leading-relaxed italic">
-                          "{booking.cancellationReason || 'No specific reason provided.'}"
+                          "{booking.cancellationReason}"
                         </p>
                         <p className="mt-2 text-[8px] font-medium text-red-400 uppercase tracking-[0.05em]">
                           Please contact support or check-in at the center for reschedule options.
@@ -262,9 +262,11 @@ export default function MyBookings() {
                   </div>
 
                   <div className="flex flex-col items-end gap-3">
-                    <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${booking.status === 'confirmed' ? 'bg-moss/10 text-moss' :
+                    <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                        booking.refundStatus === 'refunded' ? 'hidden' : // Hide if refunded
+                        booking.status === 'confirmed' ? 'bg-moss/10 text-moss' :
                         booking.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                          'bg-red-100 text-red-600'
+                        'bg-red-100 text-red-600'
                       }`}>
                       {booking.paymentMethod === 'center' && booking.status === 'pending' ? 'Pay at Center' : booking.status}
                     </span>

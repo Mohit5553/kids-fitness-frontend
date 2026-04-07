@@ -99,6 +99,7 @@ export default function PaymentsManagement() {
   const [statusFilter, setStatus] = useState('all');
   const [methodFilter, setMethod] = useState('all');
   const [typeFilter, setType]     = useState('all');
+  const [expandedId, setExpandedId] = useState(null);
   const { can } = usePermissions();
 
   const canExport = can('payments:view'); // Assuming if they can view, they can export, or we can use another perm.
@@ -340,7 +341,6 @@ export default function PaymentsManagement() {
                   {dayPayments.map((payment) => {
                     const sc = STATUS_COLORS[payment.status] || STATUS_COLORS.pending;
                     
-                    // Logic to get correct icon for center subtypes
                     let methodIcon = '💳';
                     const method = payment.paymentMethod || '';
                     if (method === 'cash' || method === 'center_cash') methodIcon = '💵';
@@ -353,84 +353,171 @@ export default function PaymentsManagement() {
                     const displayEmail = payment.userId?.email || payment.bookingId?.guestDetails?.email || 'No email provided';
 
                     return (
-                      <div
-                        key={payment._id}
-                        className="group flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white/90 border border-brand-black/5 px-5 py-4 shadow-sm hover:shadow-md hover:border-brand-blue/20 transition-all"
-                      >
-                        {/* Left: user + type */}
-                        <div className="flex items-center gap-4 min-w-0">
-                          {/* Avatar */}
-                          <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white shrink-0"
-                            style={{ background: '#1a6bff' }}
-                          >
-                            {displayName.charAt(0).toUpperCase()}
-                          </div>
-                          {/* Details */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-gray-900 truncate">
-                                {displayName}
-                              </h4>
-                              {isGuest && (
-                                <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-[10px] font-black text-amber-600 uppercase tracking-widest border border-amber-100">
-                                  Guest
-                                </span>
-                              )}
+                      <div key={payment._id} className="flex flex-col">
+                        <div
+                          onClick={() => setExpandedId(expandedId === payment._id ? null : payment._id)}
+                          className={`group flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white/90 border px-5 py-4 shadow-sm hover:shadow-md transition-all cursor-pointer ${expandedId === payment._id ? 'border-brand-blue ring-1 ring-brand-blue/10' : 'border-brand-black/5 hover:border-brand-blue/20'}`}
+                        >
+                          {/* Left: user + type */}
+                          <div className="flex items-center gap-4 min-w-0">
+                            <div
+                              className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white shrink-0"
+                              style={{ background: '#1a6bff' }}
+                            >
+                              {displayName.charAt(0).toUpperCase()}
                             </div>
-                            <p className="text-xs text-brand-black/45 truncate">
-                              {displayEmail}
-                            </p>
-                            {/* Type tags */}
-                            <div className="flex flex-wrap gap-1.5 mt-1">
-                              {payment.planId?.name && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-100">
-                                  Plan: {payment.planId.name}
-                                </span>
-                              )}
-                              {payment.bookingId && (
-                                <>
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
-                                    Class: {payment.bookingId.classId?.title || 'Enrollment'}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-gray-900 truncate">
+                                  {displayName}
+                                </h4>
+                                {isGuest && (
+                                  <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-[10px] font-black text-amber-600 uppercase tracking-widest border border-amber-100">
+                                    Guest
                                   </span>
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
-                                    📅 {new Date(payment.bookingId.sessionId?.startTime || payment.bookingId.date).toLocaleDateString()}
+                                )}
+                              </div>
+                              <p className="text-xs text-brand-black/45 truncate">
+                                {displayEmail}
+                              </p>
+                              {/* Type tags */}
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                {payment.planId?.name && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-100">
+                                    Plan: {payment.planId.name}
                                   </span>
-                                </>
-                              )}
-                              {payment.membershipId && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-100">
-                                  Membership{payment.membershipId.planId?.name ? `: ${payment.membershipId.planId.name}` : ''}
-                                </span>
-                              )}
-                              {!payment.planId && !payment.bookingId && !payment.membershipId && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-100">
-                                  General
-                                </span>
-                              )}
+                                )}
+                                {payment.bookingId && (
+                                  <>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                                      Class: {payment.bookingId.classId?.title || 'Enrollment'}
+                                    </span>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                      📅 {new Date(payment.bookingId.sessionId?.startTime || payment.bookingId.date).toLocaleDateString()}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Middle: method icon (desktop) */}
+                          <div className="hidden md:flex flex-col items-center gap-1 text-center">
+                            <span className="text-xl">{methodIcon}</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-brand-black/40">
+                              {formatPaymentMethod(payment)}
+                            </span>
+                          </div>
+
+                          {/* Right: amount + status */}
+                          <div className="flex items-center gap-6">
+                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                              <p className="text-lg font-black" style={{ color: sc.text }}>
+                                {formatCurrency(payment.amount)}
+                              </p>
+                              <StatusBadge status={payment.status} />
+                              <p className="text-[10px] text-brand-black/35">{formatTime(payment.createdAt)}</p>
+                            </div>
+                            <div className={`transition-transform duration-200 ${expandedId === payment._id ? 'rotate-180' : ''}`}>
+                              <svg className="w-5 h-5 text-brand-black/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" />
+                              </svg>
                             </div>
                           </div>
                         </div>
 
-                        {/* Middle: method icon (desktop) */}
-                        <div className="hidden md:flex flex-col items-center gap-1 text-center">
-                          <span className="text-xl">{methodIcon}</span>
-                          <span className="text-[10px] font-bold uppercase tracking-wide text-brand-black/40">
-                            {formatPaymentMethod(payment)}
-                          </span>
-                        </div>
+                        {/* Expanded Details */}
+                        {expandedId === payment._id && (
+                          <div className="mx-4 -mt-2 p-6 bg-white border-x border-b border-brand-black/5 rounded-b-2xl shadow-inner animate-in slide-in-from-top-2 duration-300">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              {/* Enrollment Details */}
+                              {payment.bookingId ? (
+                                <div className="space-y-4">
+                                  <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-blue">Enrollment Details</h5>
+                                  <div className="space-y-3">
+                                    <div className="flex justify-between items-center text-sm">
+                                      <span className="text-brand-black/40 font-bold">Booking Reference</span>
+                                      <span className="font-black text-brand-black">{payment.bookingId.bookingNumber || 'N/A'}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                      <span className="text-brand-black/40 font-bold">Class / Program</span>
+                                      <span className="font-black text-brand-black">{payment.bookingId.classId?.title}</span>
+                                    </div>
+                                    <div className="flex justify-between items-start text-sm">
+                                      <span className="text-brand-black/40 font-bold">Participants</span>
+                                      <div className="text-right">
+                                        {payment.bookingId.participants?.map((p, i) => (
+                                          <p key={i} className="font-black text-brand-black">{p.name} ({p.age}y)</p>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    {payment.bookingId.sessionId && (
+                                      <div className="flex justify-between items-center text-sm">
+                                        <span className="text-brand-black/40 font-bold">Session Time</span>
+                                        <span className="font-black text-brand-black">
+                                          {new Date(payment.bookingId.sessionId.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - 
+                                          {new Date(payment.bookingId.sessionId.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-center bg-slate-50 rounded-xl p-8 text-center">
+                                  <p className="text-xs font-bold text-brand-black/30 italic">No enrollment info linked to this payment.</p>
+                                </div>
+                              )}
 
-                        {/* Right: amount + status */}
-                        <div className="flex flex-col items-end gap-1.5 shrink-0">
-                          <p
-                            className="text-lg font-black"
-                            style={{ color: sc.text }}
-                          >
-                            {formatCurrency(payment.amount)}
-                          </p>
-                          <StatusBadge status={payment.status} />
-                          <p className="text-[10px] text-brand-black/35">{formatTime(payment.createdAt)}</p>
-                        </div>
+                              {/* Invoice Details */}
+                              <div className="space-y-4">
+                                <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-blue">Financial Context</h5>
+                                {payment.invoice ? (
+                                  <div className="space-y-3">
+                                    <div className="flex justify-between items-center text-sm">
+                                      <span className="text-brand-black/40 font-bold">Invoice Number</span>
+                                      <span className="font-black text-brand-black">{payment.invoice.invoiceNumber}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                      <span className="text-brand-black/40 font-bold">Invoice Status</span>
+                                      <span className={`font-black uppercase text-[10px] px-2 py-0.5 rounded-md ${payment.invoice.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                        {payment.invoice.status}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                      <span className="text-brand-black/40 font-bold">Billed Amount</span>
+                                      <span className="font-black text-brand-black">{formatCurrency(payment.invoice.amount)}</span>
+                                    </div>
+                                    <div className="pt-2">
+                                      <a 
+                                        href={`/invoice/${payment.invoice._id || (payment.bookingId?._id ? `booking/${payment.bookingId._id}` : '')}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-brand-blue transition-all"
+                                      >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        View Full Invoice
+                                      </a>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="bg-slate-50 rounded-xl p-6 text-center">
+                                     <p className="text-xs font-bold text-brand-black/30 italic mb-3">No invoice found for this payment reference.</p>
+                                     {payment.bookingId && (
+                                       <a 
+                                         href={`/invoice/booking/${payment.bookingId._id}`}
+                                         className="text-[10px] font-black uppercase text-brand-blue hover:underline"
+                                       >
+                                         Generate / View Receipt →
+                                       </a>
+                                     )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

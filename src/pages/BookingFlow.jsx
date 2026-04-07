@@ -487,16 +487,24 @@ export default function BookingFlow() {
                       onClick={() => { setSelectedClass(c); setStep(2); }}
                       className="group relative p-6 rounded-[40px] border-2 border-slate-100 hover:border-brand-blue transition-all bg-white hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] text-left flex flex-col h-full"
                     >
-                      <div className="mb-4 aspect-[4/3] rounded-[32px] bg-slate-50 overflow-hidden relative">
-                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent group-hover:opacity-0 transition-opacity"></div>
-                         <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-brand-blue shadow-sm">
+                      <div className="mb-4 aspect-[4/3] rounded-[32px] bg-slate-100 overflow-hidden relative shadow-inner">
+                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent group-hover:opacity-0 transition-opacity z-10"></div>
+                         <div className="absolute top-4 left-4 z-20 bg-white/95 backdrop-blur-md px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest text-brand-blue shadow-xl border border-white/20">
                            {c.ageGroup}
                          </div>
-                         <img src={`https://source.unsplash.com/featured/?fitness,kids,${c.title.split(' ')[0]}`} alt={c.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                         <img 
+                           src={c.imageUrl ? (c.imageUrl.startsWith('http') ? c.imageUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${c.imageUrl}`) : `https://images.unsplash.com/photo-1594498653385-d5172c532c00?auto=format&fit=crop&q=80&w=800`} 
+                           alt="" 
+                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 select-none pointer-events-none" 
+                           onError={(e) => {
+                             e.target.onerror = null;
+                             e.target.src = "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&q=80&w=800";
+                           }}
+                         />
                       </div>
-                      <h3 className="font-display text-2xl text-ink leading-tight mb-2 group-hover:text-brand-blue transition-colors">{c.title}</h3>
-                      <p className="text-sm text-ink/50 line-clamp-2 mb-6 leading-relaxed">{c.description}</p>
-                      <div className="mt-auto flex items-center justify-between">
+                      <h3 className="font-display text-2xl text-ink leading-tight mb-2 group-hover:text-brand-blue transition-colors px-2">{c.title}</h3>
+                      <p className="text-sm text-ink/50 line-clamp-2 mb-6 leading-relaxed px-2">{c.description}</p>
+                      <div className="mt-auto flex items-center justify-between px-2 pb-2">
                         <span className="bg-ocean/5 text-ocean text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border border-ocean/10">{c.duration}</span>
                         <div className="text-right">
                           <span className="text-[10px] font-black uppercase tracking-widest text-ink/30 block mb-0.5">Per Person</span>

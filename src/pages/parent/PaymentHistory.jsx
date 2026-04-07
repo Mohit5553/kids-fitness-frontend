@@ -79,6 +79,8 @@ export default function PaymentHistory() {
       .finally(() => setLoading(false));
   }, []);
 
+  const [expandedId, setExpandedId] = useState(null);
+
   /* ── summary stats ── */
   const totalPaid    = payments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
   const countPaid    = payments.filter(p => p.status === 'paid').length;
@@ -194,7 +196,7 @@ export default function PaymentHistory() {
               return (
                 <div key={dateKey}>
                   {/* Date header */}
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full" style={{ background: isToday ? '#1a6bff' : '#cbd5e1' }} />
                       <h2 className="text-xs font-black uppercase tracking-widest text-brand-black/50">
@@ -210,53 +212,134 @@ export default function PaymentHistory() {
                   <div className="flex flex-col gap-3">
                     {dayPayments.map((payment) => {
                       const sc = STATUS_COLORS[payment.status] || STATUS_COLORS.pending;
+                      const isExpanded = expandedId === payment._id;
+
                       return (
-                        <div
-                          key={payment._id}
-                          className="flex flex-wrap items-center justify-between gap-4 bg-white rounded-2xl border border-brand-black/5 px-6 py-4 shadow-sm hover:shadow-md hover:border-brand-blue/20 transition-all"
-                        >
-                          {/* Left - type icon + info */}
-                          <div className="flex items-center gap-4 min-w-0">
-                            {/* Icon */}
-                            <div
-                              className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0"
-                              style={{ background: sc.bg }}
-                            >
-                              {payment.bookingId ? '🏃' : payment.planId ? '📋' : payment.membershipId ? '🎫' : '💳'}
+                        <div key={payment._id} className="flex flex-col">
+                          {/* Main Row */}
+                          <div
+                            onClick={() => setExpandedId(isExpanded ? null : payment._id)}
+                            className={`flex flex-wrap items-center justify-between gap-4 bg-white rounded-2xl border px-6 py-4 shadow-sm hover:shadow-md transition-all cursor-pointer ${isExpanded ? 'border-brand-blue ring-1 ring-brand-blue/10 bg-white' : 'border-brand-black/5 hover:border-brand-blue/20'}`}
+                          >
+                            {/* Left - type icon + info */}
+                            <div className="flex items-center gap-4 min-w-0">
+                              {/* Icon */}
+                              <div
+                                className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0"
+                                style={{ background: sc.bg }}
+                              >
+                                {payment.bookingId ? '🏃' : payment.planId ? '📋' : payment.membershipId ? '🎫' : '💳'}
+                              </div>
+                              {/* Details */}
+                              <div className="min-w-0">
+                                <p className="font-bold text-brand-black text-sm leading-tight">
+                                  {payment.planId?.name
+                                    ? `Plan: ${payment.planId.name}`
+                                    : payment.bookingId?.classId?.title
+                                    ? `Class: ${payment.bookingId.classId.title}`
+                                    : payment.membershipId?.planId?.name
+                                    ? `Membership: ${payment.membershipId.planId.name}`
+                                    : payment.bookingId
+                                    ? 'Class Booking'
+                                    : payment.membershipId
+                                    ? 'Membership'
+                                    : 'Payment'}
+                                </p>
+                                <p className="text-xs text-brand-black/40 mt-0.5">
+                                  {formatPaymentMethod(payment)}
+                                  {payment.last4 ? ` •••• ${payment.last4}` : ''}
+                                </p>
+                              </div>
                             </div>
-                            {/* Details */}
-                            <div className="min-w-0">
-                              <p className="font-bold text-brand-black text-sm leading-tight">
-                                {payment.planId?.name
-                                  ? `Plan: ${payment.planId.name}`
-                                  : payment.bookingId?.classId?.title
-                                  ? `Class: ${payment.bookingId.classId.title}`
-                                  : payment.membershipId?.planId?.name
-                                  ? `Membership: ${payment.membershipId.planId.name}`
-                                  : payment.bookingId
-                                  ? 'Class Booking'
-                                  : payment.membershipId
-                                  ? 'Membership'
-                                  : 'Payment'}
-                              </p>
-                              <p className="text-xs text-brand-black/40 mt-0.5">
-                                {formatPaymentMethod(payment)}
-                                {payment.last4 ? ` •••• ${payment.last4}` : ''}
-                              </p>
-                              {payment.reference && (
-                                <p className="text-[10px] text-brand-black/30 font-mono mt-0.5">Ref: {payment.reference}</p>
-                              )}
+
+                            {/* Right - amount, status, arrow */}
+                            <div className="flex items-center gap-6">
+                              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                <p className="text-lg font-black" style={{ color: sc.text }}>
+                                  {formatCurrency(payment.amount)}
+                                </p>
+                                <StatusBadge status={payment.status} />
+                              </div>
+                              <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                                <svg className="w-5 h-5 text-brand-black/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Right - amount, status, time */}
-                          <div className="flex flex-col items-end gap-1.5 shrink-0">
-                            <p className="text-lg font-black" style={{ color: sc.text }}>
-                              {formatCurrency(payment.amount)}
-                            </p>
-                            <StatusBadge status={payment.status} />
-                            <p className="text-[10px] text-brand-black/30">{formatTime(payment.createdAt)}</p>
-                          </div>
+                          {/* Expansion */}
+                          {isExpanded && (
+                            <div className="mx-6 -mt-2 p-6 bg-white border-x border-b border-brand-black/5 rounded-b-2xl shadow-inner animate-in slide-in-from-top-2 duration-300">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {/* Enrollment */}
+                                {payment.bookingId ? (
+                                  <div className="space-y-4">
+                                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-blue">Enrollment Info</h5>
+                                    <div className="space-y-3">
+                                      <div className="flex justify-between items-center text-sm">
+                                        <span className="text-brand-black/40 font-bold">Booking #</span>
+                                        <span className="font-black text-brand-black">{payment.bookingId.bookingNumber || 'Pending'}</span>
+                                      </div>
+                                      <div className="flex justify-between items-start text-sm">
+                                        <span className="text-brand-black/40 font-bold">Participants</span>
+                                        <div className="text-right">
+                                          {payment.bookingId.participants?.map((p, i) => (
+                                            <p key={i} className="font-black text-brand-black">{p.name} ({p.age}y)</p>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      {payment.bookingId.sessionId && (
+                                        <div className="flex justify-between items-center text-sm">
+                                          <span className="text-brand-black/40 font-bold">Session</span>
+                                          <span className="font-black text-brand-black">
+                                            {new Date(payment.bookingId.sessionId.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-center bg-slate-50 rounded-xl p-6 text-center italic text-xs text-brand-black/30">
+                                    Transactional payment without enrollment details.
+                                  </div>
+                                )}
+
+                                {/* Invoice */}
+                                <div className="space-y-4">
+                                  <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-blue">Receipt & Invoice</h5>
+                                  {payment.invoice ? (
+                                    <div className="space-y-3">
+                                      <div className="flex justify-between items-center text-sm">
+                                        <span className="text-brand-black/40 font-bold">Invoice #</span>
+                                        <span className="font-black text-brand-black">{payment.invoice.invoiceNumber}</span>
+                                      </div>
+                                      <div className="flex justify-between items-center text-sm">
+                                        <span className="text-brand-black/40 font-bold">Total Amount</span>
+                                        <span className="font-black text-brand-black">{formatCurrency(payment.invoice.amount)}</span>
+                                      </div>
+                                      <div className="pt-2">
+                                        <Link 
+                                          to={`/invoice/${payment.invoice._id}`}
+                                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-brand-blue transition-all"
+                                        >
+                                          View Official Receipt
+                                        </Link>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="bg-slate-50 rounded-xl p-6 text-center italic text-xs text-brand-black/30">
+                                      {payment.bookingId ? (
+                                        <Link to={`/invoice/booking/${payment.bookingId._id}`} className="text-brand-blue font-bold hover:underline">
+                                          Generate Receipt →
+                                        </Link>
+                                      ) : 'Invoice not available.'}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

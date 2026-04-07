@@ -214,7 +214,7 @@ export default function AttendanceManagement() {
                 >
                   <option value="present">Present</option>
                   <option value="late">Late Arrival</option>
-                  <option value="absent">Excused/Absent</option>
+                  <option value="absent">Absent (Eligibility for Extension)</option>
                 </select>
               </div>
             </div>

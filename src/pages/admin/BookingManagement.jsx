@@ -16,10 +16,55 @@ export default function BookingManagement() {
   const canEdit = can('bookings:edit');
   const canDelete = can('bookings:delete');
 
-  // Rejection Modal State
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectionId, setRejectionId] = useState('');
+  const [rejectingBookingId, setRejectingBookingId] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
+
+  // Customer Profile Modal (Simplified)
+  const [viewingUser, setViewingUser] = useState(null);
+  const [viewingHistory, setViewingHistory] = useState([]);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+
+  // Child Profile Modal
+  const [viewingChild, setViewingChild] = useState(null);
+  const [viewingChildHistory, setViewingChildHistory] = useState([]);
+  const [loadingChildProfile, setLoadingChildProfile] = useState(false);
+
+  const fetchUserProfile = async (userId) => {
+    if (!userId) return;
+    setLoadingProfile(true);
+    try {
+        const [uRes, hRes] = await Promise.all([
+            api.get(`/users/${userId}`),
+            api.get(`/bookings?userId=${userId}`)
+        ]);
+        setViewingUser(uRes.data);
+        // We only care about the history for trainers
+        setViewingHistory(hRes.data || []);
+    } catch (err) {
+        console.error(err);
+    } finally {
+        setLoadingProfile(false);
+    }
+  };
+
+  const fetchChildProfile = async (childId) => {
+    if (!childId) return;
+    setLoadingChildProfile(true);
+    try {
+        const [cRes, hRes] = await Promise.all([
+            api.get(`/children/${childId}`),
+            api.get(`/bookings?childId=${childId}`)
+        ]);
+        setViewingChild(cRes.data);
+        setViewingChildHistory(hRes.data || []);
+    } catch (err) {
+        console.error(err);
+    } finally {
+        setLoadingChildProfile(false);
+    }
+  };
 
   // Payment Confirmation Modal State
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -57,6 +102,7 @@ export default function BookingManagement() {
         b.userId?.name?.toLowerCase().includes(q) ||
         b.participants?.some(p => p.name?.toLowerCase().includes(q)) ||
         b.classId?.title?.toLowerCase().includes(q) ||
+        b.planId?.name?.toLowerCase().includes(q) ||
         b._id.toLowerCase().includes(q) ||
         (b.bookingNumber || '').toLowerCase().includes(q)
       );
@@ -169,13 +215,10 @@ export default function BookingManagement() {
     <div className="min-h-screen bg-slate-50/50">
       <Navbar />
       <main className="page-shell py-12">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div>
             <h1 className="font-display text-4xl font-black text-ink">Booking Management</h1>
             <p className="mt-2 text-sm text-ink/50 font-medium">Manage and monitor all client registrations.</p>
-          </div>
-          <div className="flex bg-white rounded-2xl p-2 shadow-sm border border-slate-100 italic text-[10px] font-bold text-ink/40 uppercase tracking-widest">
-            Total Bookings: {bookings.length}
           </div>
           <Link
             to={`/${roleSlug}/corporate-booking`}
@@ -183,6 +226,45 @@ export default function BookingManagement() {
           >
             <span className="text-xl">🏢</span> New Corporate Booking
           </Link>
+        </div>
+
+        {/* Statistics Dashboard */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+           <StatCard 
+              label="Total" 
+              value={bookings.length} 
+              icon="📊" 
+              color="slate"
+              loading={loading}
+           />
+           <StatCard 
+              label="Pending" 
+              value={bookings.filter(b => b.status === 'pending').length} 
+              icon="⏳" 
+              color="amber"
+              loading={loading}
+           />
+           <StatCard 
+              label="Packages" 
+              value={bookings.filter(b => b.bookingType === 'package').length} 
+              icon="📦" 
+              color="indigo"
+              loading={loading}
+           />
+           <StatCard 
+              label="Confirmed" 
+              value={bookings.filter(b => b.status === 'confirmed' || b.status === 'attended' || b.status === 'completed').length} 
+              icon="✅" 
+              color="emerald"
+              loading={loading}
+           />
+           <StatCard 
+              label="Refunds" 
+              value={bookings.filter(b => b.refundStatus === 'requested').length} 
+              icon="💰" 
+              color="coral"
+              loading={loading}
+           />
         </div>
 
         {/* Filters Section */}
@@ -263,7 +345,17 @@ export default function BookingManagement() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 flex-wrap">
                     <h3 className="font-display text-xl font-bold text-ink leading-tight">
-                      {booking.participants?.map(p => `${p.name} (${p.relation || 'N/A'})`).join(', ') || 'No Name'}
+                      {booking.participants?.map((p, idx) => (
+                        <span key={idx}>
+                          <button 
+                            onClick={() => fetchChildProfile(p.childId?._id || p.childId)}
+                            className="text-brand-blue hover:underline decoration-brand-blue/30 underline-offset-2"
+                          >
+                            {p.name}
+                          </button>
+                          {` (${p.relation || 'N/A'})${idx < (booking.participants.length - 1) ? ', ' : ''}`}
+                        </span>
+                      )) || 'No Name'}
                     </h3>
                     {booking.bookingNumber ? (
                       <span className="text-[10px] font-black text-brand-blue bg-brand-blue/8 border border-brand-blue/20 px-2.5 py-0.5 rounded-full tracking-widest">
@@ -275,12 +367,19 @@ export default function BookingManagement() {
                     <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-full tracking-widest">
                       📅 {new Date(booking.sessionId?.startTime || booking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </span>
+                    {booking.bookingType === 'package' && (
+                        <span className="text-[10px] font-black text-white bg-indigo-600 px-2.5 py-0.5 rounded-full tracking-widest animate-pulse">
+                            📦 Package Purchase
+                        </span>
+                    )}
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <p className="text-xs font-bold text-brand-blue">{booking.classId?.title}</p>
+                    <p className="text-xs font-bold text-brand-blue">
+                        {booking.bookingType === 'package' ? `Membership: ${booking.planId?.name || 'Package'}` : booking.classId?.title}
+                    </p>
                     {!booking.participants?.some(p => p.relation === 'Self') && (
                       <p className="text-[10px] text-ink/40 font-bold uppercase tracking-widest">
-                        Parent: <span className="text-ink/60">{booking.userId?.name || 'Guest'}</span>
+                        Parent: <button onClick={() => fetchUserProfile(booking.userId?._id || booking.userId)} className="text-brand-blue hover:underline decoration-brand-blue/30 underline-offset-2">{booking.userId?.name || 'Guest'}</button>
                       </p>
                     )}
                     {booking.locationId && (
@@ -479,9 +578,173 @@ export default function BookingManagement() {
           </div>
         </div>
       )}
+
+      {/* CUSTOMER PROFILE MODAL (Simplified) */}
+      {viewingUser && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
+           <div className="bg-white rounded-[40px] w-full max-w-lg overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="bg-ink p-8 text-white flex justify-between items-start shrink-0">
+                 <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Customer Profile</p>
+                    <h3 className="font-display text-3xl font-black text-white">{viewingUser.name}</h3>
+                    <p className="text-sm font-bold text-white/70 mt-1">{viewingUser.email}</p>
+                    <p className="text-sm font-bold text-white/70">{viewingUser.phone || 'No Phone'}</p>
+                 </div>
+                 <button onClick={() => setViewingUser(null)} className="rounded-full bg-white/10 p-2 hover:bg-white/20 transition-all">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                 </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50/50 relative">
+                 {loadingProfile && (
+                    <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
+                       <div className="h-10 w-10 animate-spin rounded-full border-[4px] border-brand-blue border-t-transparent" />
+                    </div>
+                 )}
+
+                 <section>
+                    <h4 className="text-[10px] font-black text-ink uppercase tracking-[0.2em] mb-4">Assigned Trainers</h4>
+                    <div className="space-y-3">
+                       {Array.from(new Set(viewingHistory.map(b => b.sessionId?.trainerId?.name).filter(Boolean))).map((trainerName, idx) => (
+                          <div key={idx} className="bg-white px-5 py-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                             <div className="w-10 h-10 rounded-xl bg-brand-blue/10 flex items-center justify-center text-sm">👤</div>
+                             <p className="text-sm font-black text-ink">{trainerName}</p>
+                          </div>
+                       ))}
+                       {viewingHistory.every(b => !b.sessionId?.trainerId?.name) && <p className="text-xs text-ink/20 font-bold italic">No trainers assigned yet.</p>}
+                    </div>
+                 </section>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-white text-center shrink-0">
+                 <button onClick={() => setViewingUser(null)} className="w-full py-4 rounded-2xl bg-brand-blue text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand-blue/20">
+                    Close Details
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* CHILD PROFILE MODAL */}
+      {viewingChild && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
+           <div className="bg-white rounded-[40px] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="bg-brand-blue p-8 text-white flex justify-between items-start shrink-0">
+                 <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Participant Profile</p>
+                    <h3 className="font-display text-3xl font-black text-white">{viewingChild.name}</h3>
+                    <div className="flex gap-3 mt-2">
+                        <span className="text-[10px] font-black bg-white/20 px-2 py-1 rounded-lg uppercase tracking-widest">{viewingChild.age} Years Old</span>
+                        <span className="text-[10px] font-black bg-white/20 px-2 py-1 rounded-lg uppercase tracking-widest">{viewingChild.gender}</span>
+                    </div>
+                 </div>
+                 <button onClick={() => setViewingChild(null)} className="rounded-full bg-white/10 p-2 hover:bg-white/20 transition-all">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                 </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50/50 relative">
+                 {loadingChildProfile && (
+                    <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
+                       <div className="h-10 w-10 animate-spin rounded-full border-[4px] border-brand-blue border-t-transparent" />
+                    </div>
+                 )}
+
+                 <div className="grid md:grid-cols-2 gap-8">
+                    <section>
+                        <h4 className="text-[10px] font-black text-ink uppercase tracking-[0.2em] mb-4">Parent Information</h4>
+                        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
+                            <p className="text-sm font-black text-ink">{viewingChild.parentId?.name}</p>
+                            <p className="text-xs font-bold text-ink/40 mt-1">{viewingChild.parentId?.phone || 'No phone'}</p>
+                            <button 
+                                onClick={() => { setViewingChild(null); fetchUserProfile(viewingChild.parentId?._id); }}
+                                className="mt-4 text-[9px] font-black text-brand-blue uppercase tracking-widest hover:underline"
+                            >
+                                View Parent Details →
+                            </button>
+                        </div>
+                    </section>
+
+                    <section>
+                        <h4 className="text-[10px] font-black text-ink uppercase tracking-[0.2em] mb-4">Participant Details</h4>
+                        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                            <div>
+                                <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Medical Condition</p>
+                                <p className="text-xs font-bold text-ink mt-1">{viewingChild.medicalCondition || 'None reported'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest">School</p>
+                                <p className="text-xs font-bold text-ink mt-1">{viewingChild.school || 'Not specified'}</p>
+                            </div>
+                        </div>
+                    </section>
+                 </div>
+
+                 <section>
+                    <h4 className="text-[10px] font-black text-ink uppercase tracking-[0.2em] mb-4">Booking History ({viewingChildHistory.length})</h4>
+                    <div className="space-y-3">
+                       {viewingChildHistory.map(b => (
+                          <div key={b._id} className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm flex items-center justify-between gap-4">
+                             <div className="flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm ${b.status === 'confirmed' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
+                                   {b.status === 'attended' ? '✓' : b.bookingType === 'package' ? '📦' : '📅'}
+                                </div>
+                                <div>
+                                   <p className="text-sm font-black text-ink truncate leading-tight">
+                                      {b.bookingType === 'package' ? `Membership: ${b.planId?.name}` : b.classId?.title}
+                                   </p>
+                                   <p className="text-[10px] font-bold text-ink/30 uppercase tracking-widest mt-1">
+                                      {new Date(b.sessionId?.startTime || b.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · {b.sessionId?.trainerId?.name || 'Assigned Trainer'}
+                                   </p>
+                                </div>
+                             </div>
+                             <span className={`shrink-0 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                                b.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' : 
+                                b.status === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-400'
+                             }`}>
+                                {b.status}
+                             </span>
+                          </div>
+                       ))}
+                       {viewingChildHistory.length === 0 && <p className="text-xs text-ink/20 font-bold italic">No bookings found for this participant.</p>}
+                    </div>
+                 </section>
+              </div>
+
+              <div className="p-8 border-t border-slate-100 bg-white flex justify-end shrink-0">
+                 <button onClick={() => setViewingChild(null)} className="px-10 py-4 rounded-2xl bg-slate-50 text-ink/40 text-xs font-black uppercase tracking-widest hover:bg-slate-100 transition-all">
+                    Close Profile
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 }
+
+// Statistics Card Component
+const StatCard = ({ label, value, icon, color, loading }) => {
+    const colors = {
+        slate: 'bg-slate-50 text-slate-600 border-slate-100',
+        amber: 'bg-amber-50 text-amber-600 border-amber-100',
+        indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100',
+        emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+        coral: 'bg-coral/5 text-coral border-coral/10'
+    };
+
+    return (
+        <div className={`soft-card rounded-[32px] p-5 flex flex-col items-center justify-center text-center transition-all hover:shadow-md border bg-white ${loading ? 'animate-pulse opacity-60' : ''}`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-3 ${colors[color] || colors.slate} border`}>
+                {icon}
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-1">{label}</p>
+            <p className="text-2xl font-black text-ink">
+                {loading ? '—' : value}
+            </p>
+        </div>
+    );
+};
 
 // Payment Confirmation Modal Component
 const PaymentModal = ({ show, onClose, onConfirm, method, setMethod, reference, setReference, confirmingBookingId, bookings }) => {

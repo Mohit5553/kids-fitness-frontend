@@ -3,7 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import api from '../api/api.js';
-import { getUser, setAuth } from '../utils/auth.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const emptyChild = {
   firstName: '',
@@ -17,6 +17,7 @@ const emptyChild = {
 
 export default function Register() {
   const navigate = useNavigate();
+  const { user, login } = useAuth();
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get('redirect');
   const [step, setStep] = useState(1);
@@ -44,11 +45,10 @@ export default function Register() {
   });
 
   useEffect(() => {
-    const user = getUser();
     if (user) {
       navigate(user.role === 'admin' || user.role === 'superadmin' ? '/admin' : '/dashboard');
     }
-  }, [navigate]);
+  }, [user, navigate]);
 
   useEffect(() => {
     api.get('/locations').then(res => setLocations(res.data || [])).catch(() => { });
@@ -135,7 +135,7 @@ export default function Register() {
 
     try {
       const res = await api.post('/auth/register', payload);
-      setAuth(res.data);
+      login(res.data);
       if (redirect) {
         navigate(redirect);
       } else {

@@ -3,10 +3,12 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import api from '../api/api.js';
-import { getUser, setAuth, getRoleSlug } from '../utils/auth.js';
+import { getRoleSlug } from '../utils/auth.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { user, login } = useAuth();
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get('redirect');
   const [form, setForm] = useState({ email: '', password: '' });
@@ -17,7 +19,6 @@ export default function Login() {
   };
 
   useEffect(() => {
-    const user = getUser();
     if (user) {
       const isStaff = user.role === 'admin' || user.role === 'superadmin' || (user.permissions && user.permissions.length > 0);
       if (isStaff || user.role === 'trainer') {
@@ -26,14 +27,14 @@ export default function Login() {
         navigate('/dashboard');
       }
     }
-  }, [navigate]);
+  }, [user, navigate]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     try {
       const res = await api.post('/auth/login', form);
-      setAuth(res.data);
+      login(res.data);
       if (redirect) {
         navigate(redirect);
       } else {

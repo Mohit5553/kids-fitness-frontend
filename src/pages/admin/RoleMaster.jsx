@@ -3,6 +3,7 @@ import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import toast from 'react-hot-toast';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/api.js';
 
 const MODULES = [
@@ -40,6 +41,7 @@ export default function RoleMaster() {
     permissions: [],
     status: 'active'
   });
+  const { refreshUser } = useAuth();
 
   const { can } = usePermissions();
 
@@ -81,6 +83,7 @@ export default function RoleMaster() {
       }
       resetForm();
       load();
+      refreshUser();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save role');
     }
@@ -109,6 +112,7 @@ export default function RoleMaster() {
       await api.delete(`/roles/${role._id}`);
       toast.success(`Role ${action}d successfully`);
       load();
+      refreshUser();
     } catch (err) {
       const msg = err.response?.data?.message || `Failed to ${action} role`;
       toast.error(msg);

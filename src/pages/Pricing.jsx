@@ -16,9 +16,14 @@ export default function Pricing() {
   // Checkout State
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [cardForm, setCardForm] = useState({ name: '', number: '', expiry: '', cvc: '' });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [children, setChildren] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState('');
+  const [preferredDays, setPreferredDays] = useState([]);
+  const [preferredSlots, setPreferredSlots] = useState([]); // Array of strings
+  const [cardForm, setCardForm] = useState({ name: '', number: '', expiry: '', cvc: '' });
+  const [detailsPlan, setDetailsPlan] = useState(null);
 
   const fetchPlans = async () => {
     try {
@@ -48,6 +53,12 @@ export default function Pricing() {
     setShowCheckout(true);
     setMessage('');
     setError('');
+    
+    // Fetch children for selection
+    api.get('/children/mine').then(res => {
+      setChildren(res.data || []);
+      if (res.data?.length > 0) setSelectedChildId(res.data[0]._id);
+    }).catch(() => {});
   };
 
   const closeCheckout = () => {
@@ -95,12 +106,16 @@ export default function Pricing() {
         last4
       });
 
-      await api.post('/memberships', {
+      const membershipRes = await api.post('/memberships', {
         planId: selectedPlan._id,
-        paymentId: payment.data._id
+        paymentId: payment.data._id,
+        childId: selectedChildId,
+        preferredDays,
+        preferredSlots, // Directly passing the array
+        sessionsPerWeek: preferredDays.length
       });
 
-      setMessage('Payment successful! Your membership is active.');
+      setMessage('Payment successful! Your schedule has been generated.');
       setTimeout(() => {
         closeCheckout();
         navigate('/dashboard'); // Navigate to parent dashboard to see membership
@@ -179,43 +194,73 @@ export default function Pricing() {
                     </span>
                   ) : null}
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs uppercase tracking-[0.2em] text-ink/50">{item.tagline || item.validity || (item.type === 'subscription' ? 'Subscription' : 'Class pack')}</p>
-                        {item.locationId?.name ? (
-                          <span className="rounded-full bg-ocean/10 px-2 py-0.5 text-[10px] font-bold text-ocean/80">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-3">
+                        <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${item.sessionType === 'personal' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                          {item.sessionType || 'Group'} Session
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          {item.validDays === 'both' ? 'All Days' : item.validDays === 'weekday' ? 'Weekdays' : 'Weekends'}
+                        </span>
+                        {item.locationId?.name && (
+                          <span className="rounded-full bg-ocean/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-ocean/80">
                             {item.locationId.name}
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-ink/5 px-2 py-0.5 text-[10px] font-bold text-ink/40">
-                            All locations
                           </span>
                         )}
                       </div>
-                      <h3 className="mt-2 font-display text-xl text-ink">{item.name}</h3>
-                      {item.durationWeeks ? <p className="mt-1 text-xs text-ink/60">Valid for {item.durationWeeks} weeks</p> : null}
+                      <h3 className="font-display text-2xl font-black text-ink leading-tight mb-2">{item.name}</h3>
+                      <div className="flex items-center gap-4 text-xs font-bold text-ink/40">
+                         <span className="flex items-center gap-1.5">
+                           <svg className="w-4 h-4 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                           {item.classesIncluded || (item.type === 'dropin' ? '1' : 'Unlimited')} Classes
+                         </span>
+                         {item.durationWeeks && (
+                           <span className="flex items-center gap-1.5">
+                             <svg className="w-4 h-4 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                             {item.durationWeeks} Weeks
+                           </span>
+                         )}
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs uppercase tracking-[0.2em] text-ink/50">Price</p>
-                      <p className="mt-2 text-lg font-semibold text-ocean">
-                        {item.price.toLocaleString()} AED
-                        {item.type === 'subscription' && item.billingCycle && item.billingCycle !== 'none' && (
-                          <span className="text-sm font-normal text-ink/60 ml-1">
-                            / {item.billingCycle === 'weekly' ? 'week' : item.billingCycle === 'monthly' ? 'month' : 'year'}
-                          </span>
-                        )}
+                    <div className="text-right shrink-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-1">Price</p>
+                      <p className="text-3xl font-black text-brand-blue">
+                        {item.price.toLocaleString()}
+                        <span className="text-xs ml-1 opacity-40">AED</span>
                       </p>
                     </div>
                   </div>
+
+                  {item.timeSlots && item.timeSlots.length > 0 && (
+                    <div className="mt-6 flex flex-wrap gap-2">
+                       {item.timeSlots.map(slot => (
+                         <span key={slot} className="px-2 py-1 rounded-lg bg-slate-50 border border-slate-100 text-[10px] font-bold text-ink/50 lowercase">
+                           {slot}
+                         </span>
+                       ))}
+                    </div>
+                  )}
+
                   {item.benefits && item.benefits.length > 0 ? (
-                    <div className="mt-4 rounded-2xl bg-ocean/5 p-3 text-xs text-ink/70">
-                      {item.benefits.join(' · ')}
+                    <div className="mt-6 border-t border-slate-50 pt-4 flex flex-wrap gap-x-4 gap-y-2">
+                      {item.benefits.map((benefit, bi) => (
+                        <div key={bi} className="flex items-center gap-2 text-xs font-bold text-ink/60">
+                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                           {benefit}
+                        </div>
+                      ))}
                     </div>
                   ) : null}
-                  <div className="mt-5">
+                  <div className="mt-5 flex gap-3">
                     <button
-                      onClick={() => openCheckout(item)}
-                      className="w-full rounded-2xl bg-brand-blue py-3.5 text-sm font-bold text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
+                      onClick={(e) => { e.stopPropagation(); setDetailsPlan(item); }}
+                      className="flex-1 rounded-2xl bg-slate-100 py-3.5 text-sm font-bold text-ink/70 transition-transform hover:bg-slate-200 active:scale-95"
+                    >
+                      View Details
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openCheckout(item); }}
+                      className="flex-1 rounded-2xl bg-brand-blue py-3.5 text-sm font-bold text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
                     >
                       Buy Now
                     </button>
@@ -262,103 +307,294 @@ export default function Pricing() {
         </section>
       </main>
 
-      {/* Checkout Modal */}
+      {/* ── Plan Details Modal ── */}
+      {detailsPlan && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-ink/60 backdrop-blur-sm" onClick={() => setDetailsPlan(null)}>
+          <div className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="relative bg-gradient-to-br from-brand-blue to-ocean p-8 text-white">
+              <button onClick={() => setDetailsPlan(null)} className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white font-black transition-all">×</button>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${detailsPlan.sessionType === 'personal' ? 'bg-indigo-400/30 text-indigo-100' : 'bg-emerald-400/30 text-emerald-100'}`}>
+                  {detailsPlan.sessionType === 'personal' ? 'Personal Training' : 'Group Session'}
+                </span>
+                <span className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest">
+                  {detailsPlan.validDays === 'both' ? 'All Days' : detailsPlan.validDays === 'weekday' ? 'Weekdays Only' : 'Weekends Only'}
+                </span>
+              </div>
+              <h2 className="font-display text-3xl font-black">{detailsPlan.name}</h2>
+              {detailsPlan.tagline && <p className="mt-1 text-white/70 text-sm font-medium">{detailsPlan.tagline}</p>}
+              <div className="mt-4">
+                <span className="text-4xl font-black">{detailsPlan.price.toLocaleString()}</span>
+                <span className="text-white/60 ml-2 text-sm">AED</span>
+                {detailsPlan.billingCycle && detailsPlan.billingCycle !== 'none' && (
+                  <span className="text-white/60 text-sm ml-1">/ {detailsPlan.billingCycle}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-8 space-y-6 max-h-[55vh] overflow-y-auto">
+              {/* Stats Row */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-2xl bg-slate-50 p-4 text-center">
+                  <p className="text-2xl font-black text-brand-blue">{detailsPlan.classesIncluded || (detailsPlan.type === 'dropin' ? 1 : '∞')}</p>
+                  <p className="text-[10px] font-black uppercase text-ink/40 mt-1">Classes</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4 text-center">
+                  <p className="text-2xl font-black text-brand-blue">{detailsPlan.durationWeeks || '—'}</p>
+                  <p className="text-[10px] font-black uppercase text-ink/40 mt-1">{detailsPlan.durationWeeks ? 'Weeks' : 'Duration'}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4 text-center">
+                  <p className="text-2xl font-black text-brand-blue">{detailsPlan.extensionRules?.maxAllowedMissed ?? '—'}</p>
+                  <p className="text-[10px] font-black uppercase text-ink/40 mt-1">Rescues</p>
+                </div>
+              </div>
+
+              {/* Time Slots */}
+              {detailsPlan.timeSlots?.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase text-ink/30 mb-3 tracking-widest">Available Slots</p>
+                  <div className="flex flex-wrap gap-2">
+                    {detailsPlan.timeSlots.map(slot => (
+                      <span key={slot} className="px-4 py-2 rounded-xl bg-brand-blue/5 border border-brand-blue/10 text-xs font-black text-brand-blue">{slot}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Trainer Policy */}
+              <div className="rounded-2xl bg-slate-50 p-5 flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-xl shrink-0 shadow-sm">{detailsPlan.trainerAllocation === 'fixed' ? '📌' : '🎲'}</div>
+                <div>
+                  <p className="font-black text-ink">{detailsPlan.trainerAllocation === 'fixed' ? 'Fixed Trainer' : 'Flexible Trainer'}</p>
+                  <p className="text-xs text-ink/50 mt-1 leading-relaxed">
+                    {detailsPlan.trainerAllocation === 'fixed'
+                      ? 'You will be assigned a dedicated personal trainer for all sessions.'
+                      : 'Sessions are assigned to the best available trainer based on your schedule.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Extension Rights */}
+              {detailsPlan.extensionRules && (
+                <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-5">
+                  <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest mb-3">Extension Rights</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-lg font-black text-emerald-700">{detailsPlan.extensionRules.maxAllowedMissed}</p>
+                      <p className="text-[10px] font-bold text-emerald-600/70">Missed sessions can be rescheduled</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-black text-emerald-700">{detailsPlan.extensionRules.expiryBufferDays} days</p>
+                      <p className="text-[10px] font-bold text-emerald-600/70">Extension buffer after plan expires</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Benefits */}
+              {detailsPlan.benefits?.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase text-ink/30 mb-3 tracking-widest">What's Included</p>
+                  <div className="space-y-2">
+                    {detailsPlan.benefits.map((b, i) => (
+                      <div key={i} className="flex items-center gap-3 text-sm font-bold text-ink/70">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />{b}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-slate-50">
+              <button
+                onClick={() => { setDetailsPlan(null); openCheckout(detailsPlan); }}
+                className="w-full rounded-2xl bg-brand-blue py-4 text-base font-black text-white shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
+              >
+                🔒 Securely Book Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCheckout && selectedPlan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pb-20 sm:pb-6">
-          <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm" onClick={closeCheckout} />
-          <div className="relative w-full max-w-md animate-scale-up rounded-[32px] bg-white overflow-hidden shadow-2xl">
-            <div className="bg-brand-blue p-8 text-white relative overflow-hidden">
-               <div className="relative z-10">
-                 <h3 className="font-display text-3xl font-black text-white">Complete Purchase</h3>
-                 <p className="mt-2 text-sm text-white/80 font-medium italic">
-                   You are selecting the <strong>{selectedPlan.name}</strong> package for {selectedPlan.price.toLocaleString()} AED.
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm overflow-y-auto">
+          <div className="relative w-full max-w-xl animate-scale-up rounded-[2.5rem] bg-white overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="bg-brand-blue p-8 text-white relative shrink-0">
+                <button 
+                  type="button"
+                  onClick={closeCheckout}
+                  className="absolute top-6 right-6 z-20 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all border border-white/10"
+                >
+                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+               </button>
+               <div className="relative z-10 text-left">
+                 <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">Completing Membership</p>
+                 <h3 className="font-display text-3xl font-black text-white">{selectedPlan.name}</h3>
+                 <p className="mt-2 text-sm font-medium text-white/80">
+                   Total to Pay: <span className="font-black text-white">{selectedPlan.price.toLocaleString()} AED</span>
                  </p>
                </div>
-               {/* Decorative circle */}
-               <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+               <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/5 rounded-full blur-3xl pointer-events-none" />
             </div>
             
-            <div className="p-8">
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
+              
               {error && (
-                <div className="mb-6 rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-600 border border-red-100 flex items-center gap-2">
+                <div className="rounded-2xl bg-rose-50 p-4 text-sm font-medium text-rose-700 border border-rose-100 flex items-center gap-2 animate-rise text-left">
                   <span>⚠️</span> {error}
                 </div>
               )}
               
               {message && (
-                <div className="mb-6 rounded-2xl bg-green-50 p-4 text-sm font-medium text-green-700 border border-green-100 flex items-center gap-2">
+                <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-medium text-emerald-700 border border-emerald-100 flex items-center gap-2 animate-rise text-left">
                   <span>✅</span> {message}
                 </div>
               )}
 
-            <form onSubmit={handleCheckout} className="mt-6 space-y-4">
-              <div>
-                <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-ink/40">Cardholder Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={cardForm.name}
-                  onChange={handleCardChange}
-                  className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition-all focus:border-brand-blue focus:bg-white"
-                  placeholder="John Doe"
-                  required
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-ink/40">Card Number</label>
-                <input
-                  type="text"
-                  name="number"
-                  value={cardForm.number}
-                  onChange={handleCardChange}
-                  maxLength="19"
-                  className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition-all focus:border-brand-blue focus:bg-white"
-                  placeholder="0000 0000 0000 0000"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-ink/40">Expiry</label>
-                  <input
-                    type="text"
-                    name="expiry"
-                    value={cardForm.expiry}
-                    onChange={handleCardChange}
-                    maxLength="5"
-                    className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition-all focus:border-brand-blue focus:bg-white"
-                    placeholder="MM/YY"
+              {/* Step 1 & 2 & 3: Scheduling */}
+              <div className="space-y-6">
+                <div className="text-left">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-2 mb-2 block">1. Select Child</label>
+                  <select
+                    value={selectedChildId}
+                    onChange={(e) => setSelectedChildId(e.target.value)}
+                    className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 outline-none transition-all"
                     required
-                  />
+                  >
+                    <option value="">Choose a child...</option>
+                    {children.map(c => (
+                      <option key={c._id} value={c._id}>{c.name}</option>
+                    ))}
+                  </select>
                 </div>
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-ink/40">CVC</label>
-                  <input
-                    type="password"
-                    name="cvc"
-                    value={cardForm.cvc}
-                    onChange={handleCardChange}
-                    maxLength="4"
-                    className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition-all focus:border-brand-blue focus:bg-white"
-                    placeholder="123"
-                    required
-                  />
+
+                <div className="text-left">
+                   <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-2 mb-2 block">2. Select Training Days</label>
+                   <div className="grid grid-cols-4 gap-2 bg-slate-50 p-4 rounded-3xl">
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
+                      const isWeekend = day === 'Sat' || day === 'Sun';
+                      const isDisabled = (selectedPlan.validDays === 'weekday' && isWeekend) || (selectedPlan.validDays === 'weekend' && !isWeekend);
+                      const isSelected = preferredDays.includes(day);
+                      
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          disabled={isDisabled}
+                          onClick={() => setPreferredDays(prev => isSelected ? prev.filter(d => d !== day) : [...prev, day])}
+                          className={`rounded-xl py-2.5 text-xs font-black transition-all ${
+                            isDisabled ? 'opacity-20 cursor-not-allowed grayscale' :
+                            isSelected ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20' : 'bg-white text-ink/40 hover:text-ink/60 shadow-sm border border-slate-100'
+                          }`}
+                        >
+                          {day}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="text-left">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-2 mb-2 block">3. Preferred Time Slots</label>
+                  <div className="grid grid-cols-3 gap-2 bg-slate-50 p-4 rounded-3xl">
+                    {selectedPlan.timeSlots?.length > 0 ? (
+                      selectedPlan.timeSlots.map(slot => {
+                        const isSelected = preferredSlots.includes(slot);
+                        return (
+                          <button
+                            key={slot}
+                            type="button"
+                            onClick={() => setPreferredSlots(prev => isSelected ? prev.filter(s => s !== slot) : [...prev, slot])}
+                            className={`rounded-xl py-2.5 text-[10px] font-black transition-all ${
+                              isSelected ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20' : 'bg-white text-ink/40 hover:text-ink/60 shadow-sm border border-slate-100'
+                            }`}
+                          >
+                            {slot}
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <p className="col-span-3 text-center text-[10px] font-bold text-ink/20 py-4 italic uppercase">No predefined slots for this plan</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-8">
-                <button
-                  type="submit"
-                  disabled={loading || message}
-                  className="w-full rounded-full bg-brand-blue py-4 font-bold text-white transition-transform active:scale-95 disabled:opacity-50"
-                >
-                  {message ? 'Processing...' : `Pay ${selectedPlan.price.toLocaleString()} AED`}
-                </button>
+              {/* Step 4: Payment */}
+              <div className="pt-8 border-t border-slate-100 text-left">
+                <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-2 mb-6 block">4. Secure Payment Details</label>
+                
+                <form onSubmit={handleCheckout} className="space-y-4">
+                  <div className="space-y-4">
+                    <input
+                      type="text"
+                      name="name"
+                      value={cardForm.name}
+                      onChange={handleCardChange}
+                      className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 outline-none transition-all placeholder:text-ink/20"
+                      placeholder="Name on Card"
+                      required
+                    />
+                    <input
+                      type="text"
+                      name="number"
+                      value={cardForm.number}
+                      onChange={handleCardChange}
+                      maxLength="19"
+                      className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 outline-none transition-all placeholder:text-ink/20 font-mono"
+                      placeholder="Card Number (0000 0000 0000 0000)"
+                      required
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <input
+                        type="text"
+                        name="expiry"
+                        value={cardForm.expiry}
+                        onChange={handleCardChange}
+                        maxLength="5"
+                        className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 outline-none transition-all placeholder:text-ink/20"
+                        placeholder="MM/YY"
+                        required
+                      />
+                      <input
+                        type="password"
+                        name="cvc"
+                        value={cardForm.cvc}
+                        onChange={handleCardChange}
+                        maxLength="4"
+                        className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 outline-none transition-all placeholder:text-ink/20"
+                        placeholder="CVC"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-6">
+                    <button
+                      type="submit"
+                      disabled={loading || message || !selectedChildId || preferredDays.length === 0 || preferredSlots.length === 0}
+                      className="w-full rounded-2xl bg-brand-blue py-5 text-sm font-black text-white shadow-xl shadow-brand-blue/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
+                    >
+                      {message ? 'Processing Order...' : `Finalize & Pay ${selectedPlan.price.toLocaleString()} AED`}
+                    </button>
+                    <p className="mt-4 text-center text-[10px] font-bold text-ink/20 uppercase tracking-widest flex items-center justify-center gap-2">
+                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"/></svg>
+                       Secure 256-bit SSL Encrypted Payment
+                    </p>
+                  </div>
+                </form>
               </div>
-            </form>
+            </div>
           </div>
         </div>
-      </div>
       )}
 
       <Footer />

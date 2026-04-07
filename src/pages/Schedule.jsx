@@ -1,21 +1,69 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import LocationPicker from '../components/LocationPicker.jsx';
 import api from '../api/api.js';
 import { getLocationSlug, getLocationId } from '../utils/location.js';
+import { getUser } from '../utils/auth.js';
 
-const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const formatTime = (value) =>
   new Date(value).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 
 export default function Schedule() {
+  const user = getUser();
+  const isAdmin = user && ['admin', 'superadmin'].includes(user.role);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(daysOfWeek[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1]);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Use a 7-day rolling window starting from today
+  const rollingDays = useMemo(() => {
+    const dates = [];
+    const today = new Date();
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        dates.push(d);
+    }
+    return dates;
+  }, []);
+
+   // Helper to get ISO date string (YYYY-MM-DD)
+  const getIsoDate = (date) => new Date(date).toISOString().split('T')[0];
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialDayFromUrl = searchParams.get('day');
+  
+  const [selectedDay, setSelectedDay] = useState(
+    initialDayFromUrl && initialDayFromUrl.match(/^\d{4}-\d{2}-\d{2}$/) 
+      ? initialDayFromUrl 
+      : getIsoDate(rollingDays[0])
+  );
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Update URL search params when day changes
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    params.set('day', selectedDay);
+    
+    const locId = getLocationId();
+    if (locId && locId !== 'all') {
+      params.set('locationId', locId);
+    } else {
+      params.delete('locationId');
+    }
+    
+    setSearchParams(params, { replace: true });
+  }, [selectedDay]);
+
+  // Live clock to prune expired sessions every minute
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchSessions = () => {
     setLoading(true);
@@ -47,22 +95,25 @@ export default function Schedule() {
   }, []);
 
   const grouped = useMemo(() => {
-    const now = new Date();
     const data = sessions.reduce((acc, session) => {
-      if (new Date(session.startTime) < now) return acc;
-      const day = new Date(session.startTime).toLocaleDateString('en-US', { weekday: 'long' });
-      if (!acc[day]) acc[day] = [];
-      acc[day].push(session);
+      // Strict expiry check: ignore if start time is before current live time
+      if (new Date(session.startTime) < currentTime) return acc;
+      
+      const dateKey = getIsoDate(session.startTime);
+      if (!acc[dateKey]) acc[dateKey] = [];
+      acc[dateKey].push(session);
       return acc;
     }, {});
 
-    return daysOfWeek.reduce((acc, day) => {
-      if (data[day]) {
-        acc[day] = data[day].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    // Ensure all rolling days have a slot in grouped even if empty
+    return rollingDays.reduce((acc, dateObj) => {
+      const dateKey = getIsoDate(dateObj);
+      if (data[dateKey]) {
+        acc[dateKey] = data[dateKey].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
       }
       return acc;
     }, {});
-  }, [sessions]);
+  }, [sessions, rollingDays, currentTime]);
 
   // Combined filtering: Day + Search
   const filteredSessions = useMemo(() => {
@@ -79,8 +130,8 @@ export default function Schedule() {
   useEffect(() => {
     if (!loading && sessions.length > 0) {
       if (!grouped[selectedDay]) {
-        const availableDay = daysOfWeek.find(d => grouped[d]);
-        if (availableDay) setSelectedDay(availableDay);
+        const availableDate = rollingDays.map(getIsoDate).find(d => grouped[d]);
+        if (availableDate) setSelectedDay(availableDate);
       }
     }
   }, [loading, sessions, grouped]);
@@ -108,7 +159,7 @@ export default function Schedule() {
             Find the perfect slot for your mini-athlete. Select your favorite branch and explore the sessions.
           </p>
 
-          <div className="mt-8 flex flex-col md:flex-row items-center justify-center gap-4 animate-rise" style={{ animationDelay: '0.3s' }}>
+           <div className="mt-8 flex flex-col md:flex-row items-center justify-center gap-4 animate-rise" style={{ animationDelay: '0.3s' }}>
             <div className="p-1 px-4 bg-white/70 backdrop-blur-xl rounded-full border border-white shadow-low inline-flex items-center gap-4">
               <span className="text-xs font-bold text-ink/40 uppercase tracking-widest ml-2">Location:</span>
               <LocationPicker compact />
@@ -128,6 +179,17 @@ export default function Schedule() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+
+            <button
+               onClick={() => {
+                 navigator.clipboard.writeText(window.location.href);
+                 toast.success('Schedule link copied!');
+               }}
+               className="p-3.5 bg-white/70 backdrop-blur-xl border border-white rounded-full text-ocean hover:text-brand-blue hover:bg-white shadow-low hover:shadow-md transition-all active:scale-95"
+               title="Share Schedule"
+            >
+               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+            </button>
           </div>
         </div>
       </section>
@@ -136,22 +198,17 @@ export default function Schedule() {
         {/* Horizontal Day Picker */}
         <div className="sticky top-20 z-30 -mx-4 px-4 py-4 md:static md:mx-0 md:px-0 bg-slate-50/80 backdrop-blur-lg border-b border-slate-200/50 md:bg-transparent md:border-none md:backdrop-blur-none">
           <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar md:justify-center">
-            {daysOfWeek.map((day) => {
-              const hasClasses = !!grouped[day];
-              const isSelected = selectedDay === day;
-
-              // Calculate the date for this day of the week relative to current date
-              const today = new Date();
-              const todayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1;
-              const targetIndex = daysOfWeek.indexOf(day);
-              const diff = targetIndex - todayIndex;
-              const dateForDay = new Date(today);
-              dateForDay.setDate(today.getDate() + diff);
+            {rollingDays.map((dateObj, i) => {
+              const dateKey = getIsoDate(dateObj);
+              const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+              const monthDay = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              const hasClasses = !!grouped[dateKey];
+              const isSelected = selectedDay === dateKey;
 
               return (
                 <button
-                  key={day}
-                  onClick={() => { setSelectedDay(day); setSearchTerm(''); }}
+                  key={i}
+                  onClick={() => { setSelectedDay(dateKey); setSearchTerm(''); }}
                   disabled={!hasClasses && !loading}
                   className={`relative flex shrink-0 flex-col items-center rounded-2xl px-6 py-3 transition-all duration-300 ${isSelected
                     ? 'bg-brand-blue text-white shadow-xl scale-105'
@@ -160,10 +217,10 @@ export default function Schedule() {
                       : 'bg-slate-100 text-ink/20 border border-slate-50 opacity-50 cursor-not-allowed'
                     }`}
                 >
-                  <span className="text-[10px] font-black uppercase tracking-widest">{day.substring(0, 3)}</span>
-                  <span className="mt-1 text-sm font-bold">{day}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">{dayName.substring(0, 3)}</span>
+                  <span className="mt-1 text-sm font-bold">{dayName}</span>
                   <span className={`text-[10px] font-bold ${isSelected ? 'text-white/60' : 'text-ink/30'}`}>
-                    {dateForDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {monthDay}
                   </span>
                   {isSelected && (
                     <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-[2px] bg-white/50 rounded-full"></div>
@@ -195,12 +252,24 @@ export default function Schedule() {
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between">
+                     <div className="flex items-center justify-between">
                       <div className="flex gap-2">
                         <span className="rounded-full bg-ocean/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-ocean">
                           {session.classId?.ageGroup || 'All Ages'}
                         </span>
+                        <span className="rounded-full bg-brand-blue/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-brand-blue">
+                          AED {session.classId?.price || 0}
+                        </span>
                         {(() => {
+                          if (session.membershipId) {
+                            const childName = session.membershipId?.childId?.name || 'Member';
+                            return (
+                              <span className="rounded-full bg-indigo-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                                {isAdmin ? `Slot: ${childName}` : 'Member Slot'}
+                              </span>
+                            );
+                          }
+                          
                           const available = (session.capacity || 12) - (session.bookingsCount || 0);
                           const isFull = available <= 0;
                           const isLimited = available > 0 && available <= 3;
@@ -214,9 +283,24 @@ export default function Schedule() {
                           );
                         })()}
                       </div>
-                      <span className="text-xs font-bold text-ink/30">
-                        {session.location || 'Studio'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const url = `${window.location.origin}/book?classId=${session.classId?._id}&sessionId=${session._id}${session.locationId ? `&locationId=${session.locationId._id || session.locationId}` : ''}`;
+                            navigator.clipboard.writeText(url);
+                            toast.success('Session booking link copied!');
+                          }}
+                          className="p-2 rounded-full hover:bg-slate-50 text-ink/20 hover:text-brand-blue transition-all"
+                          title="Share Class"
+                        >
+                           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                        </button>
+                        <span className="text-xs font-bold text-ink/30">
+                          {session.location || 'Studio'}
+                        </span>
+                      </div>
                     </div>
                     <h3 className="mt-6 font-display text-2xl font-black text-ink leading-tight">
                       {session.classId?.title}

@@ -16,6 +16,7 @@ const emptyForm = {
   availableTrainers: [],
   price: '',
   capacity: '',
+  imageUrl: '',
   status: 'active'
 };
 
@@ -26,6 +27,7 @@ export default function ClassesManagement() {
   const [editingId, setEditingId] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { can } = usePermissions();
 
@@ -61,6 +63,7 @@ export default function ClassesManagement() {
       availableTrainers: (item.availableTrainers || []).map(t => t._id || t),
       price: item.price ?? '',
       capacity: item.capacity ?? '',
+      imageUrl: item.imageUrl || '',
       status: item.status || 'active'
     });
   };
@@ -103,6 +106,27 @@ export default function ClassesManagement() {
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || `Failed to ${action} class`);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    setIsUploading(true);
+    try {
+      const res = await api.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setForm(prev => ({ ...prev, imageUrl: res.data.image }));
+      toast.success('Image uploaded successfully');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -238,7 +262,37 @@ export default function ClassesManagement() {
                 </select>
               </div>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Class Image</label>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <input
+                    className="w-full rounded-xl border border-orange-200/70 p-3"
+                    name="imageUrl"
+                    placeholder="https://images.unsplash.com/photo-..."
+                    value={form.imageUrl}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="relative">
+                  <input 
+                    type="file" 
+                    id="class-image-upload" 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                  />
+                  <label 
+                    htmlFor="class-image-upload"
+                    className={`block px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all ${isUploading ? 'bg-slate-100 text-ink/20 cursor-wait' : 'bg-brand-blue text-white shadow-lg hover:shadow-brand-blue/20 hover:scale-105 active:scale-95'}`}
+                  >
+                    {isUploading ? 'Uploading...' : 'Upload File'}
+                  </label>
+                </div>
+              </div>
+              <p className="text-[8px] text-ink/20 px-3">Enter a URL or upload a local photo for the class cover.</p>
+            </div>
+            <div className="flex flex-wrap gap-3 mt-2">
               <button className="rounded-full bg-brand-blue px-8 py-3 text-sm font-black text-white shadow-lg hover:scale-105 transition-all" type="submit">
                 {editingId ? 'Update class' : 'Create class'}
               </button>
@@ -263,10 +317,22 @@ export default function ClassesManagement() {
           {loading ? (
              Array(4).fill(0).map((_, i) => <div key={i} className="h-48 animate-pulse bg-white rounded-3xl" />)
           ) : classes.map((item) => (
-            <div key={item._id} className="soft-card rounded-[32px] p-6 transition-all hover:shadow-xl group">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-display text-xl text-ink leading-tight">{item.title}</h3>
+            <div key={item._id} className="soft-card rounded-[32px] p-6 transition-all hover:shadow-xl group flex flex-col md:flex-row gap-6">
+              <div className="w-full md:w-32 h-32 rounded-2xl bg-slate-50 border border-slate-100 shrink-0 overflow-hidden">
+                {item.imageUrl ? (
+                  <img 
+                    src={item.imageUrl.startsWith('http') ? item.imageUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${item.imageUrl}`} 
+                    alt={item.title} 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-2xl">🖼️</div>
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-display text-xl text-ink leading-tight">{item.title}</h3>
                   <div className="flex gap-2 mt-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-ocean bg-ocean/5 px-2 py-0.5 rounded-full">{item.ageGroup}</span>
                     {item.minAge || item.maxAge ? (
@@ -312,7 +378,8 @@ export default function ClassesManagement() {
                 )}
               </div>
             </div>
-          ))}
+          </div>
+        ))}
         </div>
       </main>
       <Footer />

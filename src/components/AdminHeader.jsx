@@ -1,5 +1,5 @@
 import React from 'react';
-import { getUser } from '../utils/auth.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 /**
  * A reusable header for administrative pages that dynamically reflects the user's role.
@@ -9,7 +9,7 @@ import { getUser } from '../utils/auth.js';
  * @param {React.ReactNode} [props.actions] - Optional buttons or elements for the right side
  */
 export default function AdminHeader({ title, description, actions }) {
-  const user = getUser();
+  const { user } = useAuth();
   const roleName = user?.role || 'Admin';
 
   return (
