@@ -14,6 +14,7 @@ const REPORT_TYPES = [
   { id: 'users', label: 'Users Report' },
   { id: 'trainer_sales', label: 'Trainer Sales Report' },
   { id: 'attendance', label: 'Attendance Report' },
+  { id: 'promotions_usage', label: 'Promotion Usage Report' },
 ];
 
 export default function Reports() {
@@ -156,6 +157,9 @@ export default function Reports() {
       { key: 'paymentMethod', label: 'Method' },
       { key: 'transactionId', label: 'Txn ID' },
       { key: 'paymentStatus', label: 'Payment' },
+      { key: 'promotionId', label: 'Promotion' },
+      { key: 'discountAmount', label: 'Discount' },
+      { key: 'processedBy', label: 'Cashier' },
       { key: 'locationId', label: 'Location' },
     ],
     classes: [
@@ -198,6 +202,9 @@ export default function Reports() {
       { key: 'amount', label: 'Amount' },
       { key: 'paymentMethod', label: 'Method' },
       { key: 'status', label: 'Status' },
+      { key: 'promotionId', label: 'Promotion' },
+      { key: 'discountAmount', label: 'Discount' },
+      { key: 'processedBy', label: 'Cashier' },
       { key: 'reference', label: 'Reference' },
     ],
     attendance: [
@@ -223,6 +230,16 @@ export default function Reports() {
       { key: 'bookingsCount', label: 'Bookings' },
       { key: 'totalRevenue', label: 'Total Sales (AED)' },
       { key: 'sessionStatus', label: 'Session Status' },
+      { key: 'branchName', label: 'Branch' },
+    ],
+    promotions_usage: [
+      { key: 'date', label: 'Date' },
+      { key: 'promoName', label: 'Promotion' },
+      { key: 'promoType', label: 'Type' },
+      { key: 'customerName', label: 'Customer' },
+      { key: 'discount', label: 'Discount Given' },
+      { key: 'finalAmount', label: 'Final Paid' },
+      { key: 'cashierName', label: 'Cashier' },
       { key: 'branchName', label: 'Branch' },
     ]
   };

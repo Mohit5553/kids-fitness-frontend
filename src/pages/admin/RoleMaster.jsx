@@ -21,6 +21,7 @@ const MODULES = [
   { id: 'locations', label: 'Branch Management' },
   { id: 'specialties', label: 'Specialty Master' },
   { id: 'reports', label: 'Detailed Reports' },
+  { id: 'promotions', label: 'Promotions Management' },
   { id: 'roles', label: 'Role Master' }
 ];
 

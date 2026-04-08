@@ -19,6 +19,7 @@ export default function AdminDashboard() {
     { to: `${base}/bookings`, title: 'Bookings', desc: 'Approve or cancel class requests.', perm: 'bookings:view' },
     { to: `${base}/users`, title: 'Users', desc: 'Update roles and manage accounts.', perm: 'users:view' },
     { to: `${base}/roles`, title: 'Role Master', desc: 'Define granular CRUD permissions.', perm: 'roles:view' },
+    { to: `${base}/promotions`, title: 'Promotions', desc: 'Create and manage discount campaigns.', perm: 'promotions:view' },
     { to: `${base}/trials`, title: 'Trial requests', desc: 'Follow up with new leads.', perm: 'trials:view' },
     { to: `${base}/attendance`, title: 'Attendance', desc: 'Track and verify member attendance.', perm: 'attendance:view' },
     { to: `${base}/payments`, title: 'Payments', desc: 'Monitor transactions and exports.', perm: 'payments:view' },

@@ -15,6 +15,7 @@ import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Calendar from './pages/Calendar.jsx';
 import GuestBookingLookup from './pages/GuestBookingLookup.jsx';
+import PromotionsManagement from './pages/admin/PromotionsManagement.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
 import MemberHealthDeclaration from './pages/MemberHealthDeclaration.jsx';
@@ -161,6 +162,10 @@ export default function App() {
 
             <Route element={<RequirePermission permission="roles:view" />}>
               <Route path="/:roleSlug/roles" element={<RoleMaster />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="promotions:view" />}>
+              <Route path="/:roleSlug/promotions" element={<PromotionsManagement />} />
             </Route>
 
             <Route element={<RequirePermission permission="settings:edit" />}>
