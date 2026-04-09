@@ -24,6 +24,9 @@ export default function BookingFlow() {
   const [sessions, setSessions] = useState([]);
   const [selectedSessions, setSelectedSessions] = useState([]);
   const [selectedDateFilter, setSelectedDateFilter] = useState('');
+  const [applicablePromos, setApplicablePromos] = useState([]);
+  const [selectedPromo, setSelectedPromo] = useState(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
 
   // Reset selected sessions when class, location or trainer changes
   useEffect(() => {
@@ -44,6 +47,54 @@ export default function BookingFlow() {
   const [myChildren, setMyChildren] = useState([]);
   const [isCorporateMode, setIsCorporateMode] = useState(false);
   const [corporateName, setCorporateName] = useState('');
+  
+  const calculateDiscount = (promo, price) => {
+    if (!promo || !price) return 0;
+    let disc = 0;
+    if (promo.promoType === 'percentage' || (promo.promoType === 'flash' && promo.discountType === 'percentage')) {
+      disc = (price * (promo.discountValue / 100));
+    } else if (promo.promoType === 'cash' || (promo.promoType === 'flash' && promo.discountType === 'flat')) {
+      disc = Math.min(price, promo.discountValue);
+    } else if (promo.promoType === 'tiered') {
+      const tier = promo.discountTiers
+        ?.filter(t => price >= t.minAmount)
+        .sort((a, b) => b.minAmount - a.minAmount)[0];
+      if (tier) {
+        disc = tier.type === 'percentage' ? (price * (tier.value / 100)) : Math.min(price, tier.value);
+      }
+    } else if (promo.promoType === 'lifestyle' || promo.promoType === 'bulk') {
+       disc = promo.discountType === 'percentage' ? (price * (promo.discountValue / 100)) : Math.min(price, promo.discountValue);
+    } else if (promo.promoType === 'bogo') {
+       disc = price; 
+    }
+    return Math.round(disc * 100) / 100;
+  };
+
+  const totalPrice = useMemo(() => {
+    return (selectedClass?.price || 0) * participants.length * selectedSessions.length;
+  }, [selectedClass, participants.length, selectedSessions.length]);
+
+  useEffect(() => {
+    if (selectedPromo) {
+      setDiscountAmount(calculateDiscount(selectedPromo, totalPrice));
+    } else {
+      setDiscountAmount(0);
+    }
+  }, [selectedPromo, totalPrice]);
+
+  // Fetch promos when summary step is reached
+  useEffect(() => {
+    if (step === 5 && selectedClass && selectedLocation) {
+      const itemId = selectedClass._id;
+      const itemType = 'class';
+      api.get(`/promotions/active?locationId=${selectedLocation}&itemId=${itemId}&itemType=${itemType}`)
+        .then(res => setApplicablePromos(res.data || []))
+        .catch(err => console.error("Error fetching promos:", err));
+    } else if (step < 5) {
+      setApplicablePromos([]);
+      setSelectedPromo(null);
+    }
+  }, [step, selectedClass?._id, selectedLocation]);
 
   // Persistence: Save to sessionStorage
   useEffect(() => {
@@ -309,6 +360,10 @@ export default function BookingFlow() {
   const handleCreateBooking = async () => {
     setLoading(true);
     try {
+      // Calculate per-session proportion of the total discount
+      const totalSessions = selectedSessions.length;
+      const perSessionDiscount = totalSessions > 0 ? (discountAmount / totalSessions) : 0;
+
       if (isCorporateMode) {
         // Consolidated Group Booking for Corporate
         const payload = {
@@ -317,7 +372,9 @@ export default function BookingFlow() {
           classId: selectedClass._id,
           locationId: selectedLocation,
           corporateName: corporateName || getUser()?.companyName || 'Corporate Booking',
-          paymentMethod: paymentType || 'center'
+          paymentMethod: paymentType || 'center',
+          promotionId: selectedPromo?._id,
+          discountAmount: discountAmount
         };
         const res = await api.post('/bookings/group', payload);
         sessionStorage.removeItem('booking_pending_state');
@@ -335,7 +392,9 @@ export default function BookingFlow() {
             date: sess.startTime,
             paymentMethod: paymentType || 'center',
             paymentStatus: paymentType === 'online' ? 'completed' : 'pending',
-            guestDetails: !getUser() ? guestDetails : undefined
+            guestDetails: !getUser() ? guestDetails : undefined,
+            promotionId: selectedPromo?._id,
+            discountAmount: Math.round(perSessionDiscount * 100) / 100
           };
           const res = await api.post('/bookings', payload);
           results.push(res.data);
@@ -888,13 +947,53 @@ export default function BookingFlow() {
                     </div>
                   </div>
 
+                  {/* Promotions Integration */}
+                  {applicablePromos.length > 0 && (
+                    <div className="animate-rise p-8 rounded-[40px] bg-white border-2 border-slate-100 shadow-sm">
+                      <div className="flex items-center gap-2 mb-6">
+                        <span className="text-2xl">🎁</span>
+                        <h4 className="text-xs font-black uppercase tracking-widest text-brand-blue">Available Promotions</h4>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {applicablePromos.map(promo => (
+                          <button
+                            key={promo._id}
+                            onClick={() => setSelectedPromo(selectedPromo?._id === promo._id ? null : promo)}
+                            className={`p-5 rounded-3xl border-2 transition-all flex items-center justify-between group ${selectedPromo?._id === promo._id ? 'border-brand-blue bg-brand-blue/5 shadow-md' : 'border-slate-50 bg-slate-50/50 hover:border-slate-200'}`}
+                          >
+                             <div className="flex items-center gap-4">
+                               <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                  {promo.promoType === 'flash' ? '⚡' : '🏷️'}
+                               </div>
+                               <div className="text-left">
+                                 <p className="font-black text-ink text-sm">{promo.name}</p>
+                                 <p className="text-[10px] font-bold text-emerald-600 uppercase">Save AED {calculateDiscount(promo, totalPrice)}</p>
+                               </div>
+                             </div>
+                             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${selectedPromo?._id === promo._id ? 'bg-brand-blue border-brand-blue text-white' : 'border-white bg-white group-hover:border-slate-200'}`}>
+                                {selectedPromo?._id === promo._id && <span className="text-xs font-black">✓</span>}
+                             </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Pricing Footer */}
                   <div className="mt-10 pt-10 border-t-4 border-dashed border-slate-100 flex flex-col md:flex-row justify-between items-center gap-8">
                     <div className="text-center md:text-left">
                       <div className="flex items-baseline gap-2 justify-center md:justify-start">
-                        <span className="text-5xl font-black text-brand-blue tracking-tighter">AED {(selectedClass?.price || 0) * participants.length * selectedSessions.length}</span>
-                        <span className="text-sm font-bold text-ink/30 uppercase tracking-widest italic">Total</span>
+                        <span className="text-5xl font-black text-brand-blue tracking-tighter">
+                          AED {Math.max(0, totalPrice - discountAmount).toLocaleString()}
+                        </span>
+                        <span className="text-sm font-bold text-ink/30 uppercase tracking-widest italic">To Pay</span>
                       </div>
+                      {discountAmount > 0 && (
+                        <p className="text-xs font-black text-emerald-600 mt-2 flex items-center gap-2">
+                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                           Promo Applied: -AED {discountAmount} (Saved!)
+                        </p>
+                      )}
                       <p className="text-[11px] text-ink/40 font-black uppercase tracking-[0.2em] mt-3 bg-slate-100/50 px-4 py-2 rounded-full border border-slate-100 inline-block font-body">
                          {selectedClass?.price || 0} AED × {participants.length} PPL × {selectedSessions.length} SESS
                       </p>
@@ -995,7 +1094,7 @@ export default function BookingFlow() {
               <div className="animate-rise text-center py-10">
                 {paymentType === 'online' ? (
                   <PaymentForm
-                    totalAmount={(selectedClass?.price || 0) * participants.length * selectedSessions.length}
+                    totalAmount={Math.max(0, totalPrice - discountAmount)}
                     onSubmit={handleCreateBooking}
                     onCancel={() => { setPaymentType(''); setStep(5); }}
                   />

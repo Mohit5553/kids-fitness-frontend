@@ -24,6 +24,9 @@ export default function Pricing() {
   const [preferredSlots, setPreferredSlots] = useState([]); // Array of strings
   const [cardForm, setCardForm] = useState({ name: '', number: '', expiry: '', cvc: '' });
   const [detailsPlan, setDetailsPlan] = useState(null);
+  const [applicablePromos, setApplicablePromos] = useState([]);
+  const [selectedPromo, setSelectedPromo] = useState(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
 
   const fetchPlans = async () => {
     try {
@@ -59,11 +62,22 @@ export default function Pricing() {
       setChildren(res.data || []);
       if (res.data?.length > 0) setSelectedChildId(res.data[0]._id);
     }).catch(() => {});
+
+    // Fetch applicable promotions
+    const locationId = getLocationId();
+    api.get(`/promotions/active?locationId=${locationId}&itemId=${plan._id}&itemType=plan`)
+      .then(res => {
+        setApplicablePromos(res.data || []);
+        // Auto-select best promo logic could go here
+      })
+      .catch(() => {});
   };
 
   const closeCheckout = () => {
     setShowCheckout(false);
     setSelectedPlan(null);
+    setSelectedPromo(null);
+    setDiscountAmount(0);
     setCardForm({ name: '', number: '', expiry: '', cvc: '' });
   };
 
@@ -83,6 +97,36 @@ export default function Pricing() {
     setCardForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const calculateDiscount = (promo, plan) => {
+    if (!promo || !plan) return 0;
+    let disc = 0;
+    if (promo.promoType === 'percentage' || (promo.promoType === 'flash' && promo.discountType === 'percentage')) {
+      disc = (plan.price * (promo.discountValue / 100));
+    } else if (promo.promoType === 'cash' || (promo.promoType === 'flash' && promo.discountType === 'flat')) {
+      disc = Math.min(plan.price, promo.discountValue);
+    } else if (promo.promoType === 'tiered') {
+      const tier = promo.discountTiers
+        ?.filter(t => plan.price >= t.minAmount)
+        .sort((a, b) => b.minAmount - a.minAmount)[0];
+      if (tier) {
+        disc = tier.type === 'percentage' ? (plan.price * (tier.value / 100)) : Math.min(plan.price, tier.value);
+      }
+    } else if (promo.promoType === 'lifestyle' || promo.promoType === 'bulk') {
+       disc = promo.discountType === 'percentage' ? (plan.price * (promo.discountValue / 100)) : Math.min(plan.price, promo.discountValue);
+    } else if (promo.promoType === 'bogo') {
+       disc = plan.price; // Basic BOGO: second item free is like 100% off the unit price if contextually applied
+    }
+    return Math.round(disc * 100) / 100;
+  };
+
+  useEffect(() => {
+    if (selectedPromo && selectedPlan) {
+      setDiscountAmount(calculateDiscount(selectedPromo, selectedPlan));
+    } else {
+      setDiscountAmount(0);
+    }
+  }, [selectedPromo, selectedPlan]);
+
   const handleCheckout = async (event) => {
     event.preventDefault();
     setMessage('');
@@ -98,9 +142,12 @@ export default function Pricing() {
     const reference = `mock_${Date.now()}`;
 
     try {
+      const finalAmount = Math.max(0, selectedPlan.price - discountAmount);
       const payment = await api.post('/payments', {
         planId: selectedPlan._id,
-        amount: selectedPlan.price,
+        amount: finalAmount,
+        discountAmount,
+        promotionId: selectedPromo?._id,
         paymentMethod: 'card',
         reference,
         last4
@@ -438,7 +485,14 @@ export default function Pricing() {
                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">Completing Membership</p>
                  <h3 className="font-display text-3xl font-black text-white">{selectedPlan.name}</h3>
                  <p className="mt-2 text-sm font-medium text-white/80">
-                   Total to Pay: <span className="font-black text-white">{selectedPlan.price.toLocaleString()} AED</span>
+                   {discountAmount > 0 ? (
+                     <>
+                       <span className="line-through opacity-60 mr-2">{selectedPlan.price.toLocaleString()} AED</span>
+                       <span className="font-black text-white">{(selectedPlan.price - discountAmount).toLocaleString()} AED</span>
+                     </>
+                   ) : (
+                     <span className="font-black text-white">{selectedPlan.price.toLocaleString()} AED</span>
+                   )}
                  </p>
                </div>
                <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/5 rounded-full blur-3xl pointer-events-none" />
@@ -525,8 +579,38 @@ export default function Pricing() {
                       <p className="col-span-3 text-center text-[10px] font-bold text-ink/20 py-4 italic uppercase">No predefined slots for this plan</p>
                     )}
                   </div>
+                  </div>
                 </div>
-              </div>
+
+                {/* Step 3.5: Promotions */}
+                {applicablePromos.length > 0 && (
+                  <div className="pt-6 border-t border-slate-100 text-left">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-brand-blue ml-2 mb-4 block">Special Offers for You</label>
+                    <div className="space-y-3">
+                      {applicablePromos.map(promo => (
+                        <button
+                          key={promo._id}
+                          type="button"
+                          onClick={() => setSelectedPromo(selectedPromo?._id === promo._id ? null : promo)}
+                          className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center justify-between text-left ${selectedPromo?._id === promo._id ? 'border-brand-blue bg-brand-blue/5 shadow-md' : 'border-slate-50 bg-white hover:border-slate-200'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                             <div className="w-10 h-10 rounded-xl bg-brand-blue/5 flex items-center justify-center text-xl">
+                               {promo.promoType === 'flash' ? '⚡' : '🏷️'}
+                             </div>
+                             <div>
+                                <p className="font-bold text-ink text-xs">{promo.name}</p>
+                                <p className="text-[9px] font-black text-emerald-600 uppercase">Save {calculateDiscount(promo, selectedPlan)} AED</p>
+                             </div>
+                          </div>
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${selectedPromo?._id === promo._id ? 'bg-brand-blue border-brand-blue text-white' : 'border-slate-100 font-black text-[10px] text-slate-200'}`}>
+                            {selectedPromo?._id === promo._id ? '✓' : '+'}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
               {/* Step 4: Payment */}
               <div className="pt-8 border-t border-slate-100 text-left">
@@ -583,7 +667,7 @@ export default function Pricing() {
                       disabled={loading || message || !selectedChildId || preferredDays.length === 0 || preferredSlots.length === 0}
                       className="w-full rounded-2xl bg-brand-blue py-5 text-sm font-black text-white shadow-xl shadow-brand-blue/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
                     >
-                      {message ? 'Processing Order...' : `Finalize & Pay ${selectedPlan.price.toLocaleString()} AED`}
+                      {message ? 'Processing Order...' : `Finalize & Pay ${(selectedPlan.price - discountAmount).toLocaleString()} AED`}
                     </button>
                     <p className="mt-4 text-center text-[10px] font-bold text-ink/20 uppercase tracking-widest flex items-center justify-center gap-2">
                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"/></svg>

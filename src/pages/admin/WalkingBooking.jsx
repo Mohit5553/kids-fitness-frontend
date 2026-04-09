@@ -15,6 +15,11 @@ export default function WalkingBooking() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [transactionId, setTransactionId] = useState('');
+  const [applicablePromos, setApplicablePromos] = useState([]);
+  const [selectedPromo, setSelectedPromo] = useState(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
 
   // Step 1: Customer Data
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,8 +54,6 @@ export default function WalkingBooking() {
 
   // Step 6: Success
   const [createdBookings, setCreatedBookings] = useState([]);
-  const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash', 'card', 'online'
-  const [transactionId, setTransactionId] = useState('');
 
   // View Details Modal State
   const [detailsClass, setDetailsClass] = useState(null);
@@ -67,6 +70,65 @@ export default function WalkingBooking() {
       setSessionsPerWeek(preferredDays.length || 1);
     }
   }, [preferredDays, bookingMode]);
+
+  // Effect to fetch promos when step 6 is entered
+  useEffect(() => {
+    if (step === 6) {
+      const locationId = selectedLocation || staff?.locationId?._id || staff?.locationId;
+      const itemId = bookingMode === 'package' ? selectedPlan?._id : selectedClass?._id;
+      const itemType = bookingMode === 'package' ? 'plan' : 'class';
+      
+      if (locationId && itemId) {
+        api.get(`/promotions/active?locationId=${locationId}&itemId=${itemId}&itemType=${itemType}`)
+          .then(res => setApplicablePromos(res.data || []))
+          .catch(() => {});
+      }
+    } else {
+      setApplicablePromos([]);
+      setSelectedPromo(null);
+      setDiscountAmount(0);
+    }
+  }, [step, bookingMode, selectedPlan, selectedClass, selectedLocation, staff?.locationId]);
+
+  const totalParticipants = useMemo(() => {
+    return (selectedChildrenIds?.length || 0) + (newChildren?.length || 0);
+  }, [selectedChildrenIds, newChildren]);
+
+  const currentPrice = useMemo(() => {
+     if (bookingMode === 'package') return selectedPlan?.price || 0;
+     const basePrice = selectedClass?.price || 0;
+     return basePrice * totalParticipants * (selectedSessions?.length || 1);
+  }, [bookingMode, selectedPlan, selectedClass, totalParticipants, selectedSessions]);
+
+  const calculateDiscount = (promo, price) => {
+    if (!promo || !price) return 0;
+    let disc = 0;
+    if (promo.promoType === 'percentage' || (promo.promoType === 'flash' && promo.discountType === 'percentage')) {
+      disc = (price * (promo.discountValue / 100));
+    } else if (promo.promoType === 'cash' || (promo.promoType === 'flash' && promo.discountType === 'flat')) {
+      disc = Math.min(price, promo.discountValue);
+    } else if (promo.promoType === 'tiered') {
+      const tier = promo.discountTiers
+        ?.filter(t => price >= t.minAmount)
+        .sort((a, b) => b.minAmount - a.minAmount)[0];
+      if (tier) {
+        disc = tier.type === 'percentage' ? (price * (tier.value / 100)) : Math.min(price, tier.value);
+      }
+    } else if (promo.promoType === 'lifestyle' || promo.promoType === 'bulk') {
+       disc = promo.discountType === 'percentage' ? (price * (promo.discountValue / 100)) : Math.min(price, promo.discountValue);
+    } else if (promo.promoType === 'bogo') {
+       disc = price; 
+    }
+    return Math.round(disc * 100) / 100;
+  };
+
+  useEffect(() => {
+    if (selectedPromo) {
+      setDiscountAmount(calculateDiscount(selectedPromo, currentPrice));
+    } else {
+      setDiscountAmount(0);
+    }
+  }, [selectedPromo, currentPrice]);
 
   // Reset preferred slots when plan changes
   useEffect(() => {
@@ -316,11 +378,12 @@ export default function WalkingBooking() {
       // 1. Create payment record
       const payRes = await api.post('/payments', {
         planId: selectedPlan._id,
-        amount: selectedPlan.price,
+        amount: currentPrice - discountAmount,
         paymentMethod: pmMap[paymentMethod] || 'center_cash',
         reference,
         transactionId: (paymentMethod !== 'cash') ? transactionId : undefined,
-        userId: finalUser._id
+        userId: finalUser._id,
+        promotionId: selectedPromo?._id
       });
 
       // 2. Create membership for the first selected child
@@ -1038,9 +1101,7 @@ export default function WalkingBooking() {
                       </div>
                       <div className="text-right">
                         <p className="text-4xl font-black text-ink">
-                          AED {bookingMode === 'package'
-                            ? selectedPlan?.price?.toLocaleString()
-                            : (selectedClass?.price * (selectedChildrenIds.length + newChildren.length) * selectedSessions.length)}
+                          AED {currentPrice.toLocaleString()}
                         </p>
                         <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest mt-1">Total inclusive order</p>
                       </div>
@@ -1048,7 +1109,7 @@ export default function WalkingBooking() {
 
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="bg-white p-8 rounded-[36px] border border-slate-100 shadow-sm">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Participants ({selectedChildrenIds.length + newChildren.length})</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Participants ({totalParticipants})</p>
                         <div className="space-y-3">
                           {[...selectedChildrenIds.map(id => availableChildren.find(c => c._id === id)), ...newChildren].map((p, i) => (
                             <div key={i} className="flex justify-between items-center text-sm">
@@ -1099,6 +1160,54 @@ export default function WalkingBooking() {
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                             <span className="text-[10px] font-black text-emerald-700 uppercase">System Ready</span>
                           </div>
+                        </div>
+                      )}
+                      <div className="space-y-4 mb-4">
+                        <div className="flex items-center justify-between px-6">
+                           <span className="text-ink/40 font-bold text-xs">Original Amount</span>
+                           <span className="text-ink font-black text-lg">AED {currentPrice.toLocaleString()}</span>
+                        </div>
+                        {discountAmount > 0 && (
+                          <div className="flex items-center justify-between px-6 bg-emerald-50/50 py-3 rounded-2xl animate-rise">
+                             <div className="flex items-center gap-2">
+                               <span className="text-lg">🎁</span>
+                               <div className="flex flex-col">
+                                 <span className="text-emerald-700 font-black text-[10px] uppercase">Promotion Applied</span>
+                                 <span className="text-emerald-600 font-bold text-xs">{selectedPromo?.name}</span>
+                               </div>
+                             </div>
+                             <span className="text-emerald-700 font-black text-lg">- AED {discountAmount}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between px-6 pt-4 border-t border-slate-100">
+                           <span className="text-ink/60 font-black text-sm uppercase">To Be Paid</span>
+                           <span className="text-brand-blue font-black text-3xl">AED {Math.max(0, currentPrice - discountAmount).toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      {applicablePromos.length > 0 && (
+                        <div className="mb-8 px-2">
+                           <p className="text-[10px] font-black text-brand-blue uppercase tracking-widest mb-4 px-4">Available Promotions</p>
+                           <div className="grid gap-2">
+                              {applicablePromos.map(promo => (
+                                <button
+                                  key={promo._id}
+                                  onClick={() => setSelectedPromo(selectedPromo?._id === promo._id ? null : promo)}
+                                  className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between text-left ${selectedPromo?._id === promo._id ? 'border-brand-blue bg-brand-blue/5 shadow-md' : 'border-slate-50 bg-white hover:border-slate-200'}`}
+                                >
+                                   <div className="flex items-center gap-3">
+                                      <span className="text-xl">{promo.promoType === 'flash' ? '⚡' : '🏷️'}</span>
+                                      <div>
+                                         <p className="font-bold text-ink text-xs">{promo.name}</p>
+                                         <p className="text-[9px] font-black text-emerald-600 uppercase">Save AED {calculateDiscount(promo, bookingMode === 'package' ? selectedPlan?.price : selectedClass?.price)}</p>
+                                      </div>
+                                   </div>
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${selectedPromo?._id === promo._id ? 'bg-brand-blue border-brand-blue text-white' : 'border-slate-100'}`}>
+                                     {selectedPromo?._id === promo._id && <span className="text-[9px] font-black">✓</span>}
+                                   </div>
+                                </button>
+                              ))}
+                           </div>
                         </div>
                       )}
                     </div>
