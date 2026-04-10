@@ -41,6 +41,12 @@ export default function UsersManagement() {
   const [locations, setLocations] = useState([]);
   const [editingUserId, setEditingUserId] = useState(null);
   
+  // Password Reset State
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [resetUser, setResetUser] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+  
   // Staff Creation Form State
   const [showAddStaff, setShowAddStaff] = useState(false);
   const [staffForm, setStaffForm] = useState({
@@ -144,6 +150,25 @@ export default function UsersManagement() {
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save user');
+    }
+  };
+
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      return toast.error('Password must be at least 6 characters');
+    }
+    setIsResetting(true);
+    try {
+      await api.put(`/users/${resetUser._id}/password`, { password: newPassword });
+      toast.success('Password updated successfully');
+      setShowPasswordModal(false);
+      setResetUser(null);
+      setNewPassword('');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update password');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -336,6 +361,20 @@ export default function UsersManagement() {
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                         </button>
                       )}
+                      {canEdit && (
+                        <button
+                          onClick={() => {
+                            setResetUser(user);
+                            setShowPasswordModal(true);
+                          }}
+                          className="h-14 w-14 flex items-center justify-center rounded-2xl bg-brand-blue/5 text-brand-blue hover:bg-brand-blue hover:text-white transition-all active:scale-95 shadow-sm"
+                          title="Change Password"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                          </svg>
+                        </button>
+                      )}
                       <button 
                         onClick={() => {
                           const next = expandedUser === user._id ? null : user._id;
@@ -414,6 +453,59 @@ export default function UsersManagement() {
           )}
         </div>
       </main>
+
+      {/* Password Reset Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-md bg-white rounded-[40px] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h3 className="text-xl font-black text-ink">Change Password</h3>
+                <p className="text-[10px] font-black text-brand-blue uppercase tracking-widest mt-1">For {resetUser?.name}</p>
+              </div>
+              <button 
+                onClick={() => setShowPasswordModal(false)}
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white text-ink/20 hover:text-ink/60 shadow-sm border border-slate-100 transition-all font-black text-xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <form onSubmit={handlePasswordReset} className="p-8 space-y-6">
+              <div>
+                <label className="text-[10px] font-black text-ink/30 uppercase tracking-widest block mb-2">New Password</label>
+                <input 
+                  type="password" 
+                  autoFocus
+                  required 
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  className="w-full bg-slate-50 border-none rounded-2xl py-4 px-5 text-sm font-bold shadow-inner"
+                  placeholder="Minimum 6 characters"
+                />
+              </div>
+              
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="flex-1 py-4 rounded-2xl bg-slate-100 text-ink/40 text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isResetting}
+                  className="flex-1 py-4 rounded-2xl bg-brand-blue text-white text-xs font-black uppercase tracking-widest shadow-xl shadow-brand-blue/20 hover:brightness-110 transition-all disabled:opacity-50"
+                >
+                  {isResetting ? 'Updating...' : 'Set Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );

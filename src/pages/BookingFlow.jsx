@@ -65,7 +65,10 @@ export default function BookingFlow() {
     } else if (promo.promoType === 'lifestyle' || promo.promoType === 'bulk') {
        disc = promo.discountType === 'percentage' ? (price * (promo.discountValue / 100)) : Math.min(price, promo.discountValue);
     } else if (promo.promoType === 'bogo') {
-       disc = price; 
+       const units = (participants?.length || 1) * (selectedSessions?.length || 1);
+       if (units < 2) return 0; // Need at least 2 units to get 1 free
+       const numFree = Math.floor(units / 2);
+       disc = numFree * (selectedClass?.price || 0);
     }
     return Math.round(disc * 100) / 100;
   };
@@ -452,6 +455,19 @@ export default function BookingFlow() {
       }
     }
     setParticipants(newParticipants);
+  };
+
+  const handleQuickAddChild = (child) => {
+    // Add child to participants only if they aren't already there
+    if (!participants.some(p => p.childId === child._id)) {
+      setParticipants([...participants, {
+        name: child.name,
+        age: child.age,
+        gender: child.gender === 'other' ? 'male' : (child.gender || 'male'),
+        relation: 'Child',
+        childId: child._id
+      }]);
+    }
   };
 
   const bookForMyself = () => {
@@ -949,11 +965,12 @@ export default function BookingFlow() {
 
                   {/* Promotions Integration */}
                   {applicablePromos.length > 0 && (
-                    <div className="animate-rise p-8 rounded-[40px] bg-white border-2 border-slate-100 shadow-sm">
-                      <div className="flex items-center gap-2 mb-6">
+                    <div className="animate-rise p-8 rounded-[40px] bg-white border-2 border-slate-100 shadow-sm space-y-8">
+                      <div className="flex items-center gap-2">
                         <span className="text-2xl">🎁</span>
                         <h4 className="text-xs font-black uppercase tracking-widest text-brand-blue">Available Promotions</h4>
                       </div>
+                      
                       <div className="grid gap-3 sm:grid-cols-2">
                         {applicablePromos.map(promo => (
                           <button
@@ -967,7 +984,9 @@ export default function BookingFlow() {
                                </div>
                                <div className="text-left">
                                  <p className="font-black text-ink text-sm">{promo.name}</p>
-                                 <p className="text-[10px] font-bold text-emerald-600 uppercase">Save AED {calculateDiscount(promo, totalPrice)}</p>
+                                 <p className="text-[10px] font-bold text-emerald-600 uppercase">
+                                   {promo.promoType === 'bogo' ? 'Buy 1 Get 1 Free' : `Save AED ${calculateDiscount(promo, totalPrice)}`}
+                                 </p>
                                </div>
                              </div>
                              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${selectedPromo?._id === promo._id ? 'bg-brand-blue border-brand-blue text-white' : 'border-white bg-white group-hover:border-slate-200'}`}>
@@ -976,6 +995,71 @@ export default function BookingFlow() {
                           </button>
                         ))}
                       </div>
+
+                      {/* BOGO Claim Assistant */}
+                      {selectedPromo?.promoType === 'bogo' && (
+                        <div className="p-6 rounded-[32px] bg-emerald-50 border border-emerald-100 animate-in zoom-in-95 duration-300">
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-xl">🎉</div>
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">BOGO Claim Assistant</p>
+                              <h5 className="font-display text-lg text-ink">You have a free session available!</h5>
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2">
+                            {/* Quick Add Children Buttons */}
+                            {myChildren
+                              .filter(child => !participants.some(p => p.childId === child._id))
+                              .map(child => (
+                                <button
+                                  key={child._id}
+                                  onClick={() => handleQuickAddChild(child)}
+                                  className="bg-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-emerald-600 shadow-sm hover:translate-y-[-2px] hover:shadow-md transition-all border border-emerald-100 flex items-center gap-2 group"
+                                  title={`Add ${child.name}`}
+                                >
+                                  <span className="text-xs group-hover:scale-125 transition-transform">➕</span> {child.name}
+                                </button>
+                              ))}
+
+                            {/* Standard Add Button */}
+                            <button 
+                              onClick={() => setStep(4)}
+                              className="bg-white/40 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-emerald-600/60 hover:text-emerald-600 hover:bg-white shadow-sm transition-all border border-emerald-100 flex items-center gap-2"
+                            >
+                              <span>👥</span> Manage List
+                            </button>
+                            
+                            {(() => {
+                              // Find Next Day Slot Shortcut
+                              if (selectedSessions.length === 1) {
+                                const currentSess = selectedSessions[0];
+                                const nextDayStr = new Date(new Date(currentSess.startTime).getTime() + 86400000).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+                                const nextDaySlot = sessionGroups[nextDayStr]?.find(s => {
+                                  const sTime = new Date(s.startTime);
+                                  const cTime = new Date(currentSess.startTime);
+                                  return sTime.getHours() === cTime.getHours() && sTime.getMinutes() === cTime.getMinutes();
+                                });
+
+                                if (nextDaySlot) {
+                                  return (
+                                    <button 
+                                      onClick={() => setSelectedSessions([...selectedSessions, nextDaySlot])}
+                                      className="bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                                    >
+                                      <span>⚡</span> Add Tomorrow @ {new Date(nextDaySlot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (Free)
+                                    </button>
+                                  );
+                                }
+                              }
+                              return null;
+                            })()}
+                          </div>
+                          <p className="mt-4 text-[9px] font-bold text-emerald-600/60 uppercase tracking-widest">
+                            * BOGO applies to every 2nd unit (Total: {participants.length * selectedSessions.length} units selected)
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
 

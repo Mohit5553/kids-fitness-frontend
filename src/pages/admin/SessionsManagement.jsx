@@ -35,6 +35,7 @@ export default function SessionsManagement() {
   const [viewingParticipantsSession, setViewingParticipantsSession] = useState(null);
   const [participantsList, setParticipantsList] = useState([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [sendingReminderId, setSendingReminderId] = useState(null);
 
   const { can } = usePermissions();
   const { selectedBranch } = useBranch();
@@ -47,9 +48,7 @@ export default function SessionsManagement() {
     setLoading(true);
     const p1 = api.get('/sessions?all=true&includeMemberships=true').then((res) => {
       const data = res.data || [];
-      // Sort latest date first
-      const sorted = data.sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
-      setSessions(sorted);
+      setSessions(data);
     });
     const p2 = api.get('/classes').then((res) => setClasses(res.data || []));
     const p3 = api.get('/trainers').then((res) => setTrainers(res.data || []));
@@ -201,6 +200,18 @@ export default function SessionsManagement() {
       toast.error('Failed to load participant list');
       setLoadingParticipants(false);
       setViewingParticipantsSession(null);
+    }
+  };
+
+  const handleSendReminder = async (bookingId) => {
+    setSendingReminderId(bookingId);
+    try {
+      await api.post(`/bookings/${bookingId}/reminder`);
+      toast.success('Reminder email sent successfully!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send reminder');
+    } finally {
+      setSendingReminderId(null);
     }
   };
 
@@ -413,8 +424,26 @@ export default function SessionsManagement() {
         )}
 
         <div className="grid gap-4">
-          {sessions.filter(s => view === 'active' ? new Date(s.startTime) >= new Date() : new Date(s.startTime) < new Date()).length > 0 ?
-            sessions.filter(s => view === 'active' ? new Date(s.startTime) >= new Date() : new Date(s.startTime) < new Date()).map((session) => (
+          {sessions
+            .filter(s => view === 'active' ? new Date(s.startTime) >= new Date() : new Date(s.startTime) < new Date())
+            .sort((a, b) => {
+              if (view === 'active') {
+                return new Date(a.startTime) - new Date(b.startTime); // Soonest first
+              } else {
+                return new Date(b.startTime) - new Date(a.startTime); // Most recent past first
+              }
+            })
+            .length > 0 ?
+            sessions
+              .filter(s => view === 'active' ? new Date(s.startTime) >= new Date() : new Date(s.startTime) < new Date())
+              .sort((a, b) => {
+                if (view === 'active') {
+                  return new Date(a.startTime) - new Date(b.startTime);
+                } else {
+                  return new Date(b.startTime) - new Date(a.startTime);
+                }
+              })
+              .map((session) => (
               <div key={session._id} className={`soft-card rounded-[32px] p-6 hover:shadow-xl transition-all group flex flex-col md:flex-row items-center justify-between gap-6 border ${new Date(session.startTime) < new Date() ? 'bg-slate-50/50 border-slate-200/50' : 'border-slate-100/50'}`}>
                 <div className="flex items-center gap-6 flex-1">
                   <div className={`w-16 h-16 rounded-[24px] flex flex-col items-center justify-center ${new Date(session.startTime) < new Date() ? 'bg-slate-200/50 text-ink/20' : 'bg-brand-blue/5 text-brand-blue'}`}>
@@ -601,9 +630,23 @@ export default function SessionsManagement() {
                           <h4 className="text-sm font-black text-ink">{booking.userId?.name || booking.guestDetails?.name || 'Guest'}</h4>
                           <p className="text-[10px] font-bold text-ink/40 mt-0.5">{booking.userId?.phone || booking.guestDetails?.phone || 'No phone'}</p>
                         </div>
-                        <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${booking.status === 'confirmed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
-                          {booking.status}
-                        </span>
+                        <div className="flex flex-col items-end gap-2">
+                          <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${booking.status === 'confirmed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                            {booking.status}
+                          </span>
+                          {!booking.isVirtualMembership && (
+                            <button
+                              onClick={() => handleSendReminder(booking._id)}
+                              disabled={sendingReminderId === booking._id}
+                              className="text-[8px] font-black uppercase tracking-widest text-brand-blue hover:text-brand-blue/70 flex items-center gap-1 transition-all disabled:opacity-50"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                              </svg>
+                              {sendingReminderId === booking._id ? 'Sending...' : 'Send Reminder'}
+                            </button>
+                          )}
+                        </div>
                       </div>
                       
                       <div className="grid gap-3 sm:grid-cols-2">

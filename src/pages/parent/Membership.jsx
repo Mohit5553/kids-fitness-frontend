@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -58,7 +58,7 @@ function CalendarView({ sessions }) {
 
           return (
             <div key={i} className={`aspect-square relative rounded-xl border transition-all flex flex-col items-center justify-center ${!day ? 'border-transparent' :
-                isToday(day) ? 'border-brand-blue bg-brand-blue/5' : 'border-slate-50 hover:border-brand-blue/20'
+              isToday(day) ? 'border-brand-blue bg-brand-blue/5' : 'border-slate-50 hover:border-brand-blue/20'
               }`}>
               {day && (
                 <>
@@ -67,7 +67,7 @@ function CalendarView({ sessions }) {
                     <div className="flex gap-0.5 mt-1">
                       {daySessions.map((_, si) => (
                         <div key={si} className={`w-1 h-1 rounded-full ${daySessions[si].attendanceStatus === 'present' ? 'bg-emerald-400' :
-                            daySessions[si].attendanceStatus === 'absent' ? 'bg-rose-400' : 'bg-brand-blue'
+                          daySessions[si].attendanceStatus === 'absent' ? 'bg-rose-400' : 'bg-brand-blue'
                           }`} />
                       ))}
                     </div>
@@ -112,7 +112,7 @@ function TimeView({ sessions }) {
             </div>
             <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/20 mb-4">{date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h5>
             <div className="grid gap-3">
-              {daySessions.sort((a,b) => new Date(a.startTime) - new Date(b.startTime)).map(s => (
+              {daySessions.sort((a, b) => new Date(a.startTime) - new Date(b.startTime)).map(s => (
                 <div key={s._id} className="bg-white p-5 rounded-[1.5rem] border border-slate-100 shadow-sm flex items-center justify-between">
                   <div className="flex items-center gap-6">
                     <p className="text-sm font-black text-ink">{new Date(s.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
@@ -120,7 +120,7 @@ function TimeView({ sessions }) {
                       <p className="text-xs font-black text-ink">{s.trainerId?.name || 'Assigned Trainer'}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${s.attendanceStatus === 'present' ? 'bg-emerald-50 text-emerald-500' :
-                            s.attendanceStatus === 'absent' ? 'bg-rose-50 text-rose-500' : 'bg-brand-blue/5 text-brand-blue'
+                          s.attendanceStatus === 'absent' ? 'bg-rose-50 text-rose-500' : 'bg-brand-blue/5 text-brand-blue'
                           }`}>
                           {s.attendanceStatus}
                         </span>
@@ -141,6 +141,7 @@ function TimeView({ sessions }) {
 
 export default function Membership() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [memberships, setMemberships] = useState([]);
   const [plans, setPlans] = useState([]);
   const [children, setChildren] = useState([]);
@@ -149,10 +150,21 @@ export default function Membership() {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const [selectedChildId, setSelectedChildId] = useState('');
+  const [claimBogo, setClaimBogo] = useState(false);
+  const [bogoChildId, setBogoChildId] = useState('');
+  const [preferredDays, setPreferredDays] = useState(['Monday', 'Wednesday']);
+  const [preferredSlots, setPreferredSlots] = useState(['16:00']);
+  const [sessionsPerWeek, setSessionsPerWeek] = useState(2);
   const [cardForm, setCardForm] = useState({ name: '', number: '', expiry: '', cvc: '' });
   const [showScheduleMembership, setShowScheduleMembership] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list', 'calendar', 'time'
   const [showExtensionRequest, setShowExtensionRequest] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // Search and Pagination States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [membershipsPerPage] = useState(10);
 
   const fetchMemberships = () => {
     api.get('/memberships/mine').then((res) => setMemberships(res.data || [])).catch(() => { });
@@ -197,44 +209,77 @@ export default function Membership() {
     e.preventDefault();
     setMessage('');
     setError('');
+    setLoading(true);
 
     if (!selectedPlan) return;
 
-    if (children.length > 0 && !selectedChildId) {
-      setError('Please select which child this membership is for.');
+    if (!selectedChildId && children.length > 0) {
+      setError('Please select a child or choose Individual.');
+      setLoading(false);
       return;
     }
 
     if (!cardForm.name || !cardForm.number || !cardForm.expiry || !cardForm.cvc) {
       setError('Please complete card details.');
+      setLoading(false);
       return;
     }
 
     try {
+      // 1. Create Payment
       const payment = await api.post('/payments', {
+        planId: selectedPlan._id,
         amount: selectedPlan.price,
         paymentMethod: 'card',
-        cardHolder: cardForm.name,
-        cardLast4: cardForm.number.slice(-4)
+        reference: `mock_dash_${Date.now()}`,
+        last4: cardForm.number.slice(-4)
       });
 
+      // 2. Create Membership (New Atomic Flow)
       const membership = await api.post('/memberships', {
         planId: selectedPlan._id,
         paymentId: payment.data._id,
-        childId: selectedChildId || undefined
+        childId: selectedChildId || null,
+        preferredDays,
+        preferredSlots,
+        sessionsPerWeek,
+        claimBogo,
+        bogoChildId: bogoChildId || selectedChildId || null
       });
 
       setMemberships((prev) => [membership.data, ...prev]);
       setShowCheckout(false);
-      setMessage('Membership successfully activated!');
+      setMessage('Enrollment successful! Your schedule has been generated.');
       fetchMemberships();
     } catch (err) {
-      setError(err.response?.data?.message || 'Checkout failed');
+      setError(err.response?.data?.message || 'Checkout failed. Please check your card details.');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const filteredMemberships = memberships.filter(m => {
+    const search = searchTerm.toLowerCase();
+    const bookingRef = m.bookingId?.bookingNumber?.toLowerCase() || '';
+    const planName = m.planId?.name?.toLowerCase() || '';
+    const childName = m.childId?.name?.toLowerCase() || '';
+    const parentName = m.userId?.name?.toLowerCase() || '';
+    const refId = m._id?.toString().toLowerCase() || '';
+
+    return bookingRef.includes(search) ||
+      planName.includes(search) ||
+      childName.includes(search) ||
+      parentName.includes(search) ||
+      refId.includes(search);
+  });
+
+  const indexOfLast = currentPage * membershipsPerPage;
+  const indexOfFirst = indexOfLast - membershipsPerPage;
+  const currentMemberships = filteredMemberships.slice(indexOfFirst, indexOfLast);
+  const totalPages = Math.ceil(filteredMemberships.length / membershipsPerPage);
+
   return (
-    <div className="min-h-screen bg-slate-50/30">
+    <div className="min-h-screen bg-slate-50/30 font-display">
       <Navbar />
       <main className="page-shell py-12">
         <header className="mb-12">
@@ -247,130 +292,187 @@ export default function Membership() {
 
         {/* Memberships Section */}
         <section className="mb-20">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+            <h2 className="text-[10px] font-black text-ink/20 uppercase tracking-[0.3em]">Active Memberships</h2>
+
+            {/* Search Box */}
+            <div className="relative w-full max-w-md">
+              <span className="absolute left-6 top-1/2 -translate-y-1/2 text-lg grayscale opacity-30">🔍</span>
+              <input
+                type="text"
+                placeholder="Search plan, child, or reference..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-14 pr-12 py-4 bg-white border border-slate-100 rounded-2xl text-xs font-bold text-ink placeholder:text-ink/20 focus:outline-none focus:ring-2 focus:ring-brand-blue/10 transition-all shadow-sm"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-6 top-1/2 -translate-y-1/2 text-ink/20 hover:text-ink transition-colors"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-6 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-ink/30">Reference</th>
-                    <th className="px-6 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-ink/30">Parent & Child</th>
-                    <th className="px-6 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-ink/30">Plan Details</th>
-                    <th className="px-6 py-5 text-center text-[10px] font-black uppercase tracking-[0.2em] text-ink/30">Status</th>
-                    <th className="px-6 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-ink/30">Timeline</th>
-                    <th className="px-6 py-5 text-right text-[10px] font-black uppercase tracking-[0.2em] text-ink/30">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {memberships.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="px-6 py-20 text-center">
-                        <div className="flex flex-col items-center">
-                          <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center text-2xl mb-4 grayscale opacity-40">🎫</div>
-                          <p className="text-sm font-bold text-ink/30">No active memberships found. Subscribe to a plan below.</p>
+            {/* Table Header */}
+            <div className="grid grid-cols-[1.5fr_1.5fr_2fr_1fr_1.5fr_1.5fr] gap-6 px-12 py-8 border-b-2 border-slate-50 bg-slate-50/10">
+              <div className="text-[9px] font-black text-ink/20 uppercase tracking-[0.3em]">Reference</div>
+              <div className="text-[9px] font-black text-ink/20 uppercase tracking-[0.3em]">Parent & Child</div>
+              <div className="text-[9px] font-black text-ink/20 uppercase tracking-[0.3em]">Plan Details</div>
+              <div className="text-[9px] font-black text-ink/20 uppercase tracking-[0.3em] text-center">Status</div>
+              <div className="text-[9px] font-black text-ink/20 uppercase tracking-[0.3em]">Timeline</div>
+              <div className="text-[9px] font-black text-ink/20 uppercase tracking-[0.3em] text-right">Actions</div>
+            </div>
+
+            <div className="divide-y divide-slate-50 font-display">
+              {filteredMemberships.length === 0 ? (
+                <div className="p-20 text-center">
+                  <span className="text-4xl mb-4 block grayscale opacity-30">📂</span>
+                  <p className="text-sm font-bold text-ink/30 uppercase tracking-widest">
+                    {searchTerm ? `No memberships found for "${searchTerm}"` : 'No active memberships found'}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {currentMemberships.map((m) => {
+                    const totalSessions = m.planId?.sessionsLimit || m.sessionsCount || 0;
+                    const remaining = m.remainingSessions || 0;
+                    const used = Math.max(0, totalSessions - remaining);
+
+                    return (
+                      <div key={m._id} className="grid grid-cols-[1.5fr_1.5fr_2fr_1fr_1.5fr_1.5fr] gap-6 px-12 py-10 items-center hover:bg-slate-50/30 transition-colors group">
+                        {/* Reference Column */}
+                        <div className="space-y-2">
+                          {m.bookingId?.bookingNumber ? (
+                            <div className="px-3 py-1 bg-brand-blue/5 rounded-lg inline-block">
+                              <span className="text-[10px] font-black text-brand-blue uppercase tracking-tight">{m.bookingId.bookingNumber}</span>
+                            </div>
+                          ) : (
+                            <div className="px-3 py-1 bg-amber-50 rounded-lg inline-block">
+                              <span className="text-[10px] font-black text-amber-600 uppercase tracking-tight leading-none overflow-hidden">REF-TBD</span>
+                            </div>
+                          )}
+                          <p className="text-[9px] font-bold text-ink/20 uppercase tracking-tighter">ID: {m._id.slice(-8).toUpperCase()}</p>
                         </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    memberships.map((membership) => {
-                      const totalClasses = membership.planId?.classesIncluded || 0;
-                      const sessionsUsed = Math.max(0, totalClasses - (membership.classesRemaining || 0));
 
-                      return (
-                        <tr key={membership._id} className="hover:bg-brand-blue/5 transition-all group">
-                          {/* Reference # */}
-                          <td className="px-6 py-8">
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-black text-brand-blue bg-brand-blue/10 px-2.5 py-1 rounded-lg inline-block w-fit mb-1.5 border border-brand-blue/10">
-                                {membership.bookingId?.bookingNumber || 'REF-TBD'}
+                        {/* Parent & Child Column */}
+                        <div className="space-y-4">
+                          <p className="text-sm font-black text-ink tracking-tight">{m.userId?.name || user?.name || 'Valued Member'}</p>
+                          {m.childId && (
+                            <div className="flex items-center gap-3">
+                              <span className="w-4 h-4 rounded-full bg-brand-blue/10 flex items-center justify-center text-[10px] grayscale">👦</span>
+                              <span className="text-[10px] font-black text-brand-blue uppercase tracking-widest">{m.childId.name}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Plan Details Column */}
+                        <div className="space-y-4">
+                          <p className="text-sm font-black text-ink tracking-tight">{m.planId?.name || 'Standard Package'}</p>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center pr-12">
+                              <span className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Usage</span>
+                              <span className="text-[9px] font-black text-brand-blue uppercase tracking-widest">
+                                {remaining}/{totalSessions}
                               </span>
-                              <p className="text-[8px] text-ink/20 font-black tracking-widest uppercase">ID: {membership._id.slice(-8).toUpperCase()}</p>
                             </div>
-                          </td>
-
-                          {/* Parent & Child */}
-                          <td className="px-6 py-8">
-                            <div className="space-y-1.5 text-left">
-                              <p className="text-sm font-black text-ink">
-                                {membership.userId?.name || user?.name || (membership.userId?.firstName ? `${membership.userId.firstName} ${membership.userId.lastName || ''}` : 'Subscriber')}
-                              </p>
-                              <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                                <span className="text-[10px]">{(membership.childId || membership.bookingId?.participants?.length > 0) ? '👶' : '👤'}</span>
-                                <p className="text-[10px] font-black tracking-[0.1em] text-brand-blue uppercase">
-                                  {membership.childId?.name || 
-                                   membership.bookingId?.participants?.[0]?.name || 
-                                   (membership.userId?.name?.toLowerCase().includes('mohit') ? 'Hardik' : 'Family / Standard')}
-                                </p>
-                              </div>
+                            <div className="w-full max-w-[200px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-brand-blue to-teal-400 rounded-full transition-all duration-700 shadow-sm"
+                                style={{ width: `${totalSessions > 0 ? (used / totalSessions) * 100 : 0}%` }}
+                              />
                             </div>
-                          </td>
+                          </div>
+                        </div>
 
-                          {/* Session Info */}
-                          <td className="px-6 py-8">
-                            <div className="space-y-2">
-                              <p className="text-sm font-black text-ink/80">{membership.planId?.name}</p>
-                              <div className="space-y-1.5">
-                                <div className="flex justify-between text-[8px] font-black uppercase tracking-wider text-ink/30">
-                                  <span>Usage</span>
-                                  <span>{sessionsUsed}/{totalClasses}</span>
-                                </div>
-                                <div className="h-1 w-32 bg-slate-100 rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-brand-blue transition-all duration-500" 
-                                    style={{ width: `${totalClasses > 0 ? (sessionsUsed / totalClasses) * 100 : 0}%` }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </td>
+                        {/* Status Column */}
+                        <div className="text-center">
+                          <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest ${m.status === 'active' ? 'bg-emerald-50 text-emerald-500 shadow-sm shadow-emerald-500/10 border border-emerald-100' :
+                              m.status === 'expired' ? 'bg-rose-50 text-rose-500 border border-rose-100' :
+                                'bg-slate-50 text-slate-400 border border-slate-100'}`}>
+                            {m.status || 'Active'}
+                          </span>
+                        </div>
 
-                          {/* Status */}
-                          <td className="px-6 py-8 text-center">
-                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.15em] ${
-                              membership.status === 'active' ? 'bg-moss/10 text-moss border border-moss/10' : 'bg-rose-50 text-rose-500 border border-rose-100'
-                            }`}>
-                              {membership.status || 'Active'}
-                            </span>
-                          </td>
+                        {/* Timeline Column */}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-6">
+                            <span className="text-[9px] font-black text-ink/20 uppercase tracking-[0.2em] w-8">Start</span>
+                            <span className="text-[10px] font-black text-ink">{new Date(m.startDate || m.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <span className="text-[9px] font-black text-ink/20 uppercase tracking-[0.2em] w-8">End</span>
+                            <span className="text-[10px] font-black text-ink">{new Date(m.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          </div>
+                        </div>
 
-                          {/* Timeline */}
-                          <td className="px-6 py-8">
-                            <div className="space-y-2 text-[10px]">
-                              <div className="flex items-center justify-between gap-4">
-                                <span className="font-black text-ink/20 uppercase tracking-tighter w-8 text-right">Start</span>
-                                <span className="font-black text-brand-black">{new Date(membership.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                              </div>
-                              <div className="flex items-center justify-between gap-4">
-                                <span className="font-black text-ink/20 uppercase tracking-tighter w-8 text-right">End</span>
-                                <span className="font-black text-brand-black">{new Date(membership.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                              </div>
-                            </div>
-                          </td>
+                        {/* Actions Column */}
+                        <div className="flex flex-col gap-3 items-end">
+                          <button
+                            onClick={() => setShowScheduleMembership(m)}
+                            className="w-full max-w-[120px] px-4 py-2 bg-brand-blue text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-brand-blue/20 hover:shadow-brand-blue/30 transition-all hover:-translate-y-0.5"
+                          >
+                            View Schedule
+                          </button>
+                          {m.bookingId && (
+                            <button
+                              onClick={() => navigate(`/invoice/booking/${m.bookingId._id || m.bookingId}`)}
+                              className="w-full max-w-[120px] px-4 py-2 border border-slate-100 text-ink/30 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 hover:text-brand-blue transition-all flex items-center justify-center gap-2"
+                            >
+                              <span>📄</span> Invoice
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
 
-                          {/* Actions */}
-                          <td className="px-6 py-8 text-right">
-                            <div className="flex flex-col items-end gap-2">
-                              <button 
-                                onClick={() => setShowScheduleMembership(membership)}
-                                className="w-32 py-2.5 rounded-xl bg-brand-blue text-white text-[9px] font-black uppercase tracking-widest shadow-lg shadow-brand-blue/10 hover:shadow-brand-blue/20 transition-all hover:-translate-y-0.5"
-                              >
-                                View Schedule
-                              </button>
-                              {membership.bookingId?._id && (
-                                <Link 
-                                  to={`/invoice/booking/${membership.bookingId._id}`}
-                                  className="w-32 py-2.5 rounded-xl bg-white border border-slate-200 text-ink/40 text-[9px] font-black uppercase tracking-widest hover:bg-slate-50 hover:text-ink/70 transition-all flex items-center justify-center gap-2"
-                                >
-                                  <span>📜</span> Invoice
-                                </Link>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="px-12 py-8 bg-slate-50/10 flex items-center justify-between border-t border-slate-50">
+                      <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest">
+                        Showing {indexOfFirst + 1} to {Math.min(indexOfLast, filteredMemberships.length)} of {filteredMemberships.length} memberships
+                      </p>
+                      <div className="flex items-center gap-4">
+                        <button
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(prev => prev - 1)}
+                          className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-ink disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-50 transition-all shadow-sm"
+                        >
+                          ←
+                        </button>
+                        <div className="flex items-center gap-2">
+                          {[...Array(totalPages)].map((_, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setCurrentPage(i + 1)}
+                              className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${currentPage === i + 1
+                                  ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20'
+                                  : 'bg-white border border-slate-100 text-ink/40 hover:bg-slate-50'
+                                }`}
+                            >
+                              {i + 1}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          disabled={currentPage === totalPages}
+                          onClick={() => setCurrentPage(prev => prev + 1)}
+                          className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-ink disabled:opacity-30 disabled:pointer-events-none hover:bg-slate-50 transition-all shadow-sm"
+                        >
+                          →
+                        </button>
+                      </div>
+                    </div>
                   )}
-                </tbody>
-              </table>
+                </>
+              )}
             </div>
           </div>
         </section>
@@ -398,7 +500,7 @@ export default function Membership() {
                     {plan.tagline || plan.validity || (plan.type === 'subscription' ? 'Plan' : '')}
                   </p>
                   <h3 className="mt-2 font-display text-3xl font-black text-ink leading-tight">{plan.name}</h3>
-                  
+
                   <div className="mt-8 mb-8 pb-8 border-b border-slate-100">
                     <div className="flex items-baseline">
                       <span className="text-sm font-black text-ink/20 mr-2">AED</span>
@@ -438,92 +540,174 @@ export default function Membership() {
       {/* Checkout Modal */}
       {showCheckout && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-md">
-          <div className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
-            <div className="bg-brand-blue p-10 text-white relative">
-              <h3 className="font-display text-3xl font-black mb-2">Checkout</h3>
-              <p className="text-sm text-white/60 font-medium">Complete your subscription for {selectedPlan?.name}</p>
-              <button onClick={closeCheckout} className="absolute top-10 right-10 p-2 hover:bg-white/10 rounded-full transition-all">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+          <div className="w-full max-w-2xl bg-white rounded-[3rem] shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200">
+            <div className="bg-brand-blue p-10 text-white relative flex justify-between items-center">
+              <div>
+                <h3 className="font-display text-3xl font-black mb-1">Complete Enrollment</h3>
+                <p className="text-xs text-white/60 font-black uppercase tracking-widest">{selectedPlan?.name} · AED {selectedPlan?.price}</p>
+              </div>
+              <button onClick={closeCheckout} className="p-3 hover:bg-white/10 rounded-2xl transition-all border border-white/10">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            
-            <div className="p-10">
-              <form onSubmit={handleCheckout} className="space-y-6">
-                {/* Child Selector */}
-                {children.length > 0 && (
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 ml-2">Who is this for?</label>
-                    <div className="grid gap-2">
-                      {children.map(c => (
-                        <button
-                          key={c._id}
-                          type="button"
-                          onClick={() => setSelectedChildId(c._id)}
-                          className={`w-full p-4 rounded-2xl border-2 text-left transition-all flex items-center gap-3 ${
-                            selectedChildId === c._id ? 'border-brand-blue bg-brand-blue/5' : 'border-slate-100 hover:border-slate-200'
-                          }`}
-                        >
-                          <span className="text-xl">👶</span>
-                          <div>
-                            <p className="text-sm font-black text-ink">{c.name}</p>
-                            <p className="text-[10px] font-bold text-ink/40 uppercase">{c.age} years old</p>
-                          </div>
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedChildId('')}
-                        className={`w-full p-4 rounded-2xl border-2 text-left transition-all flex items-center gap-3 ${
-                          selectedChildId === '' ? 'border-brand-blue bg-brand-blue/5' : 'border-slate-100 hover:border-slate-200'
-                        }`}
-                      >
-                        <span className="text-xl">👤</span>
-                        <p className="text-sm font-black text-ink">Myself (Individual)</p>
-                      </button>
-                    </div>
-                  </div>
-                )}
 
-                {/* Card Fields */}
-                <div className="space-y-3">
-                  <input
-                    className="w-full p-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-brand-blue/20 outline-none font-bold text-sm transition-all"
-                    placeholder="Name on Card"
-                    name="name"
-                    value={cardForm.name}
-                    onChange={handleCardChange}
-                  />
-                  <input
-                    className="w-full p-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-brand-blue/20 outline-none font-bold text-sm transition-all"
-                    placeholder="Card Number"
-                    name="number"
-                    value={cardForm.number}
-                    onChange={handleCardChange}
-                  />
+            <div className="p-10 max-h-[70vh] overflow-y-auto">
+              <form onSubmit={handleCheckout} className="space-y-10 text-left">
+                {/* 1. Selection */}
+                <div className="space-y-6">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 ml-2">1. Select Participant</label>
                   <div className="grid grid-cols-2 gap-3">
-                    <input
-                      className="w-full p-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-brand-blue/20 outline-none font-bold text-sm transition-all"
-                      placeholder="MM/YY"
-                      name="expiry"
-                      value={cardForm.expiry}
-                      onChange={handleCardChange}
-                    />
-                    <input
-                      className="w-full p-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-brand-blue/20 outline-none font-bold text-sm transition-all"
-                      placeholder="CVC"
-                      name="cvc"
-                      value={cardForm.cvc}
-                      onChange={handleCardChange}
-                    />
+                    {children.map(c => (
+                      <button
+                        key={c._id}
+                        type="button"
+                        onClick={() => setSelectedChildId(c._id)}
+                        className={`p-4 rounded-2xl border-2 text-left transition-all flex items-center gap-3 ${selectedChildId === c._id ? 'border-brand-blue bg-brand-blue/5 shadow-lg shadow-brand-blue/5' : 'border-slate-50 hover:border-slate-100'}`}
+                      >
+                        <span className="text-xl">👶</span>
+                        <div>
+                          <p className="text-xs font-black text-ink">{c.name}</p>
+                          <p className="text-[9px] font-bold text-ink/30 uppercase">{c.age} years</p>
+                        </div>
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedChildId('')}
+                      className={`p-4 rounded-2xl border-2 text-left transition-all flex items-center gap-3 ${selectedChildId === '' ? 'border-brand-blue bg-brand-blue/5' : 'border-slate-50 hover:border-slate-100'}`}
+                    >
+                      <span className="text-xl">👤</span>
+                      <p className="text-xs font-black text-ink">Individual</p>
+                    </button>
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full bg-brand-blue text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl shadow-brand-blue/20 hover:shadow-brand-blue/40 transition-all hover:-translate-y-1"
-                >
-                  Pay AED {selectedPlan?.price}
-                </button>
+                {/* 2. Scheduling */}
+                <div className="space-y-6">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 ml-2">2. Scheduling Preference</label>
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-2">
+                        <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest ml-1">Preferred Days</p>
+                        <select 
+                           multiple
+                           value={preferredDays}
+                           onChange={(e) => setPreferredDays(Array.from(e.target.selectedOptions, option => option.value))}
+                           className="w-full p-4 bg-slate-50 rounded-2xl border-none text-xs font-bold outline-none ring-brand-blue/5 focus:ring-4"
+                        >
+                           {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                     </div>
+                     <div className="space-y-2">
+                        <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest ml-1">Start Time</p>
+                        <select 
+                           value={preferredSlots[0]}
+                           onChange={(e) => setPreferredSlots([e.target.value])}
+                           className="w-full p-4 bg-slate-50 rounded-2xl border-none text-xs font-bold outline-none ring-brand-blue/5 focus:ring-4"
+                        >
+                           {['09:00','10:00','11:00','14:00','15:00','16:00','17:00','18:00'].map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                     </div>
+                  </div>
+                </div>
+
+                {/* 3. BOGO Check */}
+                <div className="p-6 bg-brand-blue/5 rounded-[2rem] border border-brand-blue/10 space-y-4">
+                   <div className="flex items-center justify-between">
+                      <div>
+                         <p className="text-[10px] font-black text-brand-blue uppercase tracking-widest">Special Enrollment Offer</p>
+                         <p className="text-xs font-black text-ink/60 mt-1">Claim BOGO Benefits?</p>
+                      </div>
+                      <button 
+                         type="button"
+                         onClick={() => {
+                            setClaimBogo(!claimBogo);
+                            if (!claimBogo && !bogoChildId) setBogoChildId(selectedChildId);
+                         }}
+                         className={`w-12 h-6 rounded-full transition-all relative ${claimBogo ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                      >
+                         <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${claimBogo ? 'left-7' : 'left-1'}`} />
+                      </button>
+                   </div>
+
+                   {claimBogo && (
+                      <div className="pt-4 border-t border-brand-blue/10 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                         <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest ml-1">Recipient for Free Item:</p>
+                         <div className="grid grid-cols-2 gap-3">
+                            {children.map(c => (
+                               <button
+                                  key={c._id}
+                                  type="button"
+                                  onClick={() => setBogoChildId(c._id)}
+                                  className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-2 ${bogoChildId === c._id ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-white hover:border-slate-200'}`}
+                               >
+                                  <span className="text-sm">👧</span>
+                                  <div className="text-left">
+                                     <p className="text-[10px] font-black text-ink leading-none">{c.name}</p>
+                                     <p className="text-[8px] font-bold text-ink/30 uppercase mt-1">{c.age} yrs</p>
+                                  </div>
+                               </button>
+                            ))}
+                            <button
+                               type="button"
+                               onClick={() => setBogoChildId('')}
+                               className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-2 ${bogoChildId === '' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-white hover:border-slate-200'}`}
+                            >
+                               <span className="text-sm">👤</span>
+                               <p className="text-[10px] font-black text-ink">Individual</p>
+                            </button>
+                         </div>
+                      </div>
+                   )}
+                </div>
+
+                {/* 4. Payment */}
+                <div className="space-y-6">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 ml-2">3. Payment Details</label>
+                  <div className="space-y-3">
+                    <input
+                      className="w-full p-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-xs"
+                      placeholder="Name on Card"
+                      name="name"
+                      value={cardForm.name}
+                      onChange={handleCardChange}
+                    />
+                    <input
+                      className="w-full p-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-xs"
+                      placeholder="Card Number"
+                      name="number"
+                      value={cardForm.number}
+                      onChange={handleCardChange}
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        className="w-full p-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-xs"
+                        placeholder="MM/YY"
+                        name="expiry"
+                        value={cardForm.expiry}
+                        onChange={handleCardChange}
+                      />
+                      <input
+                        className="w-full p-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-xs"
+                        placeholder="CVC"
+                        name="cvc"
+                        value={cardForm.cvc}
+                        onChange={handleCardChange}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                   <button
+                     type="submit"
+                     disabled={loading}
+                     className="w-full bg-brand-blue text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl shadow-brand-blue/20 hover:shadow-brand-blue/40 transition-all hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-50"
+                   >
+                     {loading ? 'Processing...' : `Pay AED ${selectedPlan?.price}`}
+                     {!loading && <span>➜</span>}
+                   </button>
+                   <p className="mt-4 text-center text-[8px] font-black text-ink/20 uppercase tracking-[0.2em]">Secure 256-bit SSL Encrypted Transaction</p>
+                </div>
               </form>
             </div>
           </div>
@@ -535,65 +719,64 @@ export default function Membership() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-md">
           <div className="w-full max-w-3xl max-h-[90vh] bg-white rounded-[3rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="bg-brand-blue p-10 text-white flex justify-between items-start shrink-0">
-               <div>
-                 <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">Class Schedule</p>
-                 <h3 className="font-display text-4xl font-black text-white leading-none">{showScheduleMembership.planId?.name}</h3>
-               </div>
-               <div className="flex gap-2 p-1 bg-white/10 rounded-2xl border border-white/10">
-                 {['list', 'calendar', 'time'].map(m => (
-                    <button
-                      key={m}
-                      onClick={() => setViewMode(m)}
-                      className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === m ? 'bg-white text-brand-blue shadow-lg' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}
-                    >
-                      {m}
-                    </button>
-                 ))}
-               </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">Class Schedule</p>
+                <h3 className="font-display text-4xl font-black text-white leading-none">{showScheduleMembership.planId?.name}</h3>
+              </div>
+              <div className="flex gap-2 p-1 bg-white/10 rounded-2xl border border-white/10">
+                {['list', 'calendar', 'time'].map(m => (
+                  <button
+                    key={m}
+                    onClick={() => setViewMode(m)}
+                    className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === m ? 'bg-white text-brand-blue shadow-lg' : 'text-white/60 hover:bg-white/5 hover:text-white'}`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-10 bg-slate-50/50">
-               {(!showScheduleMembership.generatedSessions || showScheduleMembership.generatedSessions.length === 0) ? (
-                 <div className="py-20 text-center">
-                    <p className="text-sm font-bold text-ink/20">Scheduling in progress. Your sessions will appear here soon.</p>
-                 </div>
-               ) : viewMode === 'list' ? (
-                 <div className="space-y-3">
-                   {showScheduleMembership.generatedSessions.map((s, i) => (
-                     <div key={s._id} className="bg-white p-6 rounded-[2rem] border border-slate-100 flex items-center justify-between group hover:shadow-lg transition-all">
-                       <div className="flex items-center gap-6 text-left">
-                         <span className="text-[10px] font-black text-brand-blue/30 w-6">0{i+1}</span>
-                         <div>
-                            <p className="text-sm font-black text-ink">{new Date(s.startTime).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</p>
-                            <p className="text-[10px] font-bold text-ink/30 uppercase tracking-widest leading-none mt-1">
-                              {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Coach {s.trainerId?.name || 'TBD'}
-                            </p>
-                         </div>
-                       </div>
-                       <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                         s.attendanceStatus === 'present' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' :
-                         s.attendanceStatus === 'absent' ? 'bg-rose-50 text-rose-500 border-rose-100' :
-                         'bg-brand-blue/5 text-brand-blue border-brand-blue/10'
-                       }`}>
-                         {s.attendanceStatus}
-                       </span>
-                     </div>
-                   ))}
-                 </div>
-               ) : viewMode === 'calendar' ? (
-                 <CalendarView sessions={showScheduleMembership.generatedSessions} />
-               ) : (
-                 <TimeView sessions={showScheduleMembership.generatedSessions} />
-               )}
+              {(!showScheduleMembership.generatedSessions || showScheduleMembership.generatedSessions.length === 0) ? (
+                <div className="py-20 text-center">
+                  <p className="text-sm font-bold text-ink/20">Scheduling in progress. Your sessions will appear here soon.</p>
+                </div>
+              ) : viewMode === 'list' ? (
+                <div className="space-y-3">
+                  {showScheduleMembership.generatedSessions.map((s, i) => (
+                    <div key={s._id} className="bg-white p-6 rounded-[2rem] border border-slate-100 flex items-center justify-between group hover:shadow-lg transition-all font-display">
+                      <div className="flex items-center gap-6 text-left">
+                        <span className="text-[10px] font-black text-brand-blue/30 w-6">0{i + 1}</span>
+                        <div>
+                          <p className="text-sm font-black text-ink">{new Date(s.startTime).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</p>
+                          <p className="text-[10px] font-bold text-ink/30 uppercase tracking-widest leading-none mt-1">
+                            {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · Coach {s.trainerId?.name || 'TBD'}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${s.attendanceStatus === 'present' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' :
+                          s.attendanceStatus === 'absent' ? 'bg-rose-50 text-rose-500 border-rose-100' :
+                            'bg-brand-blue/5 text-brand-blue border-brand-blue/10'
+                        }`}>
+                        {s.attendanceStatus}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : viewMode === 'calendar' ? (
+                <CalendarView sessions={showScheduleMembership.generatedSessions} />
+              ) : (
+                <TimeView sessions={showScheduleMembership.generatedSessions} />
+              )}
             </div>
 
             <div className="p-8 border-t border-slate-100 bg-white text-center shrink-0">
-               <button 
-                  onClick={() => setShowScheduleMembership(null)}
-                  className="px-10 py-4 bg-slate-100 hover:bg-slate-200 rounded-full text-xs font-black uppercase tracking-widest transition-all"
-               >
-                 Close Window
-               </button>
+              <button
+                onClick={() => setShowScheduleMembership(null)}
+                className="px-10 py-4 bg-slate-100 hover:bg-slate-200 rounded-full text-xs font-black uppercase tracking-widest transition-all"
+              >
+                Close Window
+              </button>
             </div>
           </div>
         </div>
@@ -605,7 +788,7 @@ export default function Membership() {
           {...showExtensionRequest}
           onClose={() => setShowExtensionRequest(null)}
           onSuccess={() => {
-            fetchMemberships(); 
+            fetchMemberships();
           }}
         />
       )}
