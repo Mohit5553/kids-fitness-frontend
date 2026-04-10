@@ -17,11 +17,11 @@ export default function TrialsManagement() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const { can } = usePermissions();
-  
+
   const canEdit = can('trials:edit');
 
   const load = () => {
-    api.get('/trials').then((res) => setTrials(res.data || [])).catch(() => {});
+    api.get('/trials').then((res) => setTrials(res.data || [])).catch(() => { });
   };
 
   useEffect(() => {

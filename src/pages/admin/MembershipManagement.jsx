@@ -7,11 +7,11 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 export default function MembershipManagement() {
   const [memberships, setMemberships] = useState([]);
   const { can } = usePermissions();
-  
+
   const canEdit = can('memberships:edit');
 
   const load = () => {
-    api.get('/memberships').then((res) => setMemberships(res.data || [])).catch(() => {});
+    api.get('/memberships').then((res) => setMemberships(res.data || [])).catch(() => { });
   };
 
   useEffect(() => {

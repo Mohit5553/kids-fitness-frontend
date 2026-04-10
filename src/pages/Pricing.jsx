@@ -26,6 +26,8 @@ export default function Pricing() {
   const [detailsPlan, setDetailsPlan] = useState(null);
   const [applicablePromos, setApplicablePromos] = useState([]);
   const [selectedPromo, setSelectedPromo] = useState(null);
+  const [claimBogo, setClaimBogo] = useState(false);
+  const [bogoChildId, setBogoChildId] = useState('');
   const [discountAmount, setDiscountAmount] = useState(0);
 
   const fetchPlans = async () => {
@@ -114,7 +116,7 @@ export default function Pricing() {
     } else if (promo.promoType === 'lifestyle' || promo.promoType === 'bulk') {
        disc = promo.discountType === 'percentage' ? (plan.price * (promo.discountValue / 100)) : Math.min(plan.price, promo.discountValue);
     } else if (promo.promoType === 'bogo') {
-       disc = plan.price; // Basic BOGO: second item free is like 100% off the unit price if contextually applied
+       disc = 0; // BOGO is now fulfillment-based (+1 item), pay full price for the first one.
     }
     return Math.round(disc * 100) / 100;
   };
@@ -159,7 +161,9 @@ export default function Pricing() {
         childId: selectedChildId,
         preferredDays,
         preferredSlots, // Directly passing the array
-        sessionsPerWeek: preferredDays.length
+        sessionsPerWeek: preferredDays.length,
+        claimBogo,
+        bogoChildId: bogoChildId || selectedChildId // Default to same child if not specified
       });
 
       setMessage('Payment successful! Your schedule has been generated.');
@@ -236,11 +240,74 @@ export default function Pricing() {
                     } p-6`}
                 >
                   {item.isFeatured ? (
-                    <span className="absolute right-6 top-6 rounded-full bg-coral/15 px-3 py-1 text-xs font-semibold text-coral">
+                    <span className="absolute right-6 top-6 rounded-full bg-coral/15 px-3 py-1 text-xs font-semibold text-coral z-20">
                       Best value
                     </span>
                   ) : null}
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+
+                  {/* Promotion Sash */}
+                  {item.activePromotions?.length > 0 && (
+                    <div className="absolute top-0 left-0 z-20">
+                      <div className="bg-coral text-white text-[8px] font-black uppercase tracking-widest py-1.5 px-8 -rotate-45 -translate-x-[25%] translate-y-[20%] shadow-lg">
+                        {item.activePromotions[0].promoType === 'bogo' ? 'BOGO 1+1' : 
+                         item.activePromotions[0].promoType === 'flash' ? 'FLASH' : 
+                         item.activePromotions[0].promoType === 'percentage' ? `${item.activePromotions[0].discountValue}% OFF` :
+                         'OFFER'}
+                      </div>
+                    </div>
+                  )}
+                    {selectedPromo?.promoType === 'bogo' && (
+                      <div className="mt-8 border-t-2 border-dashed border-slate-100 pt-8 animate-in slide-in-from-top-4 duration-300">
+                         <div className="flex items-center justify-between mb-6">
+                            <div>
+                               <p className="text-sm font-black text-ink tracking-tight uppercase">🎁 Claim Free Item?</p>
+                               <p className="text-[10px] font-bold text-ink/30 uppercase tracking-widest mt-1">Add one more for the same price</p>
+                            </div>
+                            <button
+                               type="button"
+                               onClick={() => {
+                                  setClaimBogo(!claimBogo);
+                                  if (!claimBogo && !bogoChildId) setBogoChildId(selectedChildId);
+                               }}
+                               className={`w-14 h-8 rounded-full transition-all relative ${claimBogo ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                            >
+                               <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all ${claimBogo ? 'left-7' : 'left-1'}`} />
+                            </button>
+                         </div>
+
+                         {claimBogo && (
+                            <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                               <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest ml-1 mb-2">Recipient for Free Item:</p>
+                               <div className="grid grid-cols-2 gap-3">
+                                  {children.map(c => (
+                                     <button
+                                        key={c._id}
+                                        type="button"
+                                        onClick={() => setBogoChildId(c._id)}
+                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${bogoChildId === c._id ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 hover:border-slate-200'}`}
+                                     >
+                                        <span className="text-lg">👧</span>
+                                        <div className="text-left">
+                                           <p className="text-xs font-black text-ink leading-none">{c.name}</p>
+                                           <p className="text-[8px] font-black text-ink/20 uppercase mt-1">{c.age} yrs</p>
+                                        </div>
+                                     </button>
+                                  ))}
+                                  <button
+                                     type="button"
+                                     onClick={() => setBogoChildId('')}
+                                     className={`p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${bogoChildId === '' ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 hover:border-slate-200'}`}
+                                  >
+                                     <span className="text-lg">👤</span>
+                                     <p className="text-xs font-black text-ink">Individual</p>
+                                  </button>
+                               </div>
+                            </div>
+                         )}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between mb-4 mt-8">
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2 mb-3">
                         <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${item.sessionType === 'personal' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'}`}>
@@ -271,10 +338,29 @@ export default function Pricing() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-1">Price</p>
-                      <p className="text-3xl font-black text-brand-blue">
-                        {item.price.toLocaleString()}
-                        <span className="text-xs ml-1 opacity-40">AED</span>
-                      </p>
+                      <div className="flex flex-col items-end">
+                        {item.activePromotions?.length > 0 ? (
+                          <>
+                            <p className="text-xs font-bold text-slate-300 line-through">
+                              {item.price.toLocaleString()}
+                              <span className="ml-0.5 opacity-60">AED</span>
+                            </p>
+                            <p className="text-3xl font-black text-coral">
+                              {Math.round(
+                                item.activePromotions[0].discountType === 'percentage'
+                                  ? item.price * (1 - item.activePromotions[0].discountValue / 100)
+                                  : Math.max(0, item.price - item.activePromotions[0].discountValue)
+                              ).toLocaleString()}
+                              <span className="text-xs ml-1 opacity-40">AED</span>
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-3xl font-black text-brand-blue">
+                            {item.price.toLocaleString()}
+                            <span className="text-xs ml-1 opacity-40">AED</span>
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -285,6 +371,12 @@ export default function Pricing() {
                            {slot}
                          </span>
                        ))}
+                    </div>
+                  )}
+
+                  {item.activePromotions?.length > 0 && item.activePromotions[0].name && (
+                    <div className="mt-4 bg-coral/5 border border-coral/10 rounded-xl p-2">
+                       <p className="text-[9px] font-black text-coral uppercase tracking-widest text-center">{item.activePromotions[0].name}</p>
                     </div>
                   )}
 
@@ -336,10 +428,35 @@ export default function Pricing() {
               {loading ? (
                 Array(3).fill(0).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-2xl bg-white/40" />)
               ) : termPricing.map((term) => (
-                <div key={term._id} className="rounded-2xl border border-orange-200/60 bg-white/80 p-5 flex flex-col justify-between">
+                <div key={term._id} className={`rounded-2xl border bg-white/80 p-5 flex flex-col justify-between relative overflow-hidden ${term.activePromotions?.length > 0 ? 'border-coral shadow-md' : 'border-orange-200/60'}`}>
+                  {term.activePromotions?.length > 0 && (
+                    <div className="absolute top-0 right-0 z-20">
+                      <div className="bg-coral text-white text-[7px] font-black uppercase tracking-widest py-1 px-6 rotate-45 translate-x-[30%] translate-y-[15%] shadow-sm">
+                        {term.activePromotions[0].promoType === 'bogo' ? 'BOGO' : 'SALE'}
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm text-ink/70">{term.name}</p>
-                    <p className="mt-2 text-2xl font-semibold text-ocean">{term.price.toLocaleString()} AED</p>
+                    <div className="flex flex-col">
+                      {term.activePromotions?.length > 0 ? (
+                        <>
+                          <p className="text-[10px] font-bold text-slate-300 line-through">
+                            {term.price.toLocaleString()} AED
+                          </p>
+                          <p className="mt-1 text-2xl font-black text-coral">
+                            {Math.round(
+                              term.activePromotions[0].discountType === 'percentage'
+                                ? term.price * (1 - term.activePromotions[0].discountValue / 100)
+                                : Math.max(0, term.price - term.activePromotions[0].discountValue)
+                            ).toLocaleString()} 
+                            <span className="text-xs ml-1">AED</span>
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mt-2 text-2xl font-semibold text-ocean">{term.price.toLocaleString()} AED</p>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => openCheckout(term)}
@@ -600,7 +717,9 @@ export default function Pricing() {
                              </div>
                              <div>
                                 <p className="font-bold text-ink text-xs">{promo.name}</p>
-                                <p className="text-[9px] font-black text-emerald-600 uppercase">Save {calculateDiscount(promo, selectedPlan)} AED</p>
+                                <p className="text-[9px] font-black text-emerald-600 uppercase">
+                                  {promo.promoType === 'bogo' ? 'Buy 1 Get 1 FREE' : `Save ${calculateDiscount(promo, selectedPlan)} AED`}
+                                </p>
                              </div>
                           </div>
                           <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${selectedPromo?._id === promo._id ? 'bg-brand-blue border-brand-blue text-white' : 'border-slate-100 font-black text-[10px] text-slate-200'}`}>
@@ -609,6 +728,58 @@ export default function Pricing() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Step 3.6: BOGO Claim Choice */}
+                {selectedPromo?.promoType === 'bogo' && (
+                  <div className="mt-8 border-t-2 border-dashed border-slate-100 pt-8 animate-in slide-in-from-top-4 duration-300 text-left">
+                     <div className="flex items-center justify-between mb-6">
+                        <div>
+                           <p className="text-sm font-black text-ink tracking-tight uppercase">🎁 Claim Free Item?</p>
+                           <p className="text-[10px] font-bold text-ink/30 uppercase tracking-widest mt-1">Add one more for the same price</p>
+                        </div>
+                        <button
+                           type="button"
+                           onClick={() => {
+                              setClaimBogo(!claimBogo);
+                              if (!claimBogo && !bogoChildId) setBogoChildId(selectedChildId);
+                           }}
+                           className={`w-14 h-8 rounded-full transition-all relative ${claimBogo ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                        >
+                           <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all ${claimBogo ? 'left-7' : 'left-1'}`} />
+                        </button>
+                     </div>
+
+                     {claimBogo && (
+                        <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                           <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest ml-1 mb-2">Recipient for Free Item:</p>
+                           <div className="grid grid-cols-2 gap-3">
+                              {children.map(c => (
+                                 <button
+                                    key={c._id}
+                                    type="button"
+                                    onClick={() => setBogoChildId(c._id)}
+                                    className={`p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${bogoChildId === c._id ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 hover:border-slate-200'}`}
+                                 >
+                                    <span className="text-lg">👧</span>
+                                    <div className="text-left">
+                                       <p className="text-xs font-black text-ink leading-none">{c.name}</p>
+                                       <p className="text-[8px] font-black text-ink/20 uppercase mt-1">{c.age} yrs</p>
+                                    </div>
+                                 </button>
+                              ))}
+                              <button
+                                 type="button"
+                                 onClick={() => setBogoChildId('')}
+                                 className={`p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${bogoChildId === '' ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 hover:border-slate-200'}`}
+                              >
+                                 <span className="text-lg">👤</span>
+                                 <p className="text-xs font-black text-ink">Individual</p>
+                              </button>
+                           </div>
+                        </div>
+                     )}
                   </div>
                 )}
 
@@ -669,6 +840,14 @@ export default function Pricing() {
                     >
                       {message ? 'Processing Order...' : `Finalize & Pay ${(selectedPlan.price - discountAmount).toLocaleString()} AED`}
                     </button>
+                    {selectedPromo?.promoType === 'bogo' && (
+                      <p className="mt-3 text-[10px] font-black text-coral uppercase tracking-widest text-center animate-pulse">
+                        {claimBogo && (String(bogoChildId) === String(selectedChildId) || (!bogoChildId && !selectedChildId)) 
+                          ? `🎁 BOGO Boost: Your classes and duration will be DOUBLED for free!`
+                          : `🎁 BOGO Special: A second membership will be added for ${children.find(c => c._id === bogoChildId)?.name || 'another child'} free!`
+                        }
+                      </p>
+                    )}
                     <p className="mt-4 text-center text-[10px] font-bold text-ink/20 uppercase tracking-widest flex items-center justify-center gap-2">
                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"/></svg>
                        Secure 256-bit SSL Encrypted Payment

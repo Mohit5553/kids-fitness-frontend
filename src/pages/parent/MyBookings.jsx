@@ -4,6 +4,10 @@ import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 
+// - [x] Populate `planId` in `getMyBookings` (Backend) <!-- id: 67 -->
+// - [/] Update `MyBookings.jsx` UI to display package names <!-- id: 68 -->
+// - [/] Update search logic in `MyBookings.jsx` to include plans <!-- id: 69 -->
+
 export default function MyBookings() {
   const [bookings, setBookings] = useState([]);
   const [filteredBookings, setFilteredBookings] = useState([]);
@@ -40,6 +44,7 @@ export default function MyBookings() {
       const q = searchQuery.toLowerCase();
       result = result.filter(b =>
         b.classId?.title?.toLowerCase().includes(q) ||
+        b.planId?.name?.toLowerCase().includes(q) ||
         b.participants?.some(p => p.name?.toLowerCase().includes(q)) ||
         b.bookingNumber?.toLowerCase().includes(q) ||
         b.paymentReference?.toLowerCase().includes(q) ||
@@ -191,7 +196,9 @@ export default function MyBookings() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex-1 min-w-[200px]">
                     <div className="flex items-center gap-2">
-                      <p className="font-display text-lg font-semibold text-ink">{booking.classId?.title}</p>
+                      <p className="font-display text-lg font-semibold text-ink">
+                        {booking.classId?.title || booking.planId?.name || 'Package Membership'}
+                      </p>
                       {booking.bookingNumber && (
                         <span className="rounded bg-brand-blue/10 px-2 py-0.5 text-[10px] font-black text-brand-blue uppercase">
                           {booking.bookingNumber}
@@ -212,7 +219,7 @@ export default function MyBookings() {
                       </p>
                       <p className="text-[10px] text-ink/40">ID: {booking._id}</p>
                     </div>
-                    
+
                     {['attended', 'completed'].includes(booking.status) && (
                       <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 animate-in zoom-in-95 duration-500">
                         <span className="text-[10px]">✅</span>
@@ -239,34 +246,33 @@ export default function MyBookings() {
                     <div className="mt-4 flex items-center gap-1">
                       <div className="flex-1 flex flex-col gap-1.5">
                         <div className="flex justify-between text-[8px] font-black uppercase tracking-wider text-ink/30 px-1">
-                           <span>Paid</span>
-                           <span>Attended</span>
-                           <span>Finalized</span>
+                          <span>Paid</span>
+                          <span>Attended</span>
+                          <span>Finalized</span>
                         </div>
                         <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden flex">
-                           <div className={`h-full transition-all duration-500 ${booking.status !== 'pending' && booking.status !== 'cancelled' ? 'w-1/3 bg-emerald-400' : 'w-0'}`} />
-                           <div className={`h-full transition-all duration-500 border-l border-white ${['attended', 'completed'].includes(booking.status) ? 'w-1/3 bg-sky-400' : 'w-0'}`} />
-                           <div className={`h-full transition-all duration-500 border-l border-white ${booking.status === 'completed' ? 'w-1/3 bg-indigo-400' : 'w-0'}`} />
+                          <div className={`h-full transition-all duration-500 ${booking.status !== 'pending' && booking.status !== 'cancelled' ? 'w-1/3 bg-emerald-400' : 'w-0'}`} />
+                          <div className={`h-full transition-all duration-500 border-l border-white ${['attended', 'completed'].includes(booking.status) ? 'w-1/3 bg-sky-400' : 'w-0'}`} />
+                          <div className={`h-full transition-all duration-500 border-l border-white ${booking.status === 'completed' ? 'w-1/3 bg-indigo-400' : 'w-0'}`} />
                         </div>
                       </div>
                     </div>
 
                     <div className="mt-4 pt-4 border-t border-slate-50 flex justify-end">
-                       <Link 
-                          to={`/invoice/booking/${booking._id}`} 
-                          className="text-[9px] font-black text-brand-blue uppercase tracking-widest hover:underline flex items-center gap-1.5"
-                       >
-                          <span>📜</span> View Official Invoice
-                       </Link>
+                      <Link
+                        to={`/invoice/booking/${booking._id}`}
+                        className="text-[9px] font-black text-brand-blue uppercase tracking-widest hover:underline flex items-center gap-1.5"
+                      >
+                        <span>📜</span> View Official Invoice
+                      </Link>
                     </div>
                   </div>
 
                   <div className="flex flex-col items-end gap-3">
-                    <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                        booking.refundStatus === 'refunded' ? 'hidden' : // Hide if refunded
+                    <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${booking.refundStatus === 'refunded' ? 'hidden' : // Hide if refunded
                         booking.status === 'confirmed' ? 'bg-moss/10 text-moss' :
-                        booking.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                        'bg-red-100 text-red-600'
+                          booking.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                            'bg-red-100 text-red-600'
                       }`}>
                       {booking.paymentMethod === 'center' && booking.status === 'pending' ? 'Pay at Center' : booking.status}
                     </span>
@@ -274,8 +280,8 @@ export default function MyBookings() {
                     {booking.refundStatus && booking.refundStatus !== 'none' && (
                       <div className="flex flex-col items-end gap-1">
                         <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${booking.refundStatus === 'requested' ? 'bg-sky-100 text-sky-700' :
-                            booking.refundStatus === 'refunded' ? 'bg-moss/20 text-moss' :
-                              'bg-red-50 text-red-400'
+                          booking.refundStatus === 'refunded' ? 'bg-moss/20 text-moss' :
+                            'bg-red-50 text-red-400'
                           }`}>
                           Refund: {booking.refundStatus}
                         </span>
@@ -295,7 +301,7 @@ export default function MyBookings() {
                         Pay now
                       </button>
                     ) : booking.paymentMethod === 'center' && booking.paymentStatus === 'pending' ? (
-                       <p className="text-[10px] font-bold text-ink/30 italic">Please pay at the center front desk</p>
+                      <p className="text-[10px] font-bold text-ink/30 italic">Please pay at the center front desk</p>
                     ) : isRefundable(booking) ? (
                       <button
                         className="rounded-full border border-red-200 bg-red-50 px-5 py-2 text-xs font-bold text-red-600 transition hover:bg-red-100 hover:scale-105 active:scale-95"
@@ -306,12 +312,12 @@ export default function MyBookings() {
                     ) : null}
                   </div>
                   <div className="mt-4 pt-4 border-t border-slate-50 flex items-center gap-4">
-                     <Link 
-                        to={`/invoice/booking/${booking._id}`}
-                        className="text-[9px] font-black text-brand-blue/40 uppercase tracking-widest hover:text-brand-blue transition-colors flex items-center gap-1.5"
-                     >
-                        <span>📜</span> View Invoice
-                     </Link>
+                    <Link
+                      to={`/invoice/booking/${booking._id}`}
+                      className="text-[9px] font-black text-brand-blue/40 uppercase tracking-widest hover:text-brand-blue transition-colors flex items-center gap-1.5"
+                    >
+                      <span>📜</span> View Invoice
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -336,12 +342,12 @@ export default function MyBookings() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
           <div className="w-full max-w-md overflow-hidden rounded-[2rem] bg-white shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="bg-brand-blue p-8 text-white relative overflow-hidden">
-               <div className="relative z-10">
-                 <h3 className="font-display text-3xl font-black">Complete Payment</h3>
-                 <p className="mt-1 text-sm text-white/80 font-medium italic">Pay for {selectedBooking.classId?.title} • AED {selectedBooking.totalAmount || selectedBooking.classId?.price || 0}</p>
-               </div>
-               {/* Decorative circle */}
-               <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+              <div className="relative z-10">
+                <h3 className="font-display text-3xl font-black">Complete Payment</h3>
+                <p className="mt-1 text-sm text-white/80 font-medium italic">Pay for {selectedBooking.classId?.title} • AED {selectedBooking.totalAmount || selectedBooking.classId?.price || 0}</p>
+              </div>
+              {/* Decorative circle */}
+              <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
             </div>
 
             <div className="p-6">

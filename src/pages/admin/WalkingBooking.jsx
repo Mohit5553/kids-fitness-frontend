@@ -20,6 +20,7 @@ export default function WalkingBooking() {
   const [applicablePromos, setApplicablePromos] = useState([]);
   const [selectedPromo, setSelectedPromo] = useState(null);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [bogoOption, setBogoOption] = useState('double'); // 'double' | 'person'
 
   // Step 1: Customer Data
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,11 +78,11 @@ export default function WalkingBooking() {
       const locationId = selectedLocation || staff?.locationId?._id || staff?.locationId;
       const itemId = bookingMode === 'package' ? selectedPlan?._id : selectedClass?._id;
       const itemType = bookingMode === 'package' ? 'plan' : 'class';
-      
+
       if (locationId && itemId) {
         api.get(`/promotions/active?locationId=${locationId}&itemId=${itemId}&itemType=${itemType}`)
           .then(res => setApplicablePromos(res.data || []))
-          .catch(() => {});
+          .catch(() => { });
       }
     } else {
       setApplicablePromos([]);
@@ -95,9 +96,9 @@ export default function WalkingBooking() {
   }, [selectedChildrenIds, newChildren]);
 
   const currentPrice = useMemo(() => {
-     if (bookingMode === 'package') return selectedPlan?.price || 0;
-     const basePrice = selectedClass?.price || 0;
-     return basePrice * totalParticipants * (selectedSessions?.length || 1);
+    if (bookingMode === 'package') return (selectedPlan?.price || 0) * totalParticipants;
+    const basePrice = selectedClass?.price || 0;
+    return basePrice * totalParticipants * (selectedSessions?.length || 1);
   }, [bookingMode, selectedPlan, selectedClass, totalParticipants, selectedSessions]);
 
   const calculateDiscount = (promo, price) => {
@@ -115,9 +116,22 @@ export default function WalkingBooking() {
         disc = tier.type === 'percentage' ? (price * (tier.value / 100)) : Math.min(price, tier.value);
       }
     } else if (promo.promoType === 'lifestyle' || promo.promoType === 'bulk') {
-       disc = promo.discountType === 'percentage' ? (price * (promo.discountValue / 100)) : Math.min(price, promo.discountValue);
+      disc = promo.discountType === 'percentage' ? (price * (promo.discountValue / 100)) : Math.min(price, promo.discountValue);
     } else if (promo.promoType === 'bogo') {
-       disc = price; 
+      if (bookingMode === 'package') {
+        // For packages, BOGO either doubles the classes or adds a second person.
+        // If 'person' is chosen and 2 children are selected, the discount is 1 plan price.
+        if (bogoOption === 'person' && selectedChildrenIds.length >= 2) {
+          disc = selectedPlan?.price || 0;
+        } else {
+          disc = 0; // Value is doubled internally, price remains for 1
+        }
+      } else {
+        const units = totalParticipants * (selectedSessions?.length || 1);
+        if (units < 2) return 0;
+        const numFree = Math.floor(units / 2);
+        disc = numFree * (selectedClass?.price || 0);
+      }
     }
     return Math.round(disc * 100) / 100;
   };
@@ -128,7 +142,7 @@ export default function WalkingBooking() {
     } else {
       setDiscountAmount(0);
     }
-  }, [selectedPromo, currentPrice]);
+  }, [selectedPromo, currentPrice, bogoOption, selectedChildrenIds.length, totalParticipants]);
 
   // Reset preferred slots when plan changes
   useEffect(() => {
@@ -388,6 +402,9 @@ export default function WalkingBooking() {
 
       // 2. Create membership for the first selected child
       const primaryChildId = selectedChildrenIds[0];
+      const isDoubled = selectedPromo?.promoType === 'bogo' && bogoOption === 'double';
+      const isSiblingBogo = selectedPromo?.promoType === 'bogo' && bogoOption === 'person' && selectedChildrenIds.length >= 2;
+
       await api.post('/memberships', {
         planId: selectedPlan._id,
         paymentId: payRes.data._id,
@@ -395,11 +412,13 @@ export default function WalkingBooking() {
         userId: finalUser._id,
         preferredDays,
         preferredSlots,
-        sessionsPerWeek
+        sessionsPerWeek,
+        claimBogo: isDoubled || isSiblingBogo,
+        bogoChildId: isDoubled ? primaryChildId : (isSiblingBogo ? selectedChildrenIds[1] : undefined)
       });
 
       setCreatedBookings([{ bookingNumber: `MBR-${reference}`, _id: payRes.data._id }]);
-      setStep(7);
+      setStep(6);
       toast.success('Membership package purchased!');
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Purchase failed');
@@ -431,25 +450,20 @@ export default function WalkingBooking() {
       }
 
       // Create Bookings
-      const results = [];
-      for (const sess of selectedSessions) {
-        const payload = {
-          participants,
-          classId: selectedClass._id,
-          sessionId: sess._id,
-          locationId: selectedLocation,
-          date: sess.startTime,
-          paymentMethod: paymentMethod === 'cash' ? 'center_cash' : (paymentMethod === 'card' ? 'center_card' : 'online_bank'),
-          transactionId: (paymentMethod === 'card' || paymentMethod === 'online') ? transactionId : '',
-          paymentStatus: 'completed',
-          userId: finalUser._id
-        };
-        const res = await api.post('/bookings', payload);
-        results.push(res.data);
-      }
+      const payload = {
+        participants,
+        classId: selectedClass._id,
+        sessions: selectedSessions.map(s => s._id),
+        locationId: selectedLocation,
+        paymentMethod: paymentMethod === 'cash' ? 'center_cash' : (paymentMethod === 'card' ? 'center_card' : 'online_bank'),
+        transactionId: (paymentMethod === 'card' || paymentMethod === 'online') ? transactionId : '',
+        paymentStatus: 'completed',
+        userId: finalUser._id
+      };
 
-      setCreatedBookings(results);
-      setStep(7);
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/bookings/bulk`, payload);
+      setCreatedBookings(response.data.data || []);
+      setStep(8);
       toast.success('Walking booking completed!');
     } catch (err) {
       console.error(err);
@@ -457,6 +471,12 @@ export default function WalkingBooking() {
       toast.error('Booking failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQuickAddChildSummary = (id) => {
+    if (!selectedChildrenIds.includes(id)) {
+      setSelectedChildrenIds([...selectedChildrenIds, id]);
     }
   };
 
@@ -474,8 +494,8 @@ export default function WalkingBooking() {
           {/* Progress Indicator */}
           <div className="flex justify-between mb-12 px-4 relative">
             <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-200 -z-10 -translate-y-1/2 rounded-full"></div>
-            <div className="absolute top-1/2 left-0 h-1 bg-brand-blue -z-10 -translate-y-1/2 rounded-full transition-all duration-500" style={{ width: `${((step - 1) / 6) * 100}%` }}></div>
-            {[1, 2, 3, 4, 5, 6].map(s => (
+            <div className="absolute top-1/2 left-0 h-1 bg-brand-blue -z-10 -translate-y-1/2 rounded-full transition-all duration-500" style={{ width: `${((step - 1) / 7) * 100}%` }}></div>
+            {[1, 2, 3, 4, 5, 6, 7].map(s => (
               <div key={s} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${step >= s ? 'bg-brand-blue text-white shadow-glow' : 'bg-white text-ink/30 border-2 border-slate-200'}`}>
                 {s}
               </div>
@@ -786,8 +806,8 @@ export default function WalkingBooking() {
                         key={plan._id}
                         onClick={() => setSelectedPlan(plan._id === selectedPlan?._id ? null : plan)}
                         className={`p-7 rounded-[32px] border-2 transition-all text-left flex flex-col justify-between cursor-pointer relative overflow-hidden group ${selectedPlan?._id === plan._id
-                            ? 'border-brand-blue bg-brand-blue/5 shadow-xl'
-                            : 'border-slate-100 bg-white hover:border-brand-blue/30 shadow-sm'
+                          ? 'border-brand-blue bg-brand-blue/5 shadow-xl'
+                          : 'border-slate-100 bg-white hover:border-brand-blue/30 shadow-sm'
                           }`}
                       >
                         <div>
@@ -896,7 +916,7 @@ export default function WalkingBooking() {
                             disabled={isDisabled}
                             onClick={() => setPreferredDays(prev => isSelected ? prev.filter(d => d !== day) : [...prev, day])}
                             className={`px-8 py-5 rounded-3xl text-sm font-black transition-all ${isDisabled ? 'opacity-20 grayscale cursor-not-allowed bg-slate-50 border-transparent' :
-                                isSelected ? 'bg-brand-blue text-white shadow-xl shadow-brand-blue/20 ring-8 ring-brand-blue/5' : 'bg-slate-50 text-ink/30 hover:bg-slate-100 border border-slate-100 hover:text-ink/60'
+                              isSelected ? 'bg-brand-blue text-white shadow-xl shadow-brand-blue/20 ring-8 ring-brand-blue/5' : 'bg-slate-50 text-ink/30 hover:bg-slate-100 border border-slate-100 hover:text-ink/60'
                               }`}
                           >
                             {day}
@@ -1071,224 +1091,388 @@ export default function WalkingBooking() {
               </div>
             )}
 
-            {/* STEP 6: SUMMARY & PAYMENT */}
+            {/* STEP 6: SUMMARY & BOGO BONUS */}
             {step === 6 && (
-              <div className="animate-rise">
-                <div className="text-center mb-10">
-                  <h2 className="font-display text-4xl font-black text-ink mb-2">Final Confirmation</h2>
-                  <p className="text-sm font-black text-brand-blue uppercase tracking-[0.3em]">Verify Details & Payments</p>
-                </div>
+              <div className="animate-rise py-4">
+                <div className="flex flex-col lg:flex-row gap-8 items-start">
+                  {/* Left Column: Detailed Summary */}
+                  <div className="flex-1 space-y-8">
+                    <div className="bg-white p-10 rounded-[48px] border border-slate-100 shadow-sm">
+                      <div className="flex items-start justify-between mb-8">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 mb-2">{bookingMode === 'package' ? 'Package Details' : 'Program Details'}</p>
+                          <h3 className="font-display text-4xl font-black text-ink">
+                            {bookingMode === 'package' ? selectedPlan?.name : selectedClass?.title}
+                          </h3>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-4xl font-black text-ink">AED {currentPrice.toLocaleString()}</p>
+                          <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest mt-1">Total inclusive order</p>
+                        </div>
+                      </div>
 
-                <div className="grid gap-10 lg:grid-cols-3">
-                  <div className="lg:col-span-2 space-y-6">
-                    <div className="soft-card !bg-slate-50 rounded-[40px] p-8 border-none flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-2">{bookingMode === 'package' ? 'Package Details' : 'Program Details'}</p>
-                        <h3 className="font-display text-3xl font-black text-ink mb-2">
-                          {bookingMode === 'package' ? selectedPlan?.name : selectedClass?.title}
-                        </h3>
-                        {bookingMode === 'package' && selectedPlan && (
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            <span className="rounded-full bg-emerald-100 text-emerald-700 px-3 py-1 text-[10px] font-black uppercase">{selectedPlan.sessionType === 'personal' ? 'Personal Training' : 'Group Session'}</span>
-                            <span className="rounded-full bg-slate-100 text-slate-600 px-3 py-1 text-[10px] font-black uppercase">{selectedPlan.classesIncluded || 'Unlimited'} Classes</span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="bg-slate-50 p-6 rounded-3xl">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Participants ({totalParticipants})</p>
+                          <div className="space-y-3">
+                            {selectedChildrenIds.map(id => availableChildren.find(c => c._id === id)).map((p, i) => (
+                              <div key={i} className="flex justify-between items-center text-sm font-bold">
+                                <span>{p?.name}</span>
+                                <span className="opacity-40">{p?.age} Yrs</span>
+                              </div>
+                            ))}
                           </div>
-                        )}
-                        {bookingMode === 'class' && (
-                          <p className="text-sm font-bold text-ocean flex items-center gap-2">
-                            📍 {locations.find(l => l._id === selectedLocation)?.name}
-                          </p>
-                        )}
+                        </div>
+
+                        <div className="bg-slate-50 p-6 rounded-3xl">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Service Details</p>
+                          {bookingMode === 'package' ? (
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-3">
+                                <span className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-sm">🗓️</span>
+                                <p className="text-xs font-bold text-ink/70">{selectedPlan?.classesIncluded || 'Unlimited'} Classes</p>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-sm">⏱</span>
+                                <p className="text-xs font-bold text-ink/70">{selectedPlan?.durationWeeks || '—'} Weeks Validity</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {selectedSessions.map((s, i) => (
+                                <div key={i} className="text-[11px] font-bold text-ink/60">
+                                  {new Date(s.startTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} @ {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-4xl font-black text-ink">
-                          AED {currentPrice.toLocaleString()}
-                        </p>
-                        <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest mt-1">Total inclusive order</p>
-                      </div>
+
+                      {discountAmount > 0 && (
+                        <div className="mt-8 p-6 bg-emerald-50 rounded-3xl flex items-center justify-between border border-emerald-100/50">
+                          <div className="flex items-center gap-4">
+                            <span className="text-2xl">🎁</span>
+                            <div>
+                              <p className="text-[10px] font-black text-emerald-700 uppercase">Promotion Applied</p>
+                              <p className="text-xs font-black text-emerald-600">{selectedPromo?.name}</p>
+                            </div>
+                          </div>
+                          <p className="text-xl font-black text-emerald-700">- AED {discountAmount}</p>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="bg-white p-8 rounded-[36px] border border-slate-100 shadow-sm">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Participants ({totalParticipants})</p>
-                        <div className="space-y-3">
-                          {[...selectedChildrenIds.map(id => availableChildren.find(c => c._id === id)), ...newChildren].map((p, i) => (
-                            <div key={i} className="flex justify-between items-center text-sm">
-                              <span className="font-black text-ink">{p?.name}</span>
-                              <span className="text-ink/40 font-bold">{p?.age} Yrs</span>
-                            </div>
+                    {applicablePromos.length > 0 && (
+                      <div className="space-y-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 px-6">Available Promotions</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {applicablePromos.map(promo => (
+                            <button
+                              key={promo._id}
+                              onClick={() => setSelectedPromo(selectedPromo?._id === promo._id ? null : promo)}
+                              className={`p-6 rounded-[32px] border-2 transition-all flex items-center justify-between group ${selectedPromo?._id === promo._id ? 'border-brand-blue bg-white shadow-xl shadow-brand-blue/5' : 'border-slate-100 bg-white hover:border-brand-blue/20'}`}
+                            >
+                              <div className="flex items-center gap-4 text-left">
+                                <span className="text-2xl">{promo.promoType === 'bogo' ? '🔥' : '🏷️'}</span>
+                                <div>
+                                  <p className="font-black text-ink text-sm uppercase leading-tight">{promo.name}</p>
+                                  <p className="text-[10px] font-bold text-brand-blue mt-1">Save AED {calculateDiscount(promo, currentPrice)}</p>
+                                </div>
+                              </div>
+                              {selectedPromo?._id === promo._id && <span className="text-brand-blue font-black animate-scale-up">✓</span>}
+                            </button>
                           ))}
                         </div>
                       </div>
-                      {bookingMode === 'class' ? (
-                        <div className="bg-white p-8 rounded-[36px] border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Schedule ({selectedSessions.length})</p>
-                          <div className="space-y-3">
-                            {selectedSessions.map((s, i) => (
-                              <div key={i} className="text-xs font-bold text-ink/70">
-                                {new Date(s.startTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} @ {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-white p-8 rounded-[36px] border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Package Benefits</p>
-                          <div className="space-y-3">
-                            {(selectedPlan?.benefits || []).map((b, i) => (
-                              <div key={i} className="flex items-center gap-2 text-xs font-bold text-ink/70">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />{b}
-                              </div>
-                            ))}
-                            {(!selectedPlan?.benefits?.length) && (
-                              <p className="text-xs font-bold text-ink/30">{selectedPlan?.classesIncluded || 'Unlimited'} classes · {selectedPlan?.durationWeeks ? `${selectedPlan.durationWeeks} weeks` : 'No expiry'}</p>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                    )}
+                  </div>
 
-                      {/* Membership Schedule Preferences moved to defaults/hidden */}
-                      {bookingMode === 'package' && (
-                        <div className="bg-slate-50 p-6 rounded-[32px] border border-slate-100 mt-6 flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-brand-blue/10 flex items-center justify-center text-xl">📅</div>
-                            <div>
-                              <p className="text-xs font-black text-ink uppercase tracking-wider">Schedule Configured</p>
-                              <p className="text-[10px] font-bold text-ink/40 mt-0.5">Default template applied (Mon/Wed/Fri @ 9AM)</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 px-3 py-1 bg-emerald-100 rounded-lg">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                            <span className="text-[10px] font-black text-emerald-700 uppercase">System Ready</span>
-                          </div>
-                        </div>
-                      )}
-                      <div className="space-y-4 mb-4">
-                        <div className="flex items-center justify-between px-6">
-                           <span className="text-ink/40 font-bold text-xs">Original Amount</span>
-                           <span className="text-ink font-black text-lg">AED {currentPrice.toLocaleString()}</span>
-                        </div>
-                        {discountAmount > 0 && (
-                          <div className="flex items-center justify-between px-6 bg-emerald-50/50 py-3 rounded-2xl animate-rise">
-                             <div className="flex items-center gap-2">
-                               <span className="text-lg">🎁</span>
-                               <div className="flex flex-col">
-                                 <span className="text-emerald-700 font-black text-[10px] uppercase">Promotion Applied</span>
-                                 <span className="text-emerald-600 font-bold text-xs">{selectedPromo?.name}</span>
-                               </div>
-                             </div>
-                             <span className="text-emerald-700 font-black text-lg">- AED {discountAmount}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between px-6 pt-4 border-t border-slate-100">
-                           <span className="text-ink/60 font-black text-sm uppercase">To Be Paid</span>
-                           <span className="text-brand-blue font-black text-3xl">AED {Math.max(0, currentPrice - discountAmount).toLocaleString()}</span>
-                        </div>
+                  {/* Right Sidebar: Dynamic Actions */}
+                  <div className="w-full lg:w-[380px] shrink-0">
+                    <div className="bg-ink p-10 py-12 rounded-[56px] shadow-2xl shadow-ink/30 sticky top-8 animate-rise text-white">
+                      <div className="mb-10 text-center">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-2">Order Review</p>
+                        <h2 className="font-display text-3xl font-black text-white px-2">
+                          {selectedPromo?.promoType === 'bogo' ? 'Claim Bonus' : 'Confirm Order'}
+                        </h2>
                       </div>
 
-                      {applicablePromos.length > 0 && (
-                        <div className="mb-8 px-2">
-                           <p className="text-[10px] font-black text-brand-blue uppercase tracking-widest mb-4 px-4">Available Promotions</p>
-                           <div className="grid gap-2">
-                              {applicablePromos.map(promo => (
+                      <div className="space-y-6 flex-1 min-h-[300px]">
+                        {selectedPromo?.promoType === 'bogo' ? (
+                          <div className="bg-white/5 border border-white/10 rounded-[40px] p-8 animate-in zoom-in-95 duration-500">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-6 flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                              BOGO Assistant Ready
+                            </p>
+                            <div className="space-y-3">
+                              {selectedChildrenIds.length > 0 && bookingMode === 'package' && (
                                 <button
-                                  key={promo._id}
-                                  onClick={() => setSelectedPromo(selectedPromo?._id === promo._id ? null : promo)}
-                                  className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between text-left ${selectedPromo?._id === promo._id ? 'border-brand-blue bg-brand-blue/5 shadow-md' : 'border-slate-50 bg-white hover:border-slate-200'}`}
+                                  onClick={() => {
+                                    setBogoOption('double');
+                                    if (selectedChildrenIds.length > 1) setSelectedChildrenIds([selectedChildrenIds[0]]);
+                                  }}
+                                  className={`w-full p-5 rounded-3xl border-2 transition-all flex items-center gap-4 text-left group ${bogoOption === 'double' && selectedChildrenIds.length === 1 ? 'border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10' : 'border-white/5 bg-white/5 hover:border-white/20'}`}
                                 >
-                                   <div className="flex items-center gap-3">
-                                      <span className="text-xl">{promo.promoType === 'flash' ? '⚡' : '🏷️'}</span>
-                                      <div>
-                                         <p className="font-bold text-ink text-xs">{promo.name}</p>
-                                         <p className="text-[9px] font-black text-emerald-600 uppercase">Save AED {calculateDiscount(promo, bookingMode === 'package' ? selectedPlan?.price : selectedClass?.price)}</p>
-                                      </div>
-                                   </div>
-                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${selectedPromo?._id === promo._id ? 'bg-brand-blue border-brand-blue text-white' : 'border-slate-100'}`}>
-                                     {selectedPromo?._id === promo._id && <span className="text-[9px] font-black">✓</span>}
-                                   </div>
+                                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl transition-all ${bogoOption === 'double' && selectedChildrenIds.length === 1 ? 'bg-emerald-500 text-white' : 'bg-white/5 text-white/20'}`}>⚡</div>
+                                  <div>
+                                    <p className="font-black text-white text-[11px] uppercase tracking-wide">Double sessions for {availableChildren.find(c => c._id === selectedChildrenIds[0])?.name}</p>
+                                    <p className="text-[9px] font-bold text-white/40 mt-1 uppercase">Recommended for individuals</p>
+                                  </div>
+                                </button>
+                              )}
+
+                              {availableChildren.filter(child => !selectedChildrenIds.includes(child._id)).map(child => (
+                                <button
+                                  key={child._id}
+                                  onClick={() => { setBogoOption('person'); handleQuickAddChildSummary(child._id); }}
+                                  className="w-full p-5 rounded-3xl border-2 border-white/5 bg-white/5 hover:border-white/20 transition-all flex items-center gap-4 text-left group"
+                                >
+                                  <div className="w-12 h-12 rounded-2xl bg-white/5 text-white/20 group-hover:bg-brand-blue group-hover:text-white transition-all flex items-center justify-center text-2xl">➕</div>
+                                  <div>
+                                    <p className="font-black text-white text-[11px] uppercase tracking-wide">Add {child.name} for Free</p>
+                                    <p className="text-[9px] font-bold text-white/40 mt-1 uppercase text-brand-blue">Claim 1 Free Slot</p>
+                                  </div>
                                 </button>
                               ))}
-                           </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full border-2 border-dashed border-white/5 rounded-[48px] py-12 px-10 text-center">
+                            <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 text-3xl">📝</div>
+                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/60 mb-2">Review Complete</p>
+                            <p className="text-[10px] font-bold text-white/30 leading-relaxed px-4">All participants and schedules have been verified. Standard promotion active.</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-12 pt-8 border-t border-white/5">
+                        <button
+                          onClick={() => setStep(7)}
+                          className="w-full bg-brand-blue text-white py-6 rounded-[32px] font-display text-xl font-black shadow-xl shadow-brand-blue/20 hover:scale-[1.03] active:scale-[0.97] transition-all"
+                        >
+                          Proceed to Payment
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 7: PAYMENT SELECTION */}
+            {step === 7 && (
+              <div className="animate-rise py-4">
+                <div className="flex flex-col lg:flex-row gap-8 items-start">
+                  {/* Left Column: Final Summary */}
+                  <div className="flex-1 space-y-8">
+                    <div className="bg-white p-12 rounded-[56px] border border-slate-100 shadow-sm relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-10 opacity-5">
+                        <span className="text-[120px] font-black">AED</span>
+                      </div>
+
+                      <div className="relative z-10">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 mb-10 text-center">Final Invoicing Summary</p>
+
+                        <div className="flex flex-col items-center justify-center border-b border-slate-100 pb-10 mb-10">
+                          <p className="text-[10px] font-black text-brand-blue uppercase tracking-[0.3em] mb-3">Amount to be Paid</p>
+                          <h2 className="font-display text-7xl font-black text-ink">AED {currentPrice - discountAmount}</h2>
                         </div>
-                      )}
+
+                        <div className="grid md:grid-cols-2 gap-10">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Transaction Components</p>
+                            <div className="space-y-4">
+                              <div className="flex justify-between text-sm font-bold opacity-60">
+                                <span>Base Order ({totalParticipants} members)</span>
+                                <span>AED {currentPrice}</span>
+                              </div>
+                              {discountAmount > 0 && (
+                                <div className="flex justify-between text-sm font-black text-emerald-600">
+                                  <span>Total Savings ({selectedPromo?.name})</span>
+                                  <span>- AED {discountAmount}</span>
+                                </div>
+                              )}
+                              <div className="h-px bg-slate-100 mt-4"></div>
+                              <div className="flex justify-between text-lg font-black text-brand-blue pt-2">
+                                <span>Grand Total</span>
+                                <span>AED {currentPrice - discountAmount}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Payment Receipting</p>
+                            <p className="text-xs text-ink/40 leading-relaxed font-bold">Please select the physical payment method used. The transaction will be logged in the system ledger once confirmed.</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-6">
-                    <div className="p-8 rounded-[40px] bg-black text-white shadow-xl border border-white/5">
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] mb-8 text-white/30 text-center">Payment Mode Selection</h4>
+                  {/* Right Sidebar: Payment Modes */}
+                  <div className="w-full lg:w-[380px] shrink-0">
+                    <div className="bg-ink p-10 py-12 rounded-[56px] shadow-2xl shadow-ink/30 sticky top-8 animate-rise text-white">
+                      <div className="mb-10 text-center">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-2">Step 7 of 7</p>
+                        <h2 className="font-display text-3xl font-black text-white px-2">Finalize Payment</h2>
+                      </div>
 
-                      <div className="flex flex-col gap-4 mb-10">
-                        {[
-                          { id: 'cash', label: 'CASH', icon: '💸' },
-                          { id: 'card', label: 'CARD', icon: '💳' },
-                          { id: 'online', label: 'ONLINE', icon: '🌐' }
-                        ].map(mode => (
+                      <div className="space-y-3 mb-10">
+                        {['cash', 'card', 'online'].map((mode) => (
                           <button
-                            key={mode.id}
-                            onClick={() => { setPaymentMethod(mode.id); setTransactionId(''); }}
-                            className={`p-5 rounded-[24px] border-2 transition-all flex items-center justify-between group ${paymentMethod === mode.id ? 'border-brand-blue bg-brand-blue/10 text-white shadow-glow-blue' : 'border-white/5 bg-white/5 hover:border-white/20 text-white/40'}`}
+                            key={mode}
+                            onClick={() => setPaymentMethod(mode)}
+                            className={`w-full p-6 rounded-[32px] border-2 transition-all flex items-center justify-between group ${paymentMethod === mode ? 'border-brand-blue bg-white/10' : 'border-white/5 bg-white/5 hover:border-white/20'}`}
                           >
                             <div className="flex items-center gap-5">
-                              <span className="text-2xl group-hover:scale-110 transition-transform">{mode.icon}</span>
-                              <span className="font-black text-sm tracking-[0.1em] uppercase">{mode.label}</span>
+                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl transition-all ${paymentMethod === mode ? 'bg-brand-blue text-white' : 'bg-white/5 text-white/30 group-hover:text-white'}`}>
+                                {mode === 'cash' ? '💵' : mode === 'card' ? '💳' : '🌐'}
+                              </div>
+                              <span className="font-black uppercase tracking-widest text-xs">{mode}</span>
                             </div>
-                            {paymentMethod === mode.id && <div className="w-2.5 h-2.5 rounded-full bg-brand-blue ring-4 ring-brand-blue/20 animate-pulse"></div>}
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === mode ? 'border-brand-blue border-brand-blue text-white shadow-lg' : 'border-white/10'}`}>
+                              {paymentMethod === mode && '✓'}
+                            </div>
                           </button>
                         ))}
                       </div>
 
-                      {(paymentMethod === 'card' || paymentMethod === 'online') && (
-                        <div className="mb-10 animate-rise">
-                          <label className="block text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-white/30 px-1 italic">Enter Transaction Number</label>
-                          <input
-                            type="text"
-                            placeholder="e.g. TXN-987654321"
-                            className="w-full bg-white/5 border border-white/20 rounded-[24px] py-6 px-8 text-lg font-black text-white focus:ring-4 focus:ring-brand-blue/30 outline-none transition-all placeholder:text-white/5 placeholder:font-bold"
-                            value={transactionId}
-                            onChange={(e) => setTransactionId(e.target.value)}
-                          />
-                          <p className="mt-3 text-[10px] font-bold text-white/20 px-2 leading-relaxed">Required for digital reconciliation.</p>
-                        </div>
-                      )}
-
-                      <button
-                        onClick={bookingMode === 'package' ? handlePackagePurchase : handleFinalBooking}
-                        className="w-full bg-brand-blue text-white py-5 rounded-[24px] font-display text-xl font-black shadow-glow-blue hover:scale-105 active:scale-95 transition-all"
-                      >
-                        {bookingMode === 'package' ? 'Purchase Membership' : 'Complete & Confirm'}
-                      </button>
-                      <p className="mt-8 text-[10px] text-center text-white/30 font-bold leading-relaxed px-4">By clicking confirm, you acknowledge that <span className="text-white/60">{paymentMethod.toUpperCase()}</span> payment has been received accurately.</p>
+                      <div className="space-y-4">
+                        <button
+                          onClick={bookingMode === 'package' ? handlePackagePurchase : handleFinalBooking}
+                          disabled={loading || !paymentMethod}
+                          className="w-full bg-brand-blue text-white py-6 rounded-[32px] font-display text-xl font-black shadow-xl shadow-brand-blue/20 hover:scale-[1.03] active:scale-[0.97] transition-all disabled:opacity-50"
+                        >
+                          {loading ? 'Finalizing...' : (bookingMode === 'package' ? 'Purchase Membership' : 'Confirm & Buy')}
+                        </button>
+                        <button
+                          onClick={() => setStep(6)}
+                          className="w-full py-2 text-[10px] font-black text-white/20 hover:text-white/60 transition-colors uppercase tracking-[0.2em]"
+                        >
+                          🔙 Back to Summary
+                        </button>
+                      </div>
                     </div>
-                    <button onClick={() => setStep(bookingMode === 'package' ? 3.5 : 5)} className="w-full py-4 text-sm font-black text-ink/30 hover:text-ink transition-colors uppercase tracking-widest">Modify selection</button>
                   </div>
                 </div>
               </div>
             )}
 
             {/* STEP 7: SUCCESS */}
-            {step === 7 && (
-              <div className="animate-rise text-center py-12">
-                <div className="w-32 h-32 bg-ocean text-white rounded-[40px] flex items-center justify-center text-6xl mx-auto mb-10 shadow-glow rotate-12 transition-transform hover:scale-110">✓</div>
-                <h2 className="font-display text-5xl font-black text-ink mb-4">Victory!</h2>
-                <p className="text-ink/60 mb-8 max-w-sm mx-auto font-bold leading-relaxed">Walking customer booking has been confirmed and ledger updated.</p>
+            {step === 8 && (
+              <div className="animate-rise py-4">
+                <div className="flex flex-col lg:flex-row gap-8 items-start">
+                  {/* Left Column: Confirmation Summary */}
+                  <div className="flex-1 space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Card 1: Customer Details */}
+                      <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 mb-6">Confirmed Customer</p>
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl">👤</div>
+                          <div>
+                            <h4 className="font-display text-lg font-black text-ink">{customer?.name || newCustomer?.name}</h4>
+                            <p className="text-[10px] font-bold text-ink/40 uppercase tracking-widest mt-1">Primary Account Holder</p>
+                          </div>
+                        </div>
+                      </div>
 
-                <div className="mb-10 space-y-3 max-w-sm mx-auto animate-rise">
-                  {createdBookings.map((b, i) => (
-                    <div key={i} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between shadow-sm">
-                      <span className="text-brand-blue font-black text-xs">#{b.bookingNumber}</span>
-                      <button
-                        onClick={() => window.open(`/invoice/booking/${b._id}`, '_blank')}
-                        className="bg-brand-blue/5 text-brand-blue px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-brand-blue/10 transition-all border border-brand-blue/10"
-                      >
-                        📄 Print Invoice
-                      </button>
+                      {/* Card 2: Plan/Booking Info */}
+                      <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 mb-6">Service Summary</p>
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">✨</div>
+                          <div>
+                            <h4 className="font-display text-lg font-black text-ink">{selectedPlan?.name || selectedClass?.title}</h4>
+                            <p className="text-[10px] font-bold text-indigo-600/60 uppercase tracking-widest mt-1">AED {currentPrice - discountAmount} • {paymentMethod.toUpperCase()}</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
 
-                <div className="flex flex-col gap-4 max-w-xs mx-auto">
-                  <button onClick={() => window.location.reload()} className="w-full bg-brand-blue text-white py-5 rounded-[24px] font-display text-lg font-black shadow-lg hover:scale-105 active:scale-95 transition-all">Start New Booking</button>
-                  <button onClick={() => navigate(`/${roleSlug}/bookings`)} className="w-full bg-slate-50 text-ink/40 py-5 rounded-[24px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all text-sm">Review All Bookings</button>
+                    {/* Card 3: Official Records / Invoices */}
+                    <div className="bg-white p-10 rounded-[48px] border border-slate-100 shadow-sm">
+                      <div className="flex items-end justify-between mb-8">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 mb-2">Internal Records</p>
+                          <h3 className="font-display text-2xl font-black text-ink">Official Documentation</h3>
+                        </div>
+                        {createdBookings.length > 1 && (
+                          <span className="bg-slate-50 text-ink/30 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+                            {createdBookings.length} Bookings Linked
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4">
+                        {createdBookings.map((b, i) => (
+                          <div key={i} className="group p-5 rounded-3xl bg-slate-50 border border-slate-100 flex flex-col sm:flex-row items-center justify-between hover:bg-white hover:border-brand-blue hover:shadow-lg transition-all gap-4">
+                            <div className="flex items-center gap-5">
+                              <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📄</div>
+                              <div>
+                                <p className="text-[10px] font-black text-ink/30 uppercase tracking-[0.15em] mb-1">Booking Reference</p>
+                                <p className="text-sm font-black text-brand-blue tracking-wider">{b.bookingNumber}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                              <button
+                                onClick={() => window.open(`/invoice/booking/${b._id}`, '_blank')}
+                                className="flex-1 sm:flex-initial bg-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] text-brand-blue border border-slate-200 hover:bg-brand-blue hover:text-white hover:border-brand-blue transition-all"
+                              >
+                                View Invoice
+                              </button>
+                              <button
+                                onClick={() => window.print()}
+                                className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-lg hover:bg-brand-blue hover:text-white hover:border-brand-blue transition-all"
+                                title="Download Local Copy"
+                              >
+                                💾
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Actions Sidebar (Mirroring Step 6) */}
+                  <div className="w-full lg:w-[380px] shrink-0">
+                    <div className="bg-ink p-10 py-12 rounded-[56px] shadow-2xl shadow-ink/30 sticky top-8 animate-rise">
+                      <div className="text-center mb-10">
+                        <div className="w-20 h-20 bg-emerald-500 text-white rounded-[28px] flex items-center justify-center text-4xl mx-auto mb-6 shadow-xl shadow-emerald-500/20 animate-bounce">✓</div>
+                        <h2 className="font-display text-3xl font-black text-white mb-2">Confirmed!</h2>
+                        <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest leading-relaxed">The booking has been successfully recorded in the system.</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <button
+                          onClick={() => window.location.reload()}
+                          className="w-full bg-brand-blue text-white py-6 rounded-[32px] font-display text-xl font-black shadow-xl shadow-brand-blue/20 hover:scale-[1.03] active:scale-[0.97] transition-all"
+                        >
+                          Start New Booking
+                        </button>
+
+                        <button
+                          onClick={() => navigate(`/${roleSlug}/bookings`)}
+                          className="w-full py-4 text-xs font-black text-white/30 hover:text-white transition-colors uppercase tracking-[0.2em]"
+                        >
+                          Review All Bookings
+                        </button>
+                      </div>
+
+                      <div className="mt-12 pt-8 border-t border-white/5 space-y-4">
+                        <div className="flex items-center justify-between text-white/40">
+                          <span className="text-[10px] font-black uppercase tracking-widest">Transaction Mode</span>
+                          <span className="text-[10px] font-black uppercase">{paymentMethod}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-white/40">
+                          <span className="text-[10px] font-black uppercase tracking-widest">Handled By</span>
+                          <span className="text-[10px] font-black uppercase">{staff?.name || 'Authorized Staff'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
