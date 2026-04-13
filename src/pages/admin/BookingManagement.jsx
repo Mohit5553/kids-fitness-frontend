@@ -204,10 +204,12 @@ export default function BookingManagement() {
     if (!method) return 'N/A';
     if (method.startsWith('center_')) {
       const actualMethod = method.split('_')[1];
+      if (actualMethod === 'cash') return 'Pay at Cash';
       return `Pay at Center: ${actualMethod.charAt(0).toUpperCase() + actualMethod.slice(1)}`;
     }
     if (method === 'center') return 'Pay at Center';
     if (method === 'online') return 'Online';
+    if (method === 'online_bank') return 'Online Bank Transfer';
     return method.charAt(0).toUpperCase() + method.slice(1);
   };
 
@@ -393,7 +395,7 @@ export default function BookingManagement() {
                     {booking.processedByRole ? (
                       <p className="text-[10px] text-brand-blue/50 font-bold uppercase tracking-widest flex items-center gap-1">
                         <span className="w-1 h-1 rounded-full bg-brand-blue/30"></span>
-                        Processed by: <span className="text-brand-blue">{booking.processedByRole}</span> {booking.processedBy?.name ? `(${booking.processedBy.name})` : ''}
+                        Source: <span className="text-brand-blue">Walking</span> ({booking.processedBy?.name || booking.processedByRole})
                       </p>
                     ) : (
                       <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest flex items-center gap-1">

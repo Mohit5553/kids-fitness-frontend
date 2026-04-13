@@ -14,7 +14,8 @@ const PROMO_TYPES = [
   { id: 'bogo', label: 'BOGO (Buy 1 Get 1)', icon: '🎁' },
   { id: 'bulk', label: 'Bulk Purchase', icon: '📦' },
   { id: 'lifestyle', label: 'Lifestyle Discount', icon: '🎓' },
-  { id: 'tiered', label: 'Ticket Level (Tiered)', icon: '📈' }
+  { id: 'tiered', label: 'Ticket Level (Tiered)', icon: '📈' },
+  { id: 'cash_deposit', label: 'Cash Deposit Voucher', icon: '🎟️' }
 ];
 
 export default function PromotionsManagement() {
@@ -238,6 +239,11 @@ export default function PromotionsManagement() {
                         AED {promo.discountValue} OFF
                       </span>
                     )}
+                    {promo.promoType === 'cash_deposit' && (
+                      <span className="bg-amber-50 text-amber-600 text-[9px] font-black px-2 py-1 rounded-lg border border-amber-100">
+                        🎟️ {promo.discountType === 'percentage' ? `${promo.discountValue}% Voucher` : `AED ${promo.discountValue} Voucher`}
+                      </span>
+                    )}
                  </div>
               </div>
 
@@ -294,15 +300,15 @@ export default function PromotionsManagement() {
 
                   <div>
                     <label className="text-[10px] font-black text-ink/30 uppercase tracking-[0.2em] block mb-3 px-1">Promotion Type</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-4 gap-2">
                        {PROMO_TYPES.map(type => (
                          <button
                            key={type.id} type="button"
                            onClick={() => setFormData({...formData, promoType: type.id})}
-                           className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${formData.promoType === type.id ? 'border-brand-blue bg-brand-blue/5 text-brand-blue shadow-md' : 'border-slate-50 bg-white hover:border-slate-200 opacity-60 hover:opacity-100'}`}
+                           className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all ${formData.promoType === type.id ? 'border-brand-blue bg-brand-blue/5 text-brand-blue shadow-md' : 'border-slate-50 bg-white hover:border-slate-200 opacity-60 hover:opacity-100'}`}
                          >
-                           <span className="text-xl">{type.icon}</span>
-                           <span className="text-[9px] font-black uppercase text-center leading-tight">{type.label}</span>
+                           <span className="text-lg">{type.icon}</span>
+                           <span className="text-[8px] font-black uppercase text-center leading-tight">{type.label}</span>
                          </button>
                        ))}
                     </div>
@@ -330,29 +336,68 @@ export default function PromotionsManagement() {
                   </div>
 
                   {formData.promoType === 'flash' && (
-                    <div className="grid grid-cols-2 gap-6 animate-rise">
-                      <div>
-                        <label className="text-[10px] font-black text-ink/30 uppercase tracking-[0.2em] block mb-3 px-1">Daily Start Time</label>
-                        <input 
-                          type="time" 
-                          className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none"
-                          value={formData.startTime}
-                          onChange={e => setFormData({...formData, startTime: e.target.value})}
-                        />
+                    <div className="p-6 rounded-2xl bg-orange-50 border border-orange-100 animate-rise space-y-6">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">⚡</span>
+                        <p className="text-[10px] font-black text-orange-700 uppercase tracking-[0.2em]">Flash Sale Configuration</p>
                       </div>
-                      <div>
-                        <label className="text-[10px] font-black text-ink/30 uppercase tracking-[0.2em] block mb-3 px-1">Daily End Time</label>
-                        <input 
-                          type="time" 
-                          className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none"
-                          value={formData.endTime}
-                          onChange={e => setFormData({...formData, endTime: e.target.value})}
-                        />
+
+                      {/* Daily Time Window */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[10px] font-black text-orange-700/60 uppercase tracking-[0.2em] block mb-2 px-1">Daily Start Time</label>
+                          <input 
+                            type="time" 
+                            className="w-full bg-white border border-orange-100 rounded-2xl py-3 px-5 text-sm font-bold text-ink focus:ring-2 focus:ring-orange-200 outline-none"
+                            value={formData.startTime}
+                            onChange={e => setFormData({...formData, startTime: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black text-orange-700/60 uppercase tracking-[0.2em] block mb-2 px-1">Daily End Time</label>
+                          <input 
+                            type="time" 
+                            className="w-full bg-white border border-orange-100 rounded-2xl py-3 px-5 text-sm font-bold text-ink focus:ring-2 focus:ring-orange-200 outline-none"
+                            value={formData.endTime}
+                            onChange={e => setFormData({...formData, endTime: e.target.value})}
+                          />
+                        </div>
                       </div>
+
+                      {/* Discount Settings */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[10px] font-black text-orange-700/60 uppercase tracking-[0.2em] block mb-2 px-1">Discount Mode</label>
+                          <select 
+                            className="w-full bg-white border border-orange-100 rounded-2xl py-3 px-5 text-sm font-bold text-ink focus:ring-2 focus:ring-orange-200 outline-none"
+                            value={formData.discountType}
+                            onChange={e => setFormData({...formData, discountType: e.target.value})}
+                          >
+                            <option value="percentage">Percentage (%)</option>
+                            <option value="flat">Fixed Amount (AED)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black text-orange-700/60 uppercase tracking-[0.2em] block mb-2 px-1">
+                            Discount Value ({formData.discountType === 'percentage' ? '%' : 'AED'})
+                          </label>
+                          <input 
+                            type="number" required min="0"
+                            className="w-full bg-white border border-orange-100 rounded-2xl py-3 px-5 text-sm font-bold text-ink focus:ring-2 focus:ring-orange-200 outline-none"
+                            placeholder={formData.discountType === 'percentage' ? 'e.g. 20' : 'e.g. 50'}
+                            value={formData.discountValue}
+                            onChange={e => setFormData({...formData, discountValue: e.target.value})}
+                          />
+                        </div>
+                      </div>
+
+                      <p className="text-[10px] font-medium text-orange-600/70 leading-relaxed">
+                        ⚡ This discount applies <strong>only during the daily time window</strong> above, within the campaign date range.
+                      </p>
                     </div>
                   )}
 
-                  {(formData.promoType === 'percentage' || formData.promoType === 'cash' || formData.promoType === 'bulk' || formData.promoType === 'lifestyle') && (
+                  {(formData.promoType === 'percentage' || formData.promoType === 'cash' || formData.promoType === 'bulk' || formData.promoType === 'lifestyle' || formData.promoType === 'cash_deposit') && (
                     <div className="grid md:grid-cols-2 gap-6 animate-rise">
                        <div>
                           <label className="text-[10px] font-black text-ink/30 uppercase tracking-[0.2em] block mb-3 px-1">Discount Mode</label>
@@ -374,6 +419,17 @@ export default function PromotionsManagement() {
                             onChange={e => setFormData({...formData, discountValue: e.target.value})}
                           />
                        </div>
+                    </div>
+                  )}
+
+                  {formData.promoType === 'cash_deposit' && (
+                    <div className="p-5 rounded-2xl bg-amber-50 border border-amber-100 animate-rise">
+                      <p className="text-[10px] font-black text-amber-700 uppercase tracking-[0.2em] mb-2">🎟️ How Cash Deposit Works</p>
+                      <p className="text-xs font-medium text-amber-700/80 leading-relaxed">
+                        The customer pays <strong>100% of the booking price upfront</strong>. 
+                        Upon completing payment, the system automatically generates a cash voucher worth the discount value above, 
+                        which the customer can redeem on their next booking. Valid for <strong>90 days</strong>.
+                      </p>
                     </div>
                   )}
 

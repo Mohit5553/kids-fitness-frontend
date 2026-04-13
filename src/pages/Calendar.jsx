@@ -169,7 +169,7 @@ export default function Calendar() {
                 <h3 className="font-display text-2xl font-black text-brand-blue">{day}</h3>
                 <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {daySessions.map((session) => {
-                    const spotsLeft = (session.capacity || 0) - (session.bookingsCount || 0);
+                    const spotsLeft = (session.capacity || 0) - (session.bookedParticipants || 0);
                     const isFull = spotsLeft <= 0;
                     
                     return (

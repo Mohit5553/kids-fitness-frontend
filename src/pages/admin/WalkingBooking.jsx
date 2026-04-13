@@ -6,11 +6,13 @@ import Footer from '../../components/Footer.jsx';
 import AdminHeader from '../../components/AdminHeader.jsx';
 import { getUser } from '../../utils/auth.js';
 import { toast } from 'react-hot-toast';
+import { useBranch } from '../../context/BranchContext.jsx';
 
 export default function WalkingBooking() {
   const { roleSlug } = useParams();
   const navigate = useNavigate();
-  const staff = getUser();
+  const staff = useMemo(() => getUser(), []);
+  const { selectedBranch } = useBranch();
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -19,8 +21,11 @@ export default function WalkingBooking() {
   const [transactionId, setTransactionId] = useState('');
   const [applicablePromos, setApplicablePromos] = useState([]);
   const [selectedPromo, setSelectedPromo] = useState(null);
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [bogoOption, setBogoOption] = useState('double'); // 'double' | 'person'
+  const [couponCode, setCouponCode] = useState('');
+  const [couponAmount, setCouponAmount] = useState(0);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [bogoOption, setBogoOption] = useState(null); // 'double' or 'person'
+  const [allLocationPromos, setAllLocationPromos] = useState([]);
 
   // Step 1: Customer Data
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,59 +77,106 @@ export default function WalkingBooking() {
     }
   }, [preferredDays, bookingMode]);
 
-  // Effect to fetch promos when step 6 is entered
+  const [activeTax, setActiveTax] = useState(null);
+
+  // Sync selectedLocation with the global navbar selection
   useEffect(() => {
-    if (step === 6) {
+    if (selectedBranch) {
+      setSelectedLocation(selectedBranch);
+    }
+  }, [selectedBranch]);
+
+  // Consolidating all branch-specific data fetching (Classes, Plans, Promos) into one stable effect
+  useEffect(() => {
+    const branchId = selectedLocation || selectedBranch || staff?.locationIds?.[0]?._id || staff?.locationIds?.[0];
+    if (branchId) {
+      setLoading(true);
+      Promise.all([
+        api.get(`/classes?locationId=${branchId}`),
+        api.get(`/plans?locationId=${branchId}`),
+        api.get(`/promotions/active?locationId=${branchId}`)
+      ]).then(([classesRes, plansRes, promosRes]) => {
+        setClasses(classesRes.data);
+        setPlans(plansRes.data || []);
+        setAllLocationPromos(promosRes.data || []);
+      }).catch(err => {
+        console.error('Error fetching branch data:', err);
+      }).finally(() => setLoading(false));
+    }
+  }, [selectedLocation, selectedBranch, staff?._id]);
+
+  // Effect to fetch specific promo details and tax when review or payment step is entered
+  useEffect(() => {
+    if (step === 6 || step === 7) {
       const locationId = selectedLocation || staff?.locationId?._id || staff?.locationId;
       const itemId = bookingMode === 'package' ? selectedPlan?._id : selectedClass?._id;
+      const item = bookingMode === 'package' ? selectedPlan : selectedClass;
       const itemType = bookingMode === 'package' ? 'plan' : 'class';
 
       if (locationId && itemId) {
-        api.get(`/promotions/active?locationId=${locationId}&itemId=${itemId}&itemType=${itemType}`)
-          .then(res => setApplicablePromos(res.data || []))
-          .catch(() => { });
+        // Fetch specific active promos for the selected item to ensure accurate calculation
+        if (applicablePromos.length === 0) {
+          api.get(`/promotions/active?locationId=${locationId}&itemId=${itemId}&itemType=${itemType}`)
+            .then(res => setApplicablePromos(res.data || []))
+            .catch(() => { });
+        }
+
+        // Fetch Tax Rule
+        if (!activeTax) {
+          const fetchTax = async () => {
+            try {
+              if (item.taxId) {
+                const res = await api.get(`/taxes/${item.taxId._id || item.taxId}`);
+                setActiveTax(res.data.data);
+              } else {
+                const res = await api.get(`/taxes?locationId=${locationId}&status=active`);
+                setActiveTax(res.data.data?.[0] || null);
+              }
+            } catch (err) {
+              console.error('Tax fetch error:', err);
+              setActiveTax(null);
+            }
+          };
+          fetchTax();
+        }
       }
-    } else {
+    } else if (step < 6) {
+      // Clear specific selections when going back
       setApplicablePromos([]);
       setSelectedPromo(null);
-      setDiscountAmount(0);
+      setActiveTax(null);
     }
-  }, [step, bookingMode, selectedPlan, selectedClass, selectedLocation, staff?.locationId]);
+  }, [step, bookingMode, selectedLocation, selectedBranch, staff?._id]);
 
   const totalParticipants = useMemo(() => {
     return (selectedChildrenIds?.length || 0) + (newChildren?.length || 0);
   }, [selectedChildrenIds, newChildren]);
 
-  const currentPrice = useMemo(() => {
-    if (bookingMode === 'package') return (selectedPlan?.price || 0) * totalParticipants;
-    const basePrice = selectedClass?.price || 0;
-    return basePrice * totalParticipants * (selectedSessions?.length || 1);
-  }, [bookingMode, selectedPlan, selectedClass, totalParticipants, selectedSessions]);
+  const membershipUnits = useMemo(() => {
+    if (bookingMode !== 'package' || !selectedPlan) return 1;
+    const days = preferredDays?.length || 0;
+    const slots = preferredSlots?.length || 1;
+    const totalSelected = days * slots;
+    
+    // BOGO logic for capacity doubling (same as Pricing.jsx)
+    const isBogo = selectedPromo?.promoType === 'bogo' && bogoOption === 'double';
+    const baseCapacity = selectedPlan.classesIncluded || 1;
+    const effectiveCapacity = baseCapacity * (isBogo ? 2 : 1);
+    
+    return Math.max(1, Math.ceil(totalSelected / effectiveCapacity));
+  }, [bookingMode, selectedPlan, preferredDays, preferredSlots, selectedPromo, bogoOption]);
 
   const calculateDiscount = (promo, price) => {
     if (!promo || !price) return 0;
     let disc = 0;
-    if (promo.promoType === 'percentage' || (promo.promoType === 'flash' && promo.discountType === 'percentage')) {
-      disc = (price * (promo.discountValue / 100));
-    } else if (promo.promoType === 'cash' || (promo.promoType === 'flash' && promo.discountType === 'flat')) {
-      disc = Math.min(price, promo.discountValue);
-    } else if (promo.promoType === 'tiered') {
-      const tier = promo.discountTiers
-        ?.filter(t => price >= t.minAmount)
-        .sort((a, b) => b.minAmount - a.minAmount)[0];
-      if (tier) {
-        disc = tier.type === 'percentage' ? (price * (tier.value / 100)) : Math.min(price, tier.value);
-      }
-    } else if (promo.promoType === 'lifestyle' || promo.promoType === 'bulk') {
-      disc = promo.discountType === 'percentage' ? (price * (promo.discountValue / 100)) : Math.min(price, promo.discountValue);
-    } else if (promo.promoType === 'bogo') {
+
+    // Special handling for legacy structured types
+    if (promo.promoType === 'bogo') {
       if (bookingMode === 'package') {
-        // For packages, BOGO either doubles the classes or adds a second person.
-        // If 'person' is chosen and 2 children are selected, the discount is 1 plan price.
         if (bogoOption === 'person' && selectedChildrenIds.length >= 2) {
           disc = selectedPlan?.price || 0;
         } else {
-          disc = 0; // Value is doubled internally, price remains for 1
+          disc = 0;
         }
       } else {
         const units = totalParticipants * (selectedSessions?.length || 1);
@@ -132,17 +184,83 @@ export default function WalkingBooking() {
         const numFree = Math.floor(units / 2);
         disc = numFree * (selectedClass?.price || 0);
       }
+    } else if (promo.promoType === 'tiered') {
+      const tier = promo.discountTiers
+        ?.filter(t => price >= t.minAmount)
+        .sort((a, b) => b.minAmount - a.minAmount)[0];
+      if (tier) {
+        disc = tier.type === 'percentage' ? (price * (tier.value / 100)) : Math.min(price, tier.value);
+      }
+    } else {
+      // Standardize logic: Respect discountType (percentage vs flat) for all other types 
+      // (percentage, cash, flash, bulk, lifestyle, cash_deposit)
+      const isPercentage = promo.discountType === 'percentage' || promo.promoType === 'percentage';
+      
+      if (isPercentage) {
+        disc = (price * (promo.discountValue / 100));
+      } else {
+        disc = Math.min(price, promo.discountValue);
+      }
     }
+
     return Math.round(disc * 100) / 100;
   };
 
-  useEffect(() => {
-    if (selectedPromo) {
-      setDiscountAmount(calculateDiscount(selectedPromo, currentPrice));
-    } else {
-      setDiscountAmount(0);
+  const getPromoForItem = (itemId, itemType) => {
+    if (!allLocationPromos.length) return null;
+    const targetIdStr = itemId?.toString();
+    
+    return allLocationPromos.find(p => {
+      // Promotion model uses applicableClasses and applicablePlans
+      const classes = p.applicableClasses || [];
+      const plans = p.applicablePlans || [];
+
+      // If no item constraints, it's a global location promo
+      if (classes.length === 0 && plans.length === 0) return true;
+
+      // Check specific item type with string comparison to handle mixed ID formats
+      if (itemType === 'class') {
+        return classes.some(id => (id._id || id)?.toString() === targetIdStr);
+      } else {
+        return plans.some(id => (id._id || id)?.toString() === targetIdStr);
+      }
+    });
+  };
+
+  const currentPrice = useMemo(() => {
+    if (bookingMode === 'package') {
+      const basePrice = selectedPlan?.price || 0;
+      return (basePrice * membershipUnits) * totalParticipants;
     }
+    const basePrice = selectedClass?.price || 0;
+    return basePrice * totalParticipants * (selectedSessions?.length || 1);
+  }, [bookingMode, selectedPlan, selectedClass, totalParticipants, selectedSessions, membershipUnits]);
+
+  const discountAmount = useMemo(() => {
+    if (!selectedPromo) return 0;
+    return calculateDiscount(selectedPromo, currentPrice);
   }, [selectedPromo, currentPrice, bogoOption, selectedChildrenIds.length, totalParticipants]);
+
+  const currentTax = useMemo(() => {
+    if (!activeTax || activeTax.status === 'inactive') return 0;
+    
+    // Taxable amount is base price minus discounts
+    const taxableAmount = Math.max(0, currentPrice - discountAmount - couponAmount);
+    if (taxableAmount === 0) return 0;
+
+    let taxVal = 0;
+    if (activeTax.type === 'percentage') {
+       if (activeTax.calculationMethod === 'inclusive') {
+          taxVal = taxableAmount - (taxableAmount / (1 + (activeTax.value / 100)));
+       } else {
+          taxVal = taxableAmount * (activeTax.value / 100);
+       }
+    } else {
+      taxVal = activeTax.value || 0;
+    }
+    
+    return Math.round(taxVal * 100) / 100;
+  }, [activeTax, currentPrice, discountAmount, couponAmount]);
 
   // Reset preferred slots when plan changes
   useEffect(() => {
@@ -151,18 +269,12 @@ export default function WalkingBooking() {
     }
   }, [selectedPlan]);
 
-  // Fetch initial data
-  useEffect(() => {
-    api.get('/classes')
-      .then(res => setClasses(res.data))
-      .catch(err => console.error(err));
 
+
+  // Fetch static initial data
+  useEffect(() => {
     api.get('/locations?activeClasses=true')
       .then(res => setLocations(res.data))
-      .catch(err => console.error(err));
-
-    api.get('/plans')
-      .then(res => setPlans(res.data || []))
       .catch(err => console.error(err));
   }, []);
 
@@ -390,14 +502,22 @@ export default function WalkingBooking() {
       const pmMap = { cash: 'center_cash', card: 'center_card', online: 'online_bank' };
 
       // 1. Create payment record
+      const taxableAmount = Math.max(0, currentPrice - discountAmount - couponAmount);
+      const totalAmount = activeTax?.calculationMethod === 'inclusive' ? taxableAmount : (taxableAmount + currentTax);
+
       const payRes = await api.post('/payments', {
         planId: selectedPlan._id,
-        amount: currentPrice - discountAmount,
+        amount: Math.round(totalAmount * 100) / 100,
+        discountAmount,
+        taxAmount: currentTax,
+        membershipUnits,
         paymentMethod: pmMap[paymentMethod] || 'center_cash',
         reference,
         transactionId: (paymentMethod !== 'cash') ? transactionId : undefined,
         userId: finalUser._id,
-        promotionId: selectedPromo?._id
+        promotionId: selectedPromo?._id,
+        couponCode,
+        couponAmount
       });
 
       // 2. Create membership for the first selected child
@@ -413,6 +533,7 @@ export default function WalkingBooking() {
         preferredDays,
         preferredSlots,
         sessionsPerWeek,
+        membershipUnits,
         claimBogo: isDoubled || isSiblingBogo,
         bogoChildId: isDoubled ? primaryChildId : (isSiblingBogo ? selectedChildrenIds[1] : undefined)
       });
@@ -458,10 +579,15 @@ export default function WalkingBooking() {
         paymentMethod: paymentMethod === 'cash' ? 'center_cash' : (paymentMethod === 'card' ? 'center_card' : 'online_bank'),
         transactionId: (paymentMethod === 'card' || paymentMethod === 'online') ? transactionId : '',
         paymentStatus: 'completed',
-        userId: finalUser._id
+        userId: finalUser._id,
+        taxAmount: currentTax,
+        promotionId: selectedPromo?._id,
+        discountAmount,
+        couponCode,
+        couponAmount
       };
 
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/bookings/bulk`, payload);
+      const response = await api.post('/bookings/group', payload);
       setCreatedBookings(response.data.data || []);
       setStep(8);
       toast.success('Walking booking completed!');
@@ -759,34 +885,77 @@ export default function WalkingBooking() {
 
                 {/* Classes Grid */}
                 {bookingMode === 'class' && (
-                  <div className="grid gap-6 md:grid-cols-2">
+                  <div className="grid gap-6 md:grid-cols-2 lg:items-stretch">
                     {classes.map(c => (
                       <div
                         key={c._id}
-                        onClick={() => { setSelectedClass(c); setStep(4); }}
-                        className={`p-8 rounded-[36px] border-2 transition-all bg-white text-left group flex flex-col justify-between h-full cursor-pointer relative overflow-hidden ${selectedClass?._id === c._id ? 'border-brand-blue shadow-xl bg-brand-blue/5' : 'border-slate-50 hover:border-brand-blue/30 shadow-sm'}`}
+                        onClick={() => { 
+                          setSelectedClass(c); 
+                          if (c.activePromotions?.length > 0) setSelectedPromo(c.activePromotions[0]);
+                          else setSelectedPromo(null);
+                          setStep(4); 
+                        }}
+                        className={`p-8 rounded-[36px] border-2 transition-all bg-white text-left group flex flex-col h-full min-h-[260px] cursor-pointer relative overflow-hidden ${selectedClass?._id === c._id ? 'border-brand-blue shadow-xl bg-brand-blue/5' : c.activePromotions?.length > 0 ? 'border-brand-blue/20 shadow-2xl shadow-brand-blue/5 bg-brand-blue/[0.01]' : 'border-slate-50 hover:border-brand-blue/30 shadow-sm'}`}
                       >
-                        <div>
+                        {/* Promo Ribbon */}
+                        {c.activePromotions?.length > 0 && (
+                          <div className="absolute top-0 right-0 z-10 pointer-events-none">
+                            <div className="bg-brand-blue text-white text-[10px] font-black uppercase tracking-widest py-2 px-10 rotate-45 translate-x-[30%] translate-y-[20%] shadow-lg border-b border-white/20">
+                              {c.activePromotions[0].promoType === 'bogo' ? 'BOGO 1+1' : 
+                               c.activePromotions[0].promoType === 'percentage' ? `${c.activePromotions[0].discountValue}% OFF` :
+                               c.activePromotions[0].promoType === 'flash' ? 'FLASH SALE' : 'OFFER'}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex-1">
                           <div className="flex items-center justify-between mb-4">
-                            <span className="bg-ocean/10 text-ocean text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full">{c.ageGroup}</span>
                             <div className="flex items-center gap-2">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setDetailsClass(c); }}
-                                className="p-1.5 rounded-full bg-slate-50 text-ink/30 hover:text-brand-blue hover:bg-brand-blue/5 transition-all"
-                                title="View Details"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                              </button>
+                              <span className="bg-ocean/10 text-ocean text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full">{c.ageGroup}</span>
+                              {c.activePromotions?.length > 0 && (
+                                <span className="bg-brand-blue/10 text-brand-blue text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg flex items-center gap-1.5">
+                                  🔥 {c.activePromotions[0].name}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
                               {selectedClass?._id === c._id && <span className="text-brand-blue font-black animate-scale-up">✓</span>}
                             </div>
                           </div>
-                          <h3 className="font-display text-2xl group-hover:text-brand-blue transition-colors leading-tight">{c.title}</h3>
-                          <p className="mt-3 text-sm text-ink/50 line-clamp-2 leading-relaxed">{c.description}</p>
+                          <h3 className="font-display text-2xl group-hover:text-brand-blue transition-colors leading-tight line-clamp-1 pr-12">{c.title}</h3>
+                          {c.activePromotions?.length > 0 && (
+                            <p className="mt-1 text-[10px] font-black text-brand-blue uppercase tracking-widest">{c.activePromotions[0].name}</p>
+                          )}
+                          <p className="mt-3 text-sm text-ink/50 line-clamp-2 leading-relaxed max-w-[80%]">{c.description || 'Professional training sessions tailored for progress.'}</p>
+                          
+                          {/* Promotion Highlight Detail */}
+                          {c.activePromotions?.length > 0 && (
+                            <div className="mt-4 bg-brand-blue/5 border border-brand-blue/10 p-3 rounded-2xl animate-rise">
+                               <p className="text-[10px] font-black text-brand-blue uppercase tracking-widest mb-1">🎁 Promo Highlight</p>
+                               <p className="text-[11px] font-bold text-ink/70 leading-relaxed italic line-clamp-2">
+                                  "{c.activePromotions[0].description || `${c.activePromotions[0].name} - Special pricing applied.`}"
+                               </p>
+                            </div>
+                          )}
                         </div>
+                        
                         <div className="mt-8 flex items-end justify-between">
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-ink">AED {c.price}</span>
-                            <span className="text-xs font-bold text-ink/30 uppercase">/ session</span>
+                          <div className="flex flex-col">
+                            {c.activePromotions?.length > 0 && (
+                              <span className="text-[10px] font-bold text-ink/20 line-through mb-1">AED {c.price}</span>
+                            )}
+                            <div className="flex items-baseline gap-2">
+                              <span className={`text-3xl font-black ${c.activePromotions?.length > 0 ? 'text-brand-blue' : 'text-ink'}`}>
+                                AED {c.activePromotions?.length > 0 ? calculateDiscount(c.activePromotions[0], c.price) === c.price ? '0' : Math.round((c.price - (c.activePromotions[0].discountType === 'percentage' || c.activePromotions[0].promoType === 'percentage' ? (c.price * (c.activePromotions[0].discountValue / 100)) : Math.min(c.price, c.activePromotions[0].discountValue))) * 100) / 100 : c.price}
+                              </span>
+                              <span className="text-xs font-bold text-ink/30 uppercase">/ session</span>
+                            </div>
+                            {c.activePromotions?.[0]?.promoType === 'bogo' && (
+                              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">+1 Free Item!</p>
+                            )}
+                            {c.activePromotions?.[0]?.promoType !== 'bogo' && c.activePromotions?.length > 0 && (
+                              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">Discount Applied!</p>
+                            )}
                           </div>
                           <span className="text-[10px] font-black text-brand-blue uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">Select →</span>
                         </div>
@@ -804,15 +973,36 @@ export default function WalkingBooking() {
                     {plans.map(plan => (
                       <div
                         key={plan._id}
-                        onClick={() => setSelectedPlan(plan._id === selectedPlan?._id ? null : plan)}
-                        className={`p-7 rounded-[32px] border-2 transition-all text-left flex flex-col justify-between cursor-pointer relative overflow-hidden group ${selectedPlan?._id === plan._id
-                          ? 'border-brand-blue bg-brand-blue/5 shadow-xl'
-                          : 'border-slate-100 bg-white hover:border-brand-blue/30 shadow-sm'
+                        onClick={() => {
+                          const isSelecting = plan._id !== selectedPlan?._id;
+                          setSelectedPlan(isSelecting ? plan : null);
+                          if (isSelecting && plan.activePromotions?.length > 0) setSelectedPromo(plan.activePromotions[0]);
+                          else if (!isSelecting) setSelectedPromo(null);
+                        }}
+                        className={`p-7 rounded-[32px] border-2 transition-all text-left flex flex-col h-full min-h-[280px] cursor-pointer relative overflow-hidden group ${selectedPlan?._id === plan._id
+                          ? 'border-brand-blue shadow-xl bg-brand-blue/5'
+                          : plan.activePromotions?.length > 0 ? 'border-brand-blue/30 shadow-2xl shadow-brand-blue/10 bg-brand-blue/[0.01]' : 'border-slate-100 bg-white hover:border-brand-blue/30 shadow-sm'
                           }`}
                       >
-                        <div>
+                        {/* Promo Ribbon */}
+                        {plan.activePromotions?.length > 0 && (
+                          <div className="absolute top-0 right-0 z-10 pointer-events-none">
+                            <div className="bg-brand-blue text-white text-[10px] font-black uppercase tracking-widest py-2 px-10 rotate-45 translate-x-[30%] translate-y-[20%] shadow-lg border-b border-white/20">
+                              {plan.activePromotions[0].promoType === 'bogo' ? 'FREE EXTRA' : 
+                               plan.activePromotions[0].promoType === 'percentage' ? `${plan.activePromotions[0].discountValue}% OFF` :
+                               plan.activePromotions[0].promoType === 'cash' ? 'CASH OFF' : 'SPECIAL'}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex-1">
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex flex-wrap gap-2">
+                              {plan.activePromotions?.[0] && (
+                                <span className="bg-brand-blue/10 text-brand-blue text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg flex items-center gap-1.5">
+                                  🎁 {plan.activePromotions[0].name}
+                                </span>
+                              )}
                               <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-widest ${plan.sessionType === 'personal' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'
                                 }`}>
                                 {plan.sessionType === 'personal' ? 'Personal' : 'Group'}
@@ -821,7 +1011,7 @@ export default function WalkingBooking() {
                                 {plan.validDays === 'both' ? 'All Days' : plan.validDays === 'weekday' ? 'Weekdays' : 'Weekends'}
                               </span>
                               {plan.isFeatured && (
-                                <span className="rounded-full bg-coral/15 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-coral">Best Value</span>
+                                <span className="rounded-full bg-brand-blue/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-brand-blue">Best Value</span>
                               )}
                             </div>
                             <div className="flex items-center gap-2">
@@ -838,14 +1028,41 @@ export default function WalkingBooking() {
                             </div>
                           </div>
                           <h3 className="font-display text-xl font-black text-ink">{plan.name}</h3>
+                          {plan.activePromotions?.[0] && (
+                            <p className="mt-1 text-[9px] font-black text-brand-blue uppercase tracking-widest">{plan.activePromotions?.[0].name}</p>
+                          )}
                           {plan.tagline && <p className="text-xs text-ink/50 mt-1 line-clamp-1">{plan.tagline}</p>}
                           <div className="flex items-center gap-4 mt-3 text-xs font-bold text-ink/40">
                             <span className="flex items-center gap-1.5"><span className="opacity-50">📋</span> {plan.classesIncluded || 'Unlimited'} classes</span>
                             {plan.durationWeeks && <span className="flex items-center gap-1.5"><span className="opacity-50">⏱</span> {plan.durationWeeks} weeks</span>}
                           </div>
+
+                          {/* Promotion Highlight Detail */}
+                          {plan.activePromotions?.[0] && (
+                            <div className="mt-4 bg-brand-blue/5 border border-brand-blue/10 p-3 rounded-2xl animate-rise">
+                               <p className="text-[10px] font-black text-brand-blue uppercase tracking-widest mb-1">🔥 Special Offer</p>
+                               <p className="text-[11px] font-bold text-ink/70 leading-relaxed italic line-clamp-2">
+                                  "{plan.activePromotions?.[0].description || `${plan.activePromotions?.[0].name} - Limited time deal.`}"
+                               </p>
+                            </div>
+                          )}
                         </div>
                         <div className="mt-6 flex items-center justify-between">
-                          <span className="text-2xl font-black text-brand-blue">{plan.price.toLocaleString()} <span className="text-xs opacity-50">AED</span></span>
+                          <div className="flex flex-col">
+                            {plan.activePromotions?.[0] && (
+                              <span className="text-[10px] font-bold text-ink/20 line-through">AED {plan.price.toLocaleString()}</span>
+                            )}
+                            <span className={`text-2xl font-black ${plan.activePromotions?.[0] ? 'text-brand-blue' : 'text-brand-blue'}`}>
+                              {plan.activePromotions?.[0] ? Math.round((plan.price - (plan.activePromotions?.[0].discountType === 'percentage' || plan.activePromotions?.[0].promoType === 'percentage' ? (plan.price * (plan.activePromotions?.[0].discountValue / 100)) : Math.min(plan.price, plan.activePromotions?.[0].discountValue))) * 100) / 100 : plan.price.toLocaleString()} 
+                              <span className="text-xs opacity-50 ml-1">AED</span>
+                            </span>
+                            {plan.activePromotions?.[0]?.promoType === 'bogo' && (
+                              <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-1">+1 Free Membership!</p>
+                            )}
+                            {plan.activePromotions?.[0]?.promoType !== 'bogo' && plan.activePromotions?.[0] && (
+                              <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-1">Package Savings Applied!</p>
+                            )}
+                          </div>
                           <span className="text-[10px] font-black text-brand-blue uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">Select →</span>
                         </div>
                       </div>
@@ -1054,17 +1271,22 @@ export default function WalkingBooking() {
                           <button
                             key={s._id}
                             onClick={() => {
-                              if (left <= 0 && !isSel) return;
                               if (isSel) setSelectedSessions(selectedSessions.filter(ss => ss._id !== s._id));
-                              else setSelectedSessions([...selectedSessions, s]);
+                              else { setError(''); setSelectedSessions([...selectedSessions, s]); }
                             }}
-                            disabled={left <= 0 && !isSel}
-                            className={`p-6 rounded-[32px] border-2 transition-all flex flex-col items-center justify-center gap-1 group ${isSel ? 'border-brand-blue bg-brand-blue/5 text-ink shadow-md' : left <= 0 ? 'bg-slate-50/50 border-slate-100 opacity-50 cursor-not-allowed text-ink/20' : 'bg-white border-slate-50 hover:border-brand-blue/20'}`}
+                            className={`p-6 rounded-[32px] border-2 transition-all flex flex-col items-center justify-center gap-1 group relative ${
+                              isSel ? 'border-brand-blue bg-brand-blue/5 text-ink shadow-md'
+                              : left <= 0 ? 'bg-amber-50/80 border-amber-300 hover:border-amber-400 text-ink'
+                              : 'bg-white border-slate-50 hover:border-brand-blue/20'
+                            }`}
                           >
+                            {left <= 0 && !isSel && (
+                              <span className="absolute -top-2 -right-2 bg-amber-400 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">FULL</span>
+                            )}
                             <span className="text-2xl font-black font-display">{new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             <div className="flex items-center gap-1.5">
-                              <div className={`w-1.5 h-1.5 rounded-full ${left > 2 ? 'bg-green-400' : left <= 0 ? 'bg-slate-200' : 'bg-coral'}`}></div>
-                              <span className={`text-[10px] font-black uppercase tracking-widest ${left <= 0 ? 'text-coral' : 'opacity-40'}`}>{left <= 0 ? 'FULL' : `${left} left`}</span>
+                              <div className={`w-1.5 h-1.5 rounded-full ${left > 2 ? 'bg-green-400' : left <= 0 ? 'bg-amber-400' : 'bg-coral'}`}></div>
+                              <span className={`text-[10px] font-black uppercase tracking-widest ${left <= 0 ? 'text-amber-600' : 'opacity-40'}`}>{left <= 0 ? 'Admin Override' : `${left} left`}</span>
                             </div>
                           </button>
                         );
@@ -1096,163 +1318,239 @@ export default function WalkingBooking() {
               <div className="animate-rise py-4">
                 <div className="flex flex-col lg:flex-row gap-8 items-start">
                   {/* Left Column: Detailed Summary */}
-                  <div className="flex-1 space-y-8">
-                    <div className="bg-white p-10 rounded-[48px] border border-slate-100 shadow-sm">
-                      <div className="flex items-start justify-between mb-8">
+                  <div className="flex-1 space-y-6">
+                    <div className="bg-white p-8 rounded-[48px] border border-slate-100 shadow-sm">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 mb-2">{bookingMode === 'package' ? 'Package Details' : 'Program Details'}</p>
-                          <h3 className="font-display text-4xl font-black text-ink">
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 mb-1">{bookingMode === 'package' ? 'Selected Package' : 'Selected Program'}</p>
+                          <h3 className="font-display text-3xl font-black text-ink">
                             {bookingMode === 'package' ? selectedPlan?.name : selectedClass?.title}
                           </h3>
                         </div>
-                        <div className="text-right">
-                          <p className="text-4xl font-black text-ink">AED {currentPrice.toLocaleString()}</p>
-                          <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest mt-1">Total inclusive order</p>
+                        <div className="bg-brand-blue/5 px-6 py-4 rounded-3xl border border-brand-blue/10 text-center min-w-[160px]">
+                          <p className="text-[10px] font-black uppercase text-brand-blue/60 mb-1">Status</p>
+                          <p className="text-sm font-black text-brand-blue uppercase tracking-widest">Final Review</p>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="bg-slate-50 p-6 rounded-3xl">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Participants ({totalParticipants})</p>
-                          <div className="space-y-3">
+                      {/* Explicit Promo Highlight in Summary */}
+                      {selectedPromo && (
+                        <div className="mb-8 bg-emerald-50 border border-emerald-200 p-4 rounded-3xl flex items-center gap-4 animate-rise">
+                          <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-white text-2xl shadow-lg ring-4 ring-emerald-500/10">🏷️</div>
+                          <div>
+                            <p className="text-[10px] font-black text-emerald-800/40 uppercase tracking-widest leading-none mb-1">Promotion Applied</p>
+                            <h4 className="font-display text-lg font-black text-emerald-700">{selectedPromo.name}</h4>
+                            <p className="text-[11px] font-bold text-emerald-600/60 ">{selectedPromo.description || 'Special discounted rate is being applied to this order.'}</p>
+                          </div>
+                          <div className="ml-auto bg-white px-4 py-2 rounded-2xl border border-emerald-100 shadow-sm">
+                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest leading-none mb-1">Savings</p>
+                            <p className="text-sm font-black text-emerald-600">- AED {calculateDiscount(selectedPromo, currentPrice)}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Info Grid (3 Columns) */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100/50">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-3">Participants</p>
+                          <div className="space-y-2">
                             {selectedChildrenIds.map(id => availableChildren.find(c => c._id === id)).map((p, i) => (
-                              <div key={i} className="flex justify-between items-center text-sm font-bold">
+                              <div key={i} className="flex justify-between items-center text-xs font-bold text-ink/70">
                                 <span>{p?.name}</span>
-                                <span className="opacity-40">{p?.age} Yrs</span>
+                                <span className="text-[10px] opacity-40">{p?.age}Y</span>
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        <div className="bg-slate-50 p-6 rounded-3xl">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Service Details</p>
+                        <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100/50">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-3">Service Profile</p>
                           {bookingMode === 'package' ? (
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-3">
-                                <span className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-sm">🗓️</span>
-                                <p className="text-xs font-bold text-ink/70">{selectedPlan?.classesIncluded || 'Unlimited'} Classes</p>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-sm">⏱</span>
-                                <p className="text-xs font-bold text-ink/70">{selectedPlan?.durationWeeks || '—'} Weeks Validity</p>
-                              </div>
+                            <div className="space-y-2">
+                              <p className="text-xs font-bold text-ink/70 flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-brand-blue"></span>
+                                {selectedPlan?.classesIncluded || 'Unlimited'} Classes
+                              </p>
+                              <p className="text-xs font-bold text-ink/70 flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-brand-blue"></span>
+                                {selectedPlan?.durationWeeks || '—'} Weeks Access
+                              </p>
                             </div>
                           ) : (
-                            <div className="space-y-2">
-                              {selectedSessions.map((s, i) => (
-                                <div key={i} className="text-[11px] font-bold text-ink/60">
-                                  {new Date(s.startTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} @ {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            <div className="space-y-1">
+                              {selectedSessions.slice(0, 3).map((s, i) => (
+                                <div key={i} className="text-[10px] font-bold text-ink/60 flex items-center gap-2">
+                                  <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                  {new Date(s.startTime).toLocaleDateString([], { month: 'short', day: 'numeric' })} @ {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </div>
                               ))}
+                              {selectedSessions.length > 3 && <p className="text-[9px] font-black text-brand-blue mt-1">+ {selectedSessions.length - 3} more</p>}
                             </div>
                           )}
                         </div>
+
+                        <div className="bg-ink text-white p-6 rounded-3xl flex flex-col justify-center">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2">Total to Pay</p>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-[10px] font-black text-white/30">AED</span>
+                            <span className="text-3xl font-display font-black leading-none py-1">
+                               {Math.round((activeTax?.calculationMethod === 'inclusive' ? (currentPrice - discountAmount - couponAmount) : (currentPrice - discountAmount - couponAmount + currentTax)) * 100) / 100}
+                            </span>
+                          </div>
+                        </div>
                       </div>
 
-                      {discountAmount > 0 && (
-                        <div className="mt-8 p-6 bg-emerald-50 rounded-3xl flex items-center justify-between border border-emerald-100/50">
-                          <div className="flex items-center gap-4">
-                            <span className="text-2xl">🎁</span>
-                            <div>
-                              <p className="text-[10px] font-black text-emerald-700 uppercase">Promotion Applied</p>
-                              <p className="text-xs font-black text-emerald-600">{selectedPromo?.name}</p>
+                      {/* Full Itemized Order Summary Breakdown */}
+                      <div className="mt-10 pt-10 border-t border-slate-100/60">
+                         <div className="flex flex-col lg:flex-row gap-12">
+                            {/* Detailed Bill Rows */}
+                            <div className="flex-1 space-y-4">
+                               <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-ink/30 mb-6 flex items-center gap-3">
+                                  <span className="w-8 h-[1px] bg-brand-blue/30"></span>
+                                  Full Order Summary
+                               </h4>
+                               
+                               <div className="space-y-3 px-2">
+                                  <div className="flex justify-between items-baseline group">
+                                     <span className="text-sm font-bold text-ink/40 group-hover:text-ink transition-colors">Gross Subtotal</span>
+                                     <div className="h-px flex-1 bg-slate-50 border-b border-dashed border-slate-100 mx-4 mb-1"></div>
+                                     <span className="font-display font-black text-ink">AED {currentPrice.toFixed(2)}</span>
+                                  </div>
+
+                                  {discountAmount > 0 && (
+                                     <div className="flex justify-between items-center bg-emerald-50/50 p-4 rounded-[24px] border border-emerald-100/30 group animate-rise">
+                                        <div className="flex items-center gap-3">
+                                           <span className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-base shadow-sm ring-1 ring-emerald-100">🏷️</span>
+                                           <div>
+                                              <p className="text-[9px] font-black uppercase text-emerald-800/40 leading-none mb-1">Applied Promo</p>
+                                              <p className="text-[11px] font-black text-emerald-700 truncate max-w-[180px]">{selectedPromo?.name}</p>
+                                           </div>
+                                        </div>
+                                        <span className="font-display text-lg font-black text-emerald-600">- AED {discountAmount.toFixed(2)}</span>
+                                     </div>
+                                  )}
+
+                                  {couponAmount > 0 && (
+                                     <div className="flex justify-between items-center bg-brand-blue/5 p-4 rounded-[24px] border border-brand-blue/10 group animate-rise">
+                                        <div className="flex items-center gap-3">
+                                           <span className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-base shadow-sm ring-1 ring-brand-blue/10">🎟️</span>
+                                           <div>
+                                              <p className="text-[9px] font-black uppercase text-brand-blue/40 leading-none mb-1">Voucher Discount</p>
+                                              <p className="text-[11px] font-black text-brand-blue">Direct Credit</p>
+                                           </div>
+                                        </div>
+                                        <span className="font-display text-lg font-black text-brand-blue">- AED {couponAmount.toFixed(2)}</span>
+                                     </div>
+                                  )}
+
+                                  {currentTax > 0 && (
+                                     <div className="flex justify-between items-baseline group pt-2">
+                                        <span className="text-sm font-bold text-ink/40 group-hover:text-ink transition-colors">{activeTax?.name || 'VAT'} ({activeTax?.value}%)</span>
+                                        <div className="h-px flex-1 bg-slate-50 border-b border-dashed border-slate-100 mx-4 mb-1"></div>
+                                        <span className="font-display font-black text-ink/50">+ AED {currentTax.toFixed(2)}</span>
+                                     </div>
+                                  )}
+                               </div>
                             </div>
-                          </div>
-                          <p className="text-xl font-black text-emerald-700">- AED {discountAmount}</p>
-                        </div>
-                      )}
+                         </div>
+                      </div>
                     </div>
 
+                    {/* Compact Promotions Carousel */}
                     {applicablePromos.length > 0 && (
-                      <div className="space-y-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 px-6">Available Promotions</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between px-6">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 text-xs text-brand-blue">Step 1: Select Best Offer Available ({applicablePromos.length})</p>
+                        </div>
+                        <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar px-2 items-stretch">
                           {applicablePromos.map(promo => (
                             <button
                               key={promo._id}
                               onClick={() => setSelectedPromo(selectedPromo?._id === promo._id ? null : promo)}
-                              className={`p-6 rounded-[32px] border-2 transition-all flex items-center justify-between group ${selectedPromo?._id === promo._id ? 'border-brand-blue bg-white shadow-xl shadow-brand-blue/5' : 'border-slate-100 bg-white hover:border-brand-blue/20'}`}
+                              className={`shrink-0 p-5 rounded-[24px] border-2 transition-all flex items-center gap-4 min-w-[240px] h-full min-h-[80px] ${selectedPromo?._id === promo._id ? 'border-brand-blue bg-white shadow-xl shadow-brand-blue/5' : 'border-slate-100 bg-white hover:border-brand-blue/20'}`}
                             >
-                              <div className="flex items-center gap-4 text-left">
-                                <span className="text-2xl">{promo.promoType === 'bogo' ? '🔥' : '🏷️'}</span>
-                                <div>
-                                  <p className="font-black text-ink text-sm uppercase leading-tight">{promo.name}</p>
-                                  <p className="text-[10px] font-bold text-brand-blue mt-1">Save AED {calculateDiscount(promo, currentPrice)}</p>
-                                </div>
+                              <span className="text-xl shrink-0">{promo.promoType === 'bogo' ? '🔥' : '🏷️'}</span>
+                              <div className="min-w-0">
+                                <p className="font-black text-ink text-[10px] uppercase truncate leading-tight mb-1">{promo.name}</p>
+                                <p className="text-[9px] font-bold text-brand-blue">Save AED {calculateDiscount(promo, currentPrice)}</p>
                               </div>
-                              {selectedPromo?._id === promo._id && <span className="text-brand-blue font-black animate-scale-up">✓</span>}
+                              {selectedPromo?._id === promo._id && <span className="ml-auto text-brand-blue font-black animate-scale-up">✓</span>}
                             </button>
                           ))}
                         </div>
                       </div>
                     )}
-                  </div>
 
-                  {/* Right Sidebar: Dynamic Actions */}
-                  <div className="w-full lg:w-[380px] shrink-0">
-                    <div className="bg-ink p-10 py-12 rounded-[56px] shadow-2xl shadow-ink/30 sticky top-8 animate-rise text-white">
-                      <div className="mb-10 text-center">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-2">Order Review</p>
-                        <h2 className="font-display text-3xl font-black text-white px-2">
-                          {selectedPromo?.promoType === 'bogo' ? 'Claim Bonus' : 'Confirm Order'}
-                        </h2>
-                      </div>
-
-                      <div className="space-y-6 flex-1 min-h-[300px]">
-                        {selectedPromo?.promoType === 'bogo' ? (
-                          <div className="bg-white/5 border border-white/10 rounded-[40px] p-8 animate-in zoom-in-95 duration-500">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-6 flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                              BOGO Assistant Ready
-                            </p>
-                            <div className="space-y-3">
-                              {selectedChildrenIds.length > 0 && bookingMode === 'package' && (
-                                <button
-                                  onClick={() => {
-                                    setBogoOption('double');
-                                    if (selectedChildrenIds.length > 1) setSelectedChildrenIds([selectedChildrenIds[0]]);
-                                  }}
-                                  className={`w-full p-5 rounded-3xl border-2 transition-all flex items-center gap-4 text-left group ${bogoOption === 'double' && selectedChildrenIds.length === 1 ? 'border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10' : 'border-white/5 bg-white/5 hover:border-white/20'}`}
-                                >
-                                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl transition-all ${bogoOption === 'double' && selectedChildrenIds.length === 1 ? 'bg-emerald-500 text-white' : 'bg-white/5 text-white/20'}`}>⚡</div>
-                                  <div>
-                                    <p className="font-black text-white text-[11px] uppercase tracking-wide">Double sessions for {availableChildren.find(c => c._id === selectedChildrenIds[0])?.name}</p>
-                                    <p className="text-[9px] font-bold text-white/40 mt-1 uppercase">Recommended for individuals</p>
-                                  </div>
-                                </button>
-                              )}
-
-                              {availableChildren.filter(child => !selectedChildrenIds.includes(child._id)).map(child => (
-                                <button
-                                  key={child._id}
-                                  onClick={() => { setBogoOption('person'); handleQuickAddChildSummary(child._id); }}
-                                  className="w-full p-5 rounded-3xl border-2 border-white/5 bg-white/5 hover:border-white/20 transition-all flex items-center gap-4 text-left group"
-                                >
-                                  <div className="w-12 h-12 rounded-2xl bg-white/5 text-white/20 group-hover:bg-brand-blue group-hover:text-white transition-all flex items-center justify-center text-2xl">➕</div>
-                                  <div>
-                                    <p className="font-black text-white text-[11px] uppercase tracking-wide">Add {child.name} for Free</p>
-                                    <p className="text-[9px] font-bold text-white/40 mt-1 uppercase text-brand-blue">Claim 1 Free Slot</p>
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
+                    {/* Step 2: Final Review & Confirmation moved from Sidebar */}
+                    <div className="bg-ink p-10 py-12 rounded-[56px] shadow-2xl shadow-ink/30 animate-rise text-white">
+                      <div className="flex flex-col md:flex-row gap-10 items-start md:items-center">
+                        <div className="flex-1 space-y-4">
+                          <div className="flex items-center gap-4">
+                             <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl">
+                               {selectedPromo?.promoType === 'bogo' ? '🎁' : '📝'}
+                             </div>
+                             <div>
+                               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-0.5">Step 2: Review & Finalize order</p>
+                               <h2 className="font-display text-2xl font-black text-white">
+                                 {selectedPromo?.promoType === 'bogo' ? 'Claim Your BOGO Bonus' : 'Check Summary & Proceed'}
+                               </h2>
+                             </div>
                           </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-full border-2 border-dashed border-white/5 rounded-[48px] py-12 px-10 text-center">
-                            <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 text-3xl">📝</div>
-                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/60 mb-2">Review Complete</p>
-                            <p className="text-[10px] font-bold text-white/30 leading-relaxed px-4">All participants and schedules have been verified. Standard promotion active.</p>
-                          </div>
-                        )}
-                      </div>
+                          
+                          <div className="min-h-[100px]">
+                            {selectedPromo?.promoType === 'bogo' ? (
+                               <div className="bg-white/5 border border-white/10 rounded-[32px] p-6 animate-in zoom-in-95 duration-500">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                     {selectedChildrenIds.length > 0 && bookingMode === 'package' && (
+                                       <button
+                                         onClick={() => {
+                                           setBogoOption('double');
+                                           if (selectedChildrenIds.length > 1) setSelectedChildrenIds([selectedChildrenIds[0]]);
+                                         }}
+                                         className={`p-4 rounded-2xl border-2 transition-all flex items-center gap-4 text-left ${bogoOption === 'double' && selectedChildrenIds.length === 1 ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/5 bg-white/5 hover:border-white/20'}`}
+                                       >
+                                         <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white text-lg">⚡</div>
+                                         <div>
+                                           <p className="font-black text-white text-[10px] uppercase tracking-wide">Double sessions</p>
+                                           <p className="text-[9px] font-bold text-white/40 uppercase">For {availableChildren.find(c => c._id === selectedChildrenIds[0])?.name}</p>
+                                         </div>
+                                       </button>
+                                     )}
 
-                      <div className="mt-12 pt-8 border-t border-white/5">
-                        <button
-                          onClick={() => setStep(7)}
-                          className="w-full bg-brand-blue text-white py-6 rounded-[32px] font-display text-xl font-black shadow-xl shadow-brand-blue/20 hover:scale-[1.03] active:scale-[0.97] transition-all"
-                        >
-                          Proceed to Payment
-                        </button>
+                                     {availableChildren.filter(child => !selectedChildrenIds.includes(child._id)).map(child => (
+                                       <button
+                                         key={child._id}
+                                         onClick={() => { setBogoOption('person'); handleQuickAddChildSummary(child._id); }}
+                                         className="p-4 rounded-2xl border-2 border-white/5 bg-white/5 hover:border-white/20 transition-all flex items-center gap-4 text-left"
+                                       >
+                                         <div className="w-10 h-10 rounded-xl bg-brand-blue flex items-center justify-center text-white text-lg">➕</div>
+                                         <p className="font-black text-white text-[10px] uppercase tracking-wide">Add {child.name} for Free</p>
+                                       </button>
+                                     ))}
+                                  </div>
+                               </div>
+                            ) : (
+                               <p className="text-[11px] font-bold text-white/30 leading-relaxed max-w-md bg-white/5 p-6 rounded-3xl border border-white/5">
+                                 Your order summary looks perfect. We've applied all active discounts and calculated the accurate tax breakdown. Proceed below to choose your payment method.
+                               </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="w-full md:w-[320px] shrink-0 space-y-4">
+                           <button
+                             onClick={() => setStep(7)}
+                             className="w-full bg-brand-blue text-white py-6 rounded-[32px] font-display text-xl font-black shadow-xl shadow-brand-blue/20 hover:scale-[1.03] active:scale-[0.97] transition-all flex items-center justify-center gap-3"
+                           >
+                             Finalize & Pay <span>➔</span>
+                           </button>
+                           <button
+                             onClick={() => setStep(bookingMode === 'package' ? 3 : 5)}
+                             className="w-full py-2 text-[10px] font-black text-white/20 hover:text-white/60 transition-colors uppercase tracking-[0.2em]"
+                           >
+                             🔙 Back to {bookingMode === 'package' ? 'Branch' : 'Schedule'}
+                           </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1276,10 +1574,37 @@ export default function WalkingBooking() {
 
                         <div className="flex flex-col items-center justify-center border-b border-slate-100 pb-10 mb-10">
                           <p className="text-[10px] font-black text-brand-blue uppercase tracking-[0.3em] mb-3">Amount to be Paid</p>
-                          <h2 className="font-display text-7xl font-black text-ink">AED {currentPrice - discountAmount}</h2>
+                          <h2 className="font-display text-7xl font-black text-ink">
+                             AED {Math.round((activeTax?.calculationMethod === 'inclusive' ? (currentPrice - discountAmount - couponAmount) : (currentPrice - discountAmount - couponAmount + currentTax)) * 100) / 100}
+                          </h2>
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-10">
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-ink/40 font-bold uppercase tracking-widest text-[10px]">Subtotal (Excl. Tax)</span>
+                            <span className="font-black text-ink">AED {currentPrice}</span>
+                          </div>
+                          {currentTax > 0 && (
+                            <div className="flex justify-between items-center text-sm text-brand-blue animate-in slide-in-from-right-2 duration-300">
+                              <span className="font-bold uppercase tracking-widest text-[10px] flex items-center gap-2">
+                                <span className="w-1 h-1 rounded-full bg-brand-blue" />
+                                Applied {activeTax?.name || 'Tax'} ({activeTax?.value}{activeTax?.type === 'percentage' ? '%' : ' AED'})
+                              </span>
+                              <span className="font-black">+ AED {currentTax}</span>
+                            </div>
+                          )}
+                          {discountAmount > 0 && (
+                            <div className="flex justify-between items-center text-sm text-emerald-500">
+                              <span className="font-bold uppercase tracking-widest text-[10px] flex items-center gap-2">
+                                <span className="w-1 h-1 rounded-full bg-emerald-500" />
+                                Discount Applied
+                              </span>
+                              <span className="font-black">- AED {discountAmount}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-10 mt-10">
                           <div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Transaction Components</p>
                             <div className="space-y-4">
@@ -1287,23 +1612,74 @@ export default function WalkingBooking() {
                                 <span>Base Order ({totalParticipants} members)</span>
                                 <span>AED {currentPrice}</span>
                               </div>
+                              {membershipUnits > 1 && (
+                                <div className="flex justify-between text-[10px] font-black text-ocean uppercase tracking-widest pt-1">
+                                   <span>Volume Multiplier ({membershipUnits}x)</span>
+                                   <span>Included</span>
+                                </div>
+                              )}
                               {discountAmount > 0 && (
                                 <div className="flex justify-between text-sm font-black text-emerald-600">
                                   <span>Total Savings ({selectedPromo?.name})</span>
                                   <span>- AED {discountAmount}</span>
                                 </div>
                               )}
+                              {couponAmount > 0 && (
+                                <div className="flex justify-between text-sm font-black text-indigo-600">
+                                  <span>Coupon Applied ({couponCode})</span>
+                                  <span>- AED {couponAmount}</span>
+                                </div>
+                              )}
+                              {currentTax > 0 && (
+                                <div className="flex justify-between text-sm font-black text-brand-blue">
+                                  <span>{activeTax?.name || 'Tax'} ({activeTax?.calculationMethod})</span>
+                                  <span>+ AED {currentTax}</span>
+                                </div>
+                              )}
                               <div className="h-px bg-slate-100 mt-4"></div>
                               <div className="flex justify-between text-lg font-black text-brand-blue pt-2">
                                 <span>Grand Total</span>
-                                <span>AED {currentPrice - discountAmount}</span>
+                                <span>AED {Math.round((activeTax?.calculationMethod === 'inclusive' ? (currentPrice - discountAmount - couponAmount) : (currentPrice - discountAmount - couponAmount + currentTax)) * 100) / 100}</span>
                               </div>
                             </div>
                           </div>
 
                           <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Payment Receipting</p>
-                            <p className="text-xs text-ink/40 leading-relaxed font-bold">Please select the physical payment method used. The transaction will be logged in the system ledger once confirmed.</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-4">Coupon Redemption</p>
+                            <div className="flex gap-2">
+                              <input 
+                                type="text"
+                                className="flex-1 bg-slate-50 border-none rounded-xl py-3 px-4 text-xs font-black uppercase tracking-widest placeholder:text-ink/10 outline-none focus:ring-2 focus:ring-brand-blue/20"
+                                placeholder="Enter Code (e.g. CPN-XXXX)"
+                                value={couponCode}
+                                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                disabled={couponAmount > 0 || isValidatingCoupon}
+                              />
+                              {couponAmount > 0 ? (
+                                <button 
+                                  onClick={() => { setCouponAmount(0); setCouponCode(''); }}
+                                  className="bg-red-50 text-red-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase"
+                                >Remove</button>
+                              ) : (
+                                <button 
+                                  onClick={async () => {
+                                    setIsValidatingCoupon(true);
+                                    try {
+                                      const res = await api.post('/coupons/validate', { code: couponCode });
+                                      setCouponAmount(res.data.data.amount);
+                                      toast.success('Coupon applied!');
+                                    } catch (err) {
+                                      toast.error(err.response?.data?.message || 'Invalid coupon');
+                                    } finally {
+                                      setIsValidatingCoupon(false);
+                                    }
+                                  }}
+                                  disabled={!couponCode || isValidatingCoupon}
+                                  className="bg-brand-blue text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase disabled:opacity-50"
+                                >Apply</button>
+                              )}
+                            </div>
+                            <p className="mt-3 text-[9px] font-bold text-ink/30 leading-relaxed uppercase tracking-tighter">Enter a valid cash voucher code to reduce the final amount.</p>
                           </div>
                         </div>
                       </div>
@@ -1385,7 +1761,7 @@ export default function WalkingBooking() {
                           <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">✨</div>
                           <div>
                             <h4 className="font-display text-lg font-black text-ink">{selectedPlan?.name || selectedClass?.title}</h4>
-                            <p className="text-[10px] font-bold text-indigo-600/60 uppercase tracking-widest mt-1">AED {currentPrice - discountAmount} • {paymentMethod.toUpperCase()}</p>
+                            <p className="text-[10px] font-bold text-indigo-600/60 uppercase tracking-widest mt-1">AED {Math.round((activeTax?.calculationMethod === 'inclusive' ? (currentPrice - discountAmount - couponAmount) : (currentPrice - discountAmount - couponAmount + currentTax)) * 100) / 100} • {paymentMethod.toUpperCase()}</p>
                           </div>
                         </div>
                       </div>

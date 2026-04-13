@@ -15,6 +15,7 @@ const REPORT_TYPES = [
   { id: 'trainer_sales', label: 'Trainer Sales Report' },
   { id: 'attendance', label: 'Attendance Report' },
   { id: 'promotions_usage', label: 'Promotion Usage Report' },
+  { id: 'taxes', label: 'Tax Collection Report' },
 ];
 
 export default function Reports() {
@@ -241,6 +242,19 @@ export default function Reports() {
       { key: 'finalAmount', label: 'Final Paid' },
       { key: 'cashierName', label: 'Cashier' },
       { key: 'branchName', label: 'Branch' },
+    ],
+    taxes: [
+      { key: 'date', label: 'Date' },
+      { key: 'customerName', label: 'Customer' },
+      { key: 'bookingNumber', label: 'Ref #' },
+      { key: 'itemName', label: 'Service/Product' },
+      { key: 'taxName', label: 'Tax Rule' },
+      { key: 'taxRate', label: 'Rate' },
+      { key: 'baseAmount', label: 'Base (AED)' },
+      { key: 'taxCollected', label: 'Tax (AED)' },
+      { key: 'totalPaid', label: 'Total (AED)' },
+      { key: 'branchName', label: 'Branch' },
+      { key: 'cashierName', label: 'Staff' },
     ]
   };
 

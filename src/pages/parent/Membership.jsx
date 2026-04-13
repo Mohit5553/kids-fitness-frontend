@@ -160,6 +160,9 @@ export default function Membership() {
   const [viewMode, setViewMode] = useState('list'); // 'list', 'calendar', 'time'
   const [showExtensionRequest, setShowExtensionRequest] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponAmount, setCouponAmount] = useState(0);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
   // Search and Pagination States
   const [searchTerm, setSearchTerm] = useState('');
@@ -232,7 +235,9 @@ export default function Membership() {
         amount: selectedPlan.price,
         paymentMethod: 'card',
         reference: `mock_dash_${Date.now()}`,
-        last4: cardForm.number.slice(-4)
+        last4: cardForm.number.slice(-4),
+        couponCode,
+        couponAmount
       });
 
       // 2. Create Membership (New Atomic Flow)
@@ -244,7 +249,9 @@ export default function Membership() {
         preferredSlots,
         sessionsPerWeek,
         claimBogo,
-        bogoChildId: bogoChildId || selectedChildId || null
+        bogoChildId: bogoChildId || selectedChildId || null,
+        couponCode,
+        couponAmount
       });
 
       setMemberships((prev) => [membership.data, ...prev]);
@@ -341,8 +348,8 @@ export default function Membership() {
               ) : (
                 <>
                   {currentMemberships.map((m) => {
-                    const totalSessions = m.planId?.sessionsLimit || m.sessionsCount || 0;
-                    const remaining = m.remainingSessions || 0;
+                    const totalSessions = (m.planId?.classesIncluded || 0) * (m.membershipUnits || 1);
+                    const remaining = m.classesRemaining ?? 0;
                     const used = Math.max(0, totalSessions - remaining);
 
                     return (
@@ -419,6 +426,12 @@ export default function Membership() {
                             className="w-full max-w-[120px] px-4 py-2 bg-brand-blue text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-brand-blue/20 hover:shadow-brand-blue/30 transition-all hover:-translate-y-0.5"
                           >
                             View Schedule
+                          </button>
+                          <button
+                            onClick={() => setShowExtensionRequest({ membershipId: m._id, type: 'extend' })}
+                            className="w-full max-w-[120px] px-4 py-2 border border-brand-blue/20 text-brand-blue text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-brand-blue/5 transition-all flex items-center justify-center gap-2"
+                          >
+                            <span>➕</span> Extend
                           </button>
                           {m.bookingId && (
                             <button
@@ -660,9 +673,54 @@ export default function Membership() {
                    )}
                 </div>
 
-                {/* 4. Payment */}
+                {/* 4. Voucher Redemption */}
                 <div className="space-y-6">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 ml-2">3. Payment Details</label>
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 ml-2">4. Redeem Voucher</label>
+                    <div className="flex gap-2">
+                        <input 
+                            type="text"
+                            className="flex-1 bg-slate-50 border-none rounded-2xl py-4 px-6 text-xs font-bold outline-none focus:ring-2 focus:ring-brand-blue/20 transition-all uppercase placeholder:normal-case"
+                            placeholder="Voucher Code (CPN-XXXX)"
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                            disabled={couponAmount > 0 || isValidatingCoupon}
+                        />
+                        {couponAmount > 0 ? (
+                            <button 
+                                type="button"
+                                onClick={() => { setCouponAmount(0); setCouponCode(''); }}
+                                className="bg-rose-50 text-rose-500 px-6 py-4 rounded-2xl text-[10px] font-black uppercase"
+                            >Remove</button>
+                        ) : (
+                            <button 
+                                type="button"
+                                onClick={async () => {
+                                    setIsValidatingCoupon(true);
+                                    try {
+                                        const res = await api.post('/coupons/validate', { code: couponCode });
+                                        setCouponAmount(res.data.data.amount);
+                                    } catch (err) {
+                                        setError(err.response?.data?.message || 'Invalid coupon');
+                                    } finally {
+                                        setIsValidatingCoupon(false);
+                                    }
+                                }}
+                                disabled={!couponCode || isValidatingCoupon}
+                                className="bg-brand-blue text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase disabled:opacity-50 shadow-lg"
+                            >Validate</button>
+                        )}
+                    </div>
+                    {couponAmount > 0 && (
+                        <p className="mt-1 text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                             AED {couponAmount} applied to this transaction!
+                        </p>
+                    )}
+                </div>
+
+                {/* 5. Payment */}
+                <div className="space-y-6">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 ml-2">5. Payment Details</label>
                   <div className="space-y-3">
                     <input
                       className="w-full p-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-xs"
@@ -703,7 +761,7 @@ export default function Membership() {
                      disabled={loading}
                      className="w-full bg-brand-blue text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl shadow-brand-blue/20 hover:shadow-brand-blue/40 transition-all hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-50"
                    >
-                     {loading ? 'Processing...' : `Pay AED ${selectedPlan?.price}`}
+                     {loading ? 'Processing...' : `Pay AED ${Math.max(0, (selectedPlan?.price || 0) - couponAmount)}`}
                      {!loading && <span>➜</span>}
                    </button>
                    <p className="mt-4 text-center text-[8px] font-black text-ink/20 uppercase tracking-[0.2em]">Secure 256-bit SSL Encrypted Transaction</p>
@@ -754,12 +812,22 @@ export default function Membership() {
                           </p>
                         </div>
                       </div>
-                      <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${s.attendanceStatus === 'present' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' :
-                          s.attendanceStatus === 'absent' ? 'bg-rose-50 text-rose-500 border-rose-100' :
-                            'bg-brand-blue/5 text-brand-blue border-brand-blue/10'
-                        }`}>
-                        {s.attendanceStatus}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${s.attendanceStatus === 'present' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' :
+                            s.attendanceStatus === 'absent' ? 'bg-rose-50 text-rose-500 border-rose-100' :
+                              'bg-brand-blue/5 text-brand-blue border-brand-blue/10'
+                          }`}>
+                          {s.attendanceStatus}
+                        </span>
+                        {s.attendanceStatus === 'pending' && (
+                          <button
+                            onClick={() => setShowExtensionRequest({ membershipId: showScheduleMembership._id, sessionId: s._id, type: 'reschedule' })}
+                            className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-ink/40 hover:text-brand-blue text-[8px] font-black uppercase tracking-widest rounded-lg transition-all border border-slate-100"
+                          >
+                            Reschedule
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

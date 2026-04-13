@@ -270,7 +270,7 @@ export default function Schedule() {
                             );
                           }
                           
-                          const available = (session.capacity || 12) - (session.bookingsCount || 0);
+                          const available = (session.capacity || 12) - (session.bookedParticipants || 0);
                           const isFull = available <= 0;
                           const isLimited = available > 0 && available <= 3;
 

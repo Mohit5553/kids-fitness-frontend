@@ -27,6 +27,8 @@ export default function AdminDashboard() {
     { to: `${base}/specialties`, title: 'Specialty Master', desc: 'Manage trainer expertise areas.', perm: 'specialties:view' },
     { to: `${base}/reports`, title: 'Reports', desc: 'View detailed activity & export Excel.', perm: 'reports:view' },
     { to: `${base}/settings`, title: 'System Setup', desc: 'Configure invoice sequences and global settings.', perm: 'settings:edit' },
+    { to: `${base}/taxes`, title: 'Tax Master', desc: 'Manage VAT and local tax rules location-wise.', perm: 'settings:view' },
+    { to: `${base}/vouchers`, title: 'Vouchers', desc: 'Generate and print gift or promo vouchers.', perm: 'promotions:view' },
     { to: `${base}/extensions`, title: 'Extension requests', desc: 'Handle missed session reschedule or duration extensions.', perm: 'memberships:view' }
   ];
 

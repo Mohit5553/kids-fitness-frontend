@@ -16,6 +16,7 @@ import Register from './pages/Register.jsx';
 import Calendar from './pages/Calendar.jsx';
 import GuestBookingLookup from './pages/GuestBookingLookup.jsx';
 import PromotionsManagement from './pages/admin/PromotionsManagement.jsx';
+import TaxManagement from './pages/admin/TaxManagement.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
 import MemberHealthDeclaration from './pages/MemberHealthDeclaration.jsx';
@@ -36,6 +37,8 @@ import PaymentHistory from './pages/parent/PaymentHistory.jsx';
 import Membership from './pages/parent/Membership.jsx';
 import Attendance from './pages/parent/Attendance.jsx';
 import MyBookings from './pages/parent/MyBookings.jsx';
+import MyCoupons from './pages/parent/MyCoupons.jsx';
+import Profile from './pages/parent/Profile.jsx';
 
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import WalkingBooking from './pages/admin/WalkingBooking.jsx';
@@ -45,6 +48,8 @@ import BookingManagement from './pages/admin/BookingManagement.jsx';
 import UsersManagement from './pages/admin/UsersManagement.jsx';
 import Reports from './pages/admin/Reports.jsx';
 import TrainersManagement from './pages/admin/TrainersManagement.jsx';
+import VoucherManagement from './pages/admin/VoucherManagement.jsx';
+import VoucherPrint from './pages/admin/VoucherPrint.jsx';
 import AttendanceManagement from './pages/admin/AttendanceManagement.jsx';
 import MembershipManagement from './pages/admin/MembershipManagement.jsx';
 import SessionsManagement from './pages/admin/SessionsManagement.jsx';
@@ -87,6 +92,7 @@ export default function App() {
           <Route path="/manuals/:type" element={<ManualView />} />
           <Route path="/invoice/:id" element={<RequireAuth><InvoiceView /></RequireAuth>} />
           <Route path="/invoice/booking/:bookingId" element={<RequireAuth><InvoiceView /></RequireAuth>} />
+          <Route path="/print/voucher/:id" element={<RequireAuth><VoucherPrint /></RequireAuth>} />
 
           <Route element={<RequireAuth />}>
             <Route path="/dashboard" element={<ParentDashboard />} />
@@ -96,6 +102,8 @@ export default function App() {
             <Route path="/dashboard/payments" element={<PaymentHistory />} />
             <Route path="/dashboard/membership" element={<Membership />} />
             <Route path="/dashboard/attendance" element={<Attendance />} />
+            <Route path="/dashboard/coupons" element={<MyCoupons />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/calendar" element={<Calendar />} />
           </Route>
 
@@ -168,8 +176,10 @@ export default function App() {
               <Route path="/:roleSlug/promotions" element={<PromotionsManagement />} />
             </Route>
 
-            <Route element={<RequirePermission permission="settings:edit" />}>
+            <Route element={<RequirePermission permission="settings:view" />}>
               <Route path="/:roleSlug/settings" element={<SystemSettings />} />
+              <Route path="/:roleSlug/taxes" element={<TaxManagement />} />
+              <Route path="/:roleSlug/vouchers" element={<VoucherManagement />} />
             </Route>
 
             <Route path="/:roleSlug/extensions" element={<ExtensionPanel />} />
