@@ -29,6 +29,13 @@ export default function Pricing() {
   const [claimBogo, setClaimBogo] = useState(false);
   const [bogoChildId, setBogoChildId] = useState('');
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [checkoutStep, setCheckoutStep] = useState(1);
+  const [activeTax, setActiveTax] = useState(null);
+
+  // Coupon State
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
   const fetchPlans = async () => {
     try {
@@ -70,9 +77,24 @@ export default function Pricing() {
     api.get(`/promotions/active?locationId=${locationId}&itemId=${plan._id}&itemType=plan`)
       .then(res => {
         setApplicablePromos(res.data || []);
-        // Auto-select best promo logic could go here
       })
-      .catch(() => {});
+
+    // Fetch tax rule
+    const fetchTax = async () => {
+      try {
+        if (plan.taxId) {
+          const res = await api.get(`/taxes/${plan.taxId}`);
+          setActiveTax(res.data.data);
+        } else {
+          const res = await api.get(`/taxes?locationId=${locationId}&status=active`);
+          setActiveTax(res.data.data?.[0] || null);
+        }
+      } catch (err) {
+        console.error('Tax fetch error:', err);
+        setActiveTax(null);
+      }
+    };
+    fetchTax();
   };
 
   const closeCheckout = () => {
@@ -80,7 +102,27 @@ export default function Pricing() {
     setSelectedPlan(null);
     setSelectedPromo(null);
     setDiscountAmount(0);
+    setCheckoutStep(1);
+    setActiveTax(null);
+    setCouponInput('');
+    setAppliedCoupon(null);
     setCardForm({ name: '', number: '', expiry: '', cvc: '' });
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput) return;
+    setIsValidatingCoupon(true);
+    setError('');
+    try {
+      const res = await api.post('/coupons/validate', { code: couponInput });
+      setAppliedCoupon(res.data.data);
+      setMessage(`Coupon applied! Saved AED ${res.data.data.amount}`);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid coupon code');
+      setAppliedCoupon(null);
+    } finally {
+      setIsValidatingCoupon(false);
+    }
   };
 
   const handleCardChange = (event) => {
@@ -116,7 +158,7 @@ export default function Pricing() {
     } else if (promo.promoType === 'lifestyle' || promo.promoType === 'bulk') {
        disc = promo.discountType === 'percentage' ? (plan.price * (promo.discountValue / 100)) : Math.min(plan.price, promo.discountValue);
     } else if (promo.promoType === 'bogo') {
-       disc = 0; // BOGO is now fulfillment-based (+1 item), pay full price for the first one.
+       disc = 0;
     }
     return Math.round(disc * 100) / 100;
   };
@@ -128,6 +170,28 @@ export default function Pricing() {
       setDiscountAmount(0);
     }
   }, [selectedPromo, selectedPlan]);
+  
+  const totalWeeklySessions = preferredDays.length * (preferredSlots.length || 1);
+  const baseCapacity = selectedPlan?.classesIncluded || 1;
+  const effectiveCapacity = baseCapacity * (claimBogo ? 2 : 1);
+  const membershipUnits = Math.max(1, Math.ceil(totalWeeklySessions / effectiveCapacity));
+  const multipliedPrice = selectedPlan ? (selectedPlan.price * membershipUnits) : 0;
+
+  const currentCouponAmount = appliedCoupon?.amount || 0;
+  const taxableAmount = selectedPlan ? Math.max(0, multipliedPrice - discountAmount - currentCouponAmount) : 0;
+  const currTaxValue = (() => {
+    if (!activeTax || !taxableAmount) return 0;
+    if (activeTax.type === 'percentage') {
+       if (activeTax.calculationMethod === 'inclusive') {
+          return taxableAmount - (taxableAmount / (1 + (activeTax.value / 100)));
+       } else {
+          return taxableAmount * (activeTax.value / 100);
+       }
+    }
+    return activeTax.value || 0;
+  })();
+
+  const finalTotalAmount = activeTax?.calculationMethod === 'inclusive' ? taxableAmount : (taxableAmount + currTaxValue);
 
   const handleCheckout = async (event) => {
     event.preventDefault();
@@ -144,32 +208,36 @@ export default function Pricing() {
     const reference = `mock_${Date.now()}`;
 
     try {
-      const finalAmount = Math.max(0, selectedPlan.price - discountAmount);
       const payment = await api.post('/payments', {
         planId: selectedPlan._id,
-        amount: finalAmount,
+        amount: Math.round(finalTotalAmount * 100) / 100,
         discountAmount,
+        couponAmount: currentCouponAmount,
+        couponCode: appliedCoupon?.code,
+        taxAmount: Math.round(currTaxValue * 100) / 100,
         promotionId: selectedPromo?._id,
         paymentMethod: 'card',
         reference,
-        last4
+        last4,
+        membershipUnits
       });
 
-      const membershipRes = await api.post('/memberships', {
+      await api.post('/memberships', {
         planId: selectedPlan._id,
         paymentId: payment.data._id,
         childId: selectedChildId,
         preferredDays,
-        preferredSlots, // Directly passing the array
-        sessionsPerWeek: preferredDays.length,
+        preferredSlots,
+        sessionsPerWeek: totalWeeklySessions,
         claimBogo,
-        bogoChildId: bogoChildId || selectedChildId // Default to same child if not specified
+        bogoChildId: bogoChildId || selectedChildId,
+        membershipUnits
       });
 
       setMessage('Payment successful! Your schedule has been generated.');
       setTimeout(() => {
         closeCheckout();
-        navigate('/dashboard'); // Navigate to parent dashboard to see membership
+        navigate('/dashboard');
       }, 2000);
     } catch (err) {
       setError(err?.response?.data?.message || 'Payment failed. Try again.');
@@ -183,6 +251,7 @@ export default function Pricing() {
   const minDropIn = dropIns.length > 0
     ? Math.min(...dropIns.map(p => p.price))
     : (plans.find(p => p.type === 'dropin')?.price || 80);
+
   return (
     <div>
       <Navbar />
@@ -236,18 +305,11 @@ export default function Pricing() {
               classOptions.map((item) => (
                 <div
                   key={item._id}
-                  className={`relative overflow-hidden rounded-3xl border ${item.isFeatured ? 'border-coral/40 bg-white shadow-glow' : 'border-white/60 bg-white/80'
-                    } p-6`}
+                  className={`relative overflow-hidden rounded-3xl border ${item.isFeatured ? 'border-coral/40 bg-white shadow-glow' : 'border-white/60 bg-white/80'} p-6`}
                 >
-                  {item.isFeatured ? (
-                    <span className="absolute right-6 top-6 rounded-full bg-coral/15 px-3 py-1 text-xs font-semibold text-coral z-20">
-                      Best value
-                    </span>
-                  ) : null}
-
                   {/* Promotion Sash */}
                   {item.activePromotions?.length > 0 && (
-                    <div className="absolute top-0 left-0 z-20">
+                    <div className="absolute top-0 left-0 z-10">
                       <div className="bg-coral text-white text-[8px] font-black uppercase tracking-widest py-1.5 px-8 -rotate-45 -translate-x-[25%] translate-y-[20%] shadow-lg">
                         {item.activePromotions[0].promoType === 'bogo' ? 'BOGO 1+1' : 
                          item.activePromotions[0].promoType === 'flash' ? 'FLASH' : 
@@ -256,58 +318,8 @@ export default function Pricing() {
                       </div>
                     </div>
                   )}
-                    {selectedPromo?.promoType === 'bogo' && (
-                      <div className="mt-8 border-t-2 border-dashed border-slate-100 pt-8 animate-in slide-in-from-top-4 duration-300">
-                         <div className="flex items-center justify-between mb-6">
-                            <div>
-                               <p className="text-sm font-black text-ink tracking-tight uppercase">🎁 Claim Free Item?</p>
-                               <p className="text-[10px] font-bold text-ink/30 uppercase tracking-widest mt-1">Add one more for the same price</p>
-                            </div>
-                            <button
-                               type="button"
-                               onClick={() => {
-                                  setClaimBogo(!claimBogo);
-                                  if (!claimBogo && !bogoChildId) setBogoChildId(selectedChildId);
-                               }}
-                               className={`w-14 h-8 rounded-full transition-all relative ${claimBogo ? 'bg-emerald-500' : 'bg-slate-200'}`}
-                            >
-                               <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all ${claimBogo ? 'left-7' : 'left-1'}`} />
-                            </button>
-                         </div>
 
-                         {claimBogo && (
-                            <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                               <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest ml-1 mb-2">Recipient for Free Item:</p>
-                               <div className="grid grid-cols-2 gap-3">
-                                  {children.map(c => (
-                                     <button
-                                        key={c._id}
-                                        type="button"
-                                        onClick={() => setBogoChildId(c._id)}
-                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${bogoChildId === c._id ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 hover:border-slate-200'}`}
-                                     >
-                                        <span className="text-lg">👧</span>
-                                        <div className="text-left">
-                                           <p className="text-xs font-black text-ink leading-none">{c.name}</p>
-                                           <p className="text-[8px] font-black text-ink/20 uppercase mt-1">{c.age} yrs</p>
-                                        </div>
-                                     </button>
-                                  ))}
-                                  <button
-                                     type="button"
-                                     onClick={() => setBogoChildId('')}
-                                     className={`p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${bogoChildId === '' ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 hover:border-slate-200'}`}
-                                  >
-                                     <span className="text-lg">👤</span>
-                                     <p className="text-xs font-black text-ink">Individual</p>
-                                  </button>
-                               </div>
-                            </div>
-                         )}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between mb-4 mt-8">
+                  <div className="flex items-center justify-between mb-4 mt-2">
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2 mb-3">
                         <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${item.sessionType === 'personal' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'}`}>
@@ -316,25 +328,8 @@ export default function Pricing() {
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
                           {item.validDays === 'both' ? 'All Days' : item.validDays === 'weekday' ? 'Weekdays' : 'Weekends'}
                         </span>
-                        {item.locationId?.name && (
-                          <span className="rounded-full bg-ocean/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-ocean/80">
-                            {item.locationId.name}
-                          </span>
-                        )}
                       </div>
-                      <h3 className="font-display text-2xl font-black text-ink leading-tight mb-2">{item.name}</h3>
-                      <div className="flex items-center gap-4 text-xs font-bold text-ink/40">
-                         <span className="flex items-center gap-1.5">
-                           <svg className="w-4 h-4 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                           {item.classesIncluded || (item.type === 'dropin' ? '1' : 'Unlimited')} Classes
-                         </span>
-                         {item.durationWeeks && (
-                           <span className="flex items-center gap-1.5">
-                             <svg className="w-4 h-4 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                             {item.durationWeeks} Weeks
-                           </span>
-                         )}
-                      </div>
+                      <h3 className="font-display text-2xl font-black text-ink leading-tight">{item.name}</h3>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-1">Price</p>
@@ -342,8 +337,7 @@ export default function Pricing() {
                         {item.activePromotions?.length > 0 ? (
                           <>
                             <p className="text-xs font-bold text-slate-300 line-through">
-                              {item.price.toLocaleString()}
-                              <span className="ml-0.5 opacity-60">AED</span>
+                              {item.price.toLocaleString()} AED
                             </p>
                             <p className="text-3xl font-black text-coral">
                               {Math.round(
@@ -364,23 +358,20 @@ export default function Pricing() {
                     </div>
                   </div>
 
-                  {item.timeSlots && item.timeSlots.length > 0 && (
-                    <div className="mt-6 flex flex-wrap gap-2">
-                       {item.timeSlots.map(slot => (
-                         <span key={slot} className="px-2 py-1 rounded-lg bg-slate-50 border border-slate-100 text-[10px] font-bold text-ink/50 lowercase">
-                           {slot}
-                         </span>
-                       ))}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-4 text-xs font-bold text-ink/40">
+                    <span className="flex items-center gap-1.5">
+                      <svg className="w-4 h-4 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                      {item.classesIncluded || (item.type === 'dropin' ? '1' : 'Unlimited')} Classes
+                    </span>
+                    {item.durationWeeks && (
+                      <span className="flex items-center gap-1.5">
+                        <svg className="w-4 h-4 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        {item.durationWeeks} Weeks
+                      </span>
+                    )}
+                  </div>
 
-                  {item.activePromotions?.length > 0 && item.activePromotions[0].name && (
-                    <div className="mt-4 bg-coral/5 border border-coral/10 rounded-xl p-2">
-                       <p className="text-[9px] font-black text-coral uppercase tracking-widest text-center">{item.activePromotions[0].name}</p>
-                    </div>
-                  )}
-
-                  {item.benefits && item.benefits.length > 0 ? (
+                  {item.benefits && item.benefits.length > 0 && (
                     <div className="mt-6 border-t border-slate-50 pt-4 flex flex-wrap gap-x-4 gap-y-2">
                       {item.benefits.map((benefit, bi) => (
                         <div key={bi} className="flex items-center gap-2 text-xs font-bold text-ink/60">
@@ -389,16 +380,17 @@ export default function Pricing() {
                         </div>
                       ))}
                     </div>
-                  ) : null}
+                  )}
+
                   <div className="mt-5 flex gap-3">
                     <button
-                      onClick={(e) => { e.stopPropagation(); setDetailsPlan(item); }}
+                      onClick={() => setDetailsPlan(item)}
                       className="flex-1 rounded-2xl bg-slate-100 py-3.5 text-sm font-bold text-ink/70 transition-transform hover:bg-slate-200 active:scale-95"
                     >
-                      View Details
+                      Details
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); openCheckout(item); }}
+                      onClick={() => openCheckout(item)}
                       className="flex-1 rounded-2xl bg-brand-blue py-3.5 text-sm font-bold text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
                     >
                       Buy Now
@@ -414,49 +406,13 @@ export default function Pricing() {
 
         <section className="mt-10">
           <div className="section-soft rounded-[32px] p-8">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-moss">Beginners</p>
-                <h3 className="mt-3 font-display text-2xl">Price per term</h3>
-                <p className="mt-2 text-sm text-ink/70">Structured weekly training with steady progress.</p>
-              </div>
-              <span className="rounded-full bg-ink/5 px-4 py-2 text-xs font-semibold text-ink">
-                + Get FREE 1 month access in 51 Gym
-              </span>
-            </div>
+            <SectionTitle kicker="Terms" title="Price per term" />
             <div className="mt-6 grid gap-4 md:grid-cols-3">
-              {loading ? (
-                Array(3).fill(0).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-2xl bg-white/40" />)
-              ) : termPricing.map((term) => (
-                <div key={term._id} className={`rounded-2xl border bg-white/80 p-5 flex flex-col justify-between relative overflow-hidden ${term.activePromotions?.length > 0 ? 'border-coral shadow-md' : 'border-orange-200/60'}`}>
-                  {term.activePromotions?.length > 0 && (
-                    <div className="absolute top-0 right-0 z-20">
-                      <div className="bg-coral text-white text-[7px] font-black uppercase tracking-widest py-1 px-6 rotate-45 translate-x-[30%] translate-y-[15%] shadow-sm">
-                        {term.activePromotions[0].promoType === 'bogo' ? 'BOGO' : 'SALE'}
-                      </div>
-                    </div>
-                  )}
+              {termPricing.map((term) => (
+                <div key={term._id} className="rounded-2xl border bg-white/80 p-5 flex flex-col justify-between">
                   <div>
-                    <p className="text-sm text-ink/70">{term.name}</p>
-                    <div className="flex flex-col">
-                      {term.activePromotions?.length > 0 ? (
-                        <>
-                          <p className="text-[10px] font-bold text-slate-300 line-through">
-                            {term.price.toLocaleString()} AED
-                          </p>
-                          <p className="mt-1 text-2xl font-black text-coral">
-                            {Math.round(
-                              term.activePromotions[0].discountType === 'percentage'
-                                ? term.price * (1 - term.activePromotions[0].discountValue / 100)
-                                : Math.max(0, term.price - term.activePromotions[0].discountValue)
-                            ).toLocaleString()} 
-                            <span className="text-xs ml-1">AED</span>
-                          </p>
-                        </>
-                      ) : (
-                        <p className="mt-2 text-2xl font-semibold text-ocean">{term.price.toLocaleString()} AED</p>
-                      )}
-                    </div>
+                    <p className="text-sm text-ink/70 font-bold">{term.name}</p>
+                    <p className="mt-2 text-2xl font-black text-ocean">{term.price.toLocaleString()} AED</p>
                   </div>
                   <button
                     onClick={() => openCheckout(term)}
@@ -471,390 +427,335 @@ export default function Pricing() {
         </section>
       </main>
 
-      {/* ── Plan Details Modal ── */}
+      {/* Details Modal */}
       {detailsPlan && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-ink/60 backdrop-blur-sm" onClick={() => setDetailsPlan(null)}>
-          <div className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
-            <div className="relative bg-gradient-to-br from-brand-blue to-ocean p-8 text-white">
-              <button onClick={() => setDetailsPlan(null)} className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white font-black transition-all">×</button>
-              <div className="flex flex-wrap gap-2 mb-4">
-                <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${detailsPlan.sessionType === 'personal' ? 'bg-indigo-400/30 text-indigo-100' : 'bg-emerald-400/30 text-emerald-100'}`}>
-                  {detailsPlan.sessionType === 'personal' ? 'Personal Training' : 'Group Session'}
-                </span>
-                <span className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest">
-                  {detailsPlan.validDays === 'both' ? 'All Days' : detailsPlan.validDays === 'weekday' ? 'Weekdays Only' : 'Weekends Only'}
-                </span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm" onClick={() => setDetailsPlan(null)}>
+          <div className="relative w-full max-w-lg bg-white rounded-[2.5rem] p-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-black mb-4">{detailsPlan.name}</h2>
+            <div className="space-y-4 text-sm font-bold text-ink/60">
+              <p>{detailsPlan.tagline}</p>
+              <div className="grid grid-cols-2 gap-4 pt-4">
+                <div className="bg-slate-50 p-4 rounded-2xl">
+                  <p className="text-xs uppercase text-ink/30 mb-1">Classes</p>
+                  <p className="text-xl font-black text-brand-blue">{detailsPlan.classesIncluded || '∞'}</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-2xl">
+                  <p className="text-xs uppercase text-ink/30 mb-1">Duration</p>
+                  <p className="text-xl font-black text-brand-blue">{detailsPlan.durationWeeks || '—'} Weeks</p>
+                </div>
               </div>
-              <h2 className="font-display text-3xl font-black">{detailsPlan.name}</h2>
-              {detailsPlan.tagline && <p className="mt-1 text-white/70 text-sm font-medium">{detailsPlan.tagline}</p>}
-              <div className="mt-4">
-                <span className="text-4xl font-black">{detailsPlan.price.toLocaleString()}</span>
-                <span className="text-white/60 ml-2 text-sm">AED</span>
-                {detailsPlan.billingCycle && detailsPlan.billingCycle !== 'none' && (
-                  <span className="text-white/60 text-sm ml-1">/ {detailsPlan.billingCycle}</span>
-                )}
-              </div>
+              <ul className="space-y-2">
+                {detailsPlan.benefits?.map((b, i) => (
+                  <li key={i} className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {b}
+                  </li>
+                ))}
+              </ul>
             </div>
-
-            {/* Body */}
-            <div className="p-8 space-y-6 max-h-[55vh] overflow-y-auto">
-              {/* Stats Row */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-2xl bg-slate-50 p-4 text-center">
-                  <p className="text-2xl font-black text-brand-blue">{detailsPlan.classesIncluded || (detailsPlan.type === 'dropin' ? 1 : '∞')}</p>
-                  <p className="text-[10px] font-black uppercase text-ink/40 mt-1">Classes</p>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-4 text-center">
-                  <p className="text-2xl font-black text-brand-blue">{detailsPlan.durationWeeks || '—'}</p>
-                  <p className="text-[10px] font-black uppercase text-ink/40 mt-1">{detailsPlan.durationWeeks ? 'Weeks' : 'Duration'}</p>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-4 text-center">
-                  <p className="text-2xl font-black text-brand-blue">{detailsPlan.extensionRules?.maxAllowedMissed ?? '—'}</p>
-                  <p className="text-[10px] font-black uppercase text-ink/40 mt-1">Rescues</p>
-                </div>
-              </div>
-
-              {/* Time Slots */}
-              {detailsPlan.timeSlots?.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-black uppercase text-ink/30 mb-3 tracking-widest">Available Slots</p>
-                  <div className="flex flex-wrap gap-2">
-                    {detailsPlan.timeSlots.map(slot => (
-                      <span key={slot} className="px-4 py-2 rounded-xl bg-brand-blue/5 border border-brand-blue/10 text-xs font-black text-brand-blue">{slot}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Trainer Policy */}
-              <div className="rounded-2xl bg-slate-50 p-5 flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-xl shrink-0 shadow-sm">{detailsPlan.trainerAllocation === 'fixed' ? '📌' : '🎲'}</div>
-                <div>
-                  <p className="font-black text-ink">{detailsPlan.trainerAllocation === 'fixed' ? 'Fixed Trainer' : 'Flexible Trainer'}</p>
-                  <p className="text-xs text-ink/50 mt-1 leading-relaxed">
-                    {detailsPlan.trainerAllocation === 'fixed'
-                      ? 'You will be assigned a dedicated personal trainer for all sessions.'
-                      : 'Sessions are assigned to the best available trainer based on your schedule.'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Extension Rights */}
-              {detailsPlan.extensionRules && (
-                <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-5">
-                  <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest mb-3">Extension Rights</p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-lg font-black text-emerald-700">{detailsPlan.extensionRules.maxAllowedMissed}</p>
-                      <p className="text-[10px] font-bold text-emerald-600/70">Missed sessions can be rescheduled</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-black text-emerald-700">{detailsPlan.extensionRules.expiryBufferDays} days</p>
-                      <p className="text-[10px] font-bold text-emerald-600/70">Extension buffer after plan expires</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Benefits */}
-              {detailsPlan.benefits?.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-black uppercase text-ink/30 mb-3 tracking-widest">What's Included</p>
-                  <div className="space-y-2">
-                    {detailsPlan.benefits.map((b, i) => (
-                      <div key={i} className="flex items-center gap-3 text-sm font-bold text-ink/70">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />{b}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="p-6 border-t border-slate-50">
-              <button
-                onClick={() => { setDetailsPlan(null); openCheckout(detailsPlan); }}
-                className="w-full rounded-2xl bg-brand-blue py-4 text-base font-black text-white shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
-              >
-                🔒 Securely Book Now
-              </button>
-            </div>
+            <button
+              onClick={() => { setDetailsPlan(null); openCheckout(detailsPlan); }}
+              className="mt-8 w-full rounded-2xl bg-brand-blue py-4 text-white font-black shadow-lg"
+            >
+              Book This Plan
+            </button>
           </div>
         </div>
       )}
 
+      {/* Checkout Modal */}
       {showCheckout && selectedPlan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm overflow-y-auto">
-          <div className="relative w-full max-w-xl animate-scale-up rounded-[2.5rem] bg-white overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            
-            {/* Modal Header */}
-            <div className="bg-brand-blue p-8 text-white relative shrink-0">
-                <button 
-                  type="button"
-                  onClick={closeCheckout}
-                  className="absolute top-6 right-6 z-20 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all border border-white/10"
-                >
-                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-               </button>
-               <div className="relative z-10 text-left">
-                 <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">Completing Membership</p>
-                 <h3 className="font-display text-3xl font-black text-white">{selectedPlan.name}</h3>
-                 <p className="mt-2 text-sm font-medium text-white/80">
-                   {discountAmount > 0 ? (
-                     <>
-                       <span className="line-through opacity-60 mr-2">{selectedPlan.price.toLocaleString()} AED</span>
-                       <span className="font-black text-white">{(selectedPlan.price - discountAmount).toLocaleString()} AED</span>
-                     </>
-                   ) : (
-                     <span className="font-black text-white">{selectedPlan.price.toLocaleString()} AED</span>
-                   )}
-                 </p>
-               </div>
-               <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm">
+          <div className="relative w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-brand-blue p-8 text-white shrink-0 relative">
+              <button onClick={closeCheckout} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">×</button>
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">
+                {checkoutStep === 1 ? 'Step 1: Scheduling' : 'Step 2: Payment'}
+              </p>
+              <h3 className="text-2xl font-black">{selectedPlan.name}</h3>
+              {checkoutStep === 2 && (
+                <button onClick={() => setCheckoutStep(1)} className="mt-4 text-[10px] font-black uppercase tracking-widest border border-white/30 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-all">← Back to scheduling</button>
+              )}
             </div>
-            
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
-              
-              {error && (
-                <div className="rounded-2xl bg-rose-50 p-4 text-sm font-medium text-rose-700 border border-rose-100 flex items-center gap-2 animate-rise text-left">
-                  <span>⚠️</span> {error}
-                </div>
-              )}
-              
-              {message && (
-                <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-medium text-emerald-700 border border-emerald-100 flex items-center gap-2 animate-rise text-left">
-                  <span>✅</span> {message}
-                </div>
-              )}
 
-              {/* Step 1 & 2 & 3: Scheduling */}
-              <div className="space-y-6">
-                <div className="text-left">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-2 mb-2 block">1. Select Child</label>
-                  <select
-                    value={selectedChildId}
-                    onChange={(e) => setSelectedChildId(e.target.value)}
-                    className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 outline-none transition-all"
-                    required
-                  >
-                    <option value="">Choose a child...</option>
-                    {children.map(c => (
-                      <option key={c._id} value={c._id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
+            <div className="flex-1 overflow-y-auto p-8 space-y-8">
+              {error && <div className="p-4 bg-rose-50 text-rose-700 rounded-2xl text-sm font-bold border border-rose-100">⚠️ {error}</div>}
+              {message && <div className="p-4 bg-emerald-50 text-emerald-700 rounded-2xl text-sm font-bold border border-emerald-100">✅ {message}</div>}
 
-                <div className="text-left">
-                   <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-2 mb-2 block">2. Select Training Days</label>
-                   <div className="grid grid-cols-4 gap-2 bg-slate-50 p-4 rounded-3xl">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
-                      const isWeekend = day === 'Sat' || day === 'Sun';
-                      const isDisabled = (selectedPlan.validDays === 'weekday' && isWeekend) || (selectedPlan.validDays === 'weekend' && !isWeekend);
-                      const isSelected = preferredDays.includes(day);
-                      
-                      return (
-                        <button
-                          key={day}
-                          type="button"
-                          disabled={isDisabled}
-                          onClick={() => setPreferredDays(prev => isSelected ? prev.filter(d => d !== day) : [...prev, day])}
-                          className={`rounded-xl py-2.5 text-xs font-black transition-all ${
-                            isDisabled ? 'opacity-20 cursor-not-allowed grayscale' :
-                            isSelected ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20' : 'bg-white text-ink/40 hover:text-ink/60 shadow-sm border border-slate-100'
-                          }`}
-                        >
-                          {day}
-                        </button>
-                      );
-                    })}
+              {checkoutStep === 1 ? (
+                <div className="space-y-6 animate-in slide-in-from-right-4">
+                  <div className="text-left">
+                    <label className="text-[10px] font-black uppercase text-ink/30 ml-2 mb-2 block">1. Select Child</label>
+                    <select
+                      value={selectedChildId}
+                      onChange={(e) => setSelectedChildId(e.target.value)}
+                      className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold focus:ring-4 focus:ring-brand-blue/5 outline-none"
+                    >
+                      <option value="">Choose a child...</option>
+                      {children.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                    </select>
                   </div>
-                </div>
 
-                <div className="text-left">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-2 mb-2 block">3. Preferred Time Slots</label>
-                  <div className="grid grid-cols-3 gap-2 bg-slate-50 p-4 rounded-3xl">
-                    {selectedPlan.timeSlots?.length > 0 ? (
-                      selectedPlan.timeSlots.map(slot => {
-                        const isSelected = preferredSlots.includes(slot);
+                  <div className="text-left">
+                    <label className="text-[10px] font-black uppercase text-ink/30 ml-2 mb-2 block">2. Training Days</label>
+                    <div className="grid grid-cols-4 gap-2 bg-slate-50 p-4 rounded-3xl">
+                      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
+                        const isWeekend = day === 'Sat' || day === 'Sun';
+                        const isDisabled = (selectedPlan.validDays === 'weekday' && isWeekend) || (selectedPlan.validDays === 'weekend' && !isWeekend);
+                        const isSelected = preferredDays.includes(day);
                         return (
                           <button
-                            key={slot}
+                            key={day}
                             type="button"
-                            onClick={() => setPreferredSlots(prev => isSelected ? prev.filter(s => s !== slot) : [...prev, slot])}
-                            className={`rounded-xl py-2.5 text-[10px] font-black transition-all ${
-                              isSelected ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20' : 'bg-white text-ink/40 hover:text-ink/60 shadow-sm border border-slate-100'
-                            }`}
+                            disabled={isDisabled}
+                            onClick={() => setPreferredDays(prev => isSelected ? prev.filter(d => d !== day) : [...prev, day])}
+                            className={`rounded-xl py-2.5 text-xs font-black transition-all ${isDisabled ? 'opacity-20 cursor-not-allowed' : isSelected ? 'bg-brand-blue text-white shadow-lg' : 'bg-white text-ink/40 shadow-sm'}`}
                           >
-                            {slot}
+                            {day}
                           </button>
                         );
-                      })
-                    ) : (
-                      <p className="col-span-3 text-center text-[10px] font-bold text-ink/20 py-4 italic uppercase">No predefined slots for this plan</p>
-                    )}
+                      })}
+                    </div>
                   </div>
-                  </div>
-                </div>
 
-                {/* Step 3.5: Promotions */}
-                {applicablePromos.length > 0 && (
-                  <div className="pt-6 border-t border-slate-100 text-left">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-brand-blue ml-2 mb-4 block">Special Offers for You</label>
-                    <div className="space-y-3">
-                      {applicablePromos.map(promo => (
+                  <div className="text-left">
+                    <label className="text-[10px] font-black uppercase text-ink/30 ml-2 mb-2 block">3. Time Slots</label>
+                    <div className="grid grid-cols-3 gap-2 bg-slate-50 p-4 rounded-3xl">
+                      {selectedPlan.timeSlots?.map(slot => (
                         <button
-                          key={promo._id}
+                          key={slot}
                           type="button"
-                          onClick={() => setSelectedPromo(selectedPromo?._id === promo._id ? null : promo)}
-                          className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center justify-between text-left ${selectedPromo?._id === promo._id ? 'border-brand-blue bg-brand-blue/5 shadow-md' : 'border-slate-50 bg-white hover:border-slate-200'}`}
+                          onClick={() => setPreferredSlots(prev => preferredSlots.includes(slot) ? prev.filter(s => s !== slot) : [...prev, slot])}
+                          className={`rounded-xl py-2.5 text-[10px] font-black transition-all ${preferredSlots.includes(slot) ? 'bg-brand-blue text-white' : 'bg-white text-ink/40'}`}
                         >
-                          <div className="flex items-center gap-3">
-                             <div className="w-10 h-10 rounded-xl bg-brand-blue/5 flex items-center justify-center text-xl">
-                               {promo.promoType === 'flash' ? '⚡' : '🏷️'}
-                             </div>
-                             <div>
-                                <p className="font-bold text-ink text-xs">{promo.name}</p>
-                                <p className="text-[9px] font-black text-emerald-600 uppercase">
-                                  {promo.promoType === 'bogo' ? 'Buy 1 Get 1 FREE' : `Save ${calculateDiscount(promo, selectedPlan)} AED`}
-                                </p>
-                             </div>
-                          </div>
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${selectedPromo?._id === promo._id ? 'bg-brand-blue border-brand-blue text-white' : 'border-slate-100 font-black text-[10px] text-slate-200'}`}>
-                            {selectedPromo?._id === promo._id ? '✓' : '+'}
-                          </div>
+                          {slot}
                         </button>
                       ))}
                     </div>
                   </div>
-                )}
 
-                {/* Step 3.6: BOGO Claim Choice */}
-                {selectedPromo?.promoType === 'bogo' && (
-                  <div className="mt-8 border-t-2 border-dashed border-slate-100 pt-8 animate-in slide-in-from-top-4 duration-300 text-left">
-                     <div className="flex items-center justify-between mb-6">
-                        <div>
-                           <p className="text-sm font-black text-ink tracking-tight uppercase">🎁 Claim Free Item?</p>
-                           <p className="text-[10px] font-bold text-ink/30 uppercase tracking-widest mt-1">Add one more for the same price</p>
-                        </div>
-                        <button
-                           type="button"
-                           onClick={() => {
-                              setClaimBogo(!claimBogo);
-                              if (!claimBogo && !bogoChildId) setBogoChildId(selectedChildId);
-                           }}
-                           className={`w-14 h-8 rounded-full transition-all relative ${claimBogo ? 'bg-emerald-500' : 'bg-slate-200'}`}
-                        >
-                           <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all ${claimBogo ? 'left-7' : 'left-1'}`} />
-                        </button>
+                  {applicablePromos.length > 0 && (
+                    <div className="pt-6 border-t border-slate-100 text-left">
+                      <label className="text-[10px] font-black uppercase text-brand-blue mb-4 block">Offers Available</label>
+                      <div className="space-y-3">
+                        {applicablePromos.map(promo => (
+                          <button
+                            key={promo._id}
+                            type="button"
+                            onClick={() => setSelectedPromo(selectedPromo?._id === promo._id ? null : promo)}
+                            className={`w-full p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${selectedPromo?._id === promo._id ? 'border-brand-blue bg-brand-blue/5' : 'border-slate-50 bg-white'}`}
+                          >
+                            <div className="text-left">
+                              <p className="font-bold text-xs">{promo.name}</p>
+                              <p className="text-[9px] font-black text-emerald-600 uppercase">
+                                {promo.promoType === 'bogo' ? 'Buy 1 Get 1 FREE' : `Save ${calculateDiscount(promo, selectedPlan)} AED`}
+                              </p>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPromo?._id === promo._id ? 'bg-brand-blue border-brand-blue text-white' : 'border-slate-100'}`}>
+                              {selectedPromo?._id === promo._id ? '✓' : '+'}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Voucher/Coupon Entry */}
+                  <div className="pt-6 border-t border-slate-100/50">
+                     <label className="text-[10px] font-black uppercase text-ink/30 ml-2 mb-2 block">Gift Voucher / Promo Code</label>
+                     <div className="flex gap-2">
+                        <input 
+                           type="text"
+                           placeholder="Enter code..."
+                           value={couponInput}
+                           onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                           disabled={appliedCoupon || isValidatingCoupon}
+                           className="flex-1 rounded-2xl bg-slate-50 p-4 text-sm font-bold outline-none focus:ring-4 focus:ring-brand-blue/5 uppercase"
+                        />
+                        {appliedCoupon ? (
+                           <button 
+                              onClick={() => { setAppliedCoupon(null); setCouponInput(''); }}
+                              className="px-6 rounded-2xl bg-rose-50 text-rose-500 font-black text-[10px] uppercase"
+                           >
+                              Remove
+                           </button>
+                        ) : (
+                           <button 
+                              onClick={handleApplyCoupon}
+                              disabled={!couponInput || isValidatingCoupon}
+                              className="px-6 rounded-2xl bg-ink text-white font-black text-[10px] uppercase shadow-lg disabled:opacity-30"
+                           >
+                              {isValidatingCoupon ? '...' : 'Apply'}
+                           </button>
+                        )}
                      </div>
-
-                     {claimBogo && (
-                        <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                           <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest ml-1 mb-2">Recipient for Free Item:</p>
-                           <div className="grid grid-cols-2 gap-3">
-                              {children.map(c => (
-                                 <button
-                                    key={c._id}
-                                    type="button"
-                                    onClick={() => setBogoChildId(c._id)}
-                                    className={`p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${bogoChildId === c._id ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 hover:border-slate-200'}`}
-                                 >
-                                    <span className="text-lg">👧</span>
-                                    <div className="text-left">
-                                       <p className="text-xs font-black text-ink leading-none">{c.name}</p>
-                                       <p className="text-[8px] font-black text-ink/20 uppercase mt-1">{c.age} yrs</p>
-                                    </div>
-                                 </button>
-                              ))}
-                              <button
-                                 type="button"
-                                 onClick={() => setBogoChildId('')}
-                                 className={`p-4 rounded-2xl border-2 transition-all flex items-center gap-3 ${bogoChildId === '' ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 hover:border-slate-200'}`}
-                              >
-                                 <span className="text-lg">👤</span>
-                                 <p className="text-xs font-black text-ink">Individual</p>
-                              </button>
-                           </div>
+                     {appliedCoupon && (
+                        <div className="mt-2 ml-2 flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase">
+                           <span>🎁</span> Voucher Valid: -AED {appliedCoupon.amount} Applied
                         </div>
                      )}
                   </div>
-                )}
 
-              {/* Step 4: Payment */}
-              <div className="pt-8 border-t border-slate-100 text-left">
-                <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-2 mb-6 block">4. Secure Payment Details</label>
-                
-                <form onSubmit={handleCheckout} className="space-y-4">
-                  <div className="space-y-4">
-                    <input
-                      type="text"
-                      name="name"
-                      value={cardForm.name}
-                      onChange={handleCardChange}
-                      className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 outline-none transition-all placeholder:text-ink/20"
-                      placeholder="Name on Card"
-                      required
-                    />
-                    <input
-                      type="text"
-                      name="number"
-                      value={cardForm.number}
-                      onChange={handleCardChange}
-                      maxLength="19"
-                      className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 outline-none transition-all placeholder:text-ink/20 font-mono"
-                      placeholder="Card Number (0000 0000 0000 0000)"
-                      required
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                      <input
-                        type="text"
-                        name="expiry"
-                        value={cardForm.expiry}
-                        onChange={handleCardChange}
-                        maxLength="5"
-                        className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 outline-none transition-all placeholder:text-ink/20"
-                        placeholder="MM/YY"
-                        required
-                      />
-                      <input
-                        type="password"
-                        name="cvc"
-                        value={cardForm.cvc}
-                        onChange={handleCardChange}
-                        maxLength="4"
-                        className="w-full rounded-2xl border-none bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 outline-none transition-all placeholder:text-ink/20"
-                        placeholder="CVC"
-                        required
-                      />
+                  {/* BOGO Claim Choice */}
+                  {selectedPromo?.promoType === 'bogo' && (
+                    <div className="mt-4 border-t-2 border-dashed border-slate-100 pt-6 text-left animate-in slide-in-from-top-4 duration-300">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <p className="text-sm font-black text-ink tracking-tight uppercase">🎁 Claim Free Item?</p>
+                          <p className="text-[10px] font-bold text-ink/30 uppercase tracking-widest mt-1">Add one more for the same price</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClaimBogo(!claimBogo);
+                            if (!claimBogo && !bogoChildId) setBogoChildId(selectedChildId);
+                          }}
+                          className={`w-14 h-8 rounded-full transition-all relative ${claimBogo ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                        >
+                          <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all ${claimBogo ? 'left-7' : 'left-1'}`} />
+                        </button>
+                      </div>
+
+                      {claimBogo && (
+                        <div className="space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                          <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest ml-1 mb-2">Recipient for Free Item:</p>
+                          <div className="grid grid-cols-2 gap-3">
+                            {children.map(c => (
+                              <button
+                                key={c._id}
+                                type="button"
+                                onClick={() => setBogoChildId(c._id)}
+                                className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-3 ${bogoChildId === c._id ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 hover:border-slate-200'}`}
+                              >
+                                <span className="text-lg">👧</span>
+                                <div className="text-left">
+                                  <p className="text-xs font-black text-ink leading-none">{c.name}</p>
+                                  <p className="text-[8px] font-black text-ink/20 uppercase mt-1">{c.age} yrs</p>
+                                </div>
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => setBogoChildId('')}
+                              className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-3 ${bogoChildId === '' ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-50 hover:border-slate-200'}`}
+                            >
+                              <span className="text-lg">👤</span>
+                              <p className="text-xs font-black text-ink">Individual</p>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      if (!selectedChildId || preferredDays.length === 0) return setError('Please complete selection.');
+                      setError('');
+                      setCheckoutStep(2);
+                    }}
+                    className="w-full rounded-2xl bg-brand-blue py-5 text-white font-black shadow-xl"
+                  >
+                    Continue to Payment →
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-8 animate-in slide-in-from-left-4">
+                  {/* Summary Card */}
+                  <div className="bg-slate-50 rounded-3xl p-6 space-y-4 text-left border border-slate-100">
+                    <label className="text-[10px] font-black uppercase text-ink/30 block mb-2">Checkout Summary</label>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center text-sm font-bold">
+                        <span className="text-ink/60">Gross Amount</span>
+                        <span className="text-ink font-black">AED {multipliedPrice.toFixed(2)}</span>
+                      </div>
+
+                      {membershipUnits > 1 && (
+                        <div className="flex justify-between items-center text-[10px] font-black uppercase text-amber-600 bg-amber-50 px-3 py-2 rounded-xl">
+                          <span>Capacity Multiplier (x{membershipUnits} Units)</span>
+                          <span>Over {baseCapacity} weekly spots</span>
+                        </div>
+                      )}
+                      
+                      {discountAmount > 0 && (
+                        <div className="flex justify-between items-center text-rose-500 font-bold mb-2">
+                          <span className="text-[10px] uppercase tracking-widest pl-2">Promotion Discount</span>
+                          <span className="text-sm">-AED {discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {appliedCoupon && (
+                        <div className="flex justify-between items-center text-emerald-600 font-bold mb-2">
+                          <span className="text-[10px] uppercase tracking-widest pl-2">Voucher Redeemed</span>
+                          <span className="text-sm">-AED {appliedCoupon.amount.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between items-center text-sm font-bold border-t border-slate-200 pt-3">
+                        <span className="text-ink/60">
+                           VAT ({activeTax?.value}{activeTax?.type === 'percentage' ? '%' : ' AED'})
+                           {activeTax?.calculationMethod === 'inclusive' && <span className="block text-[8px] font-black uppercase text-brand-blue/40 tracking-widest">Included in price</span>}
+                        </span>
+                        <span className="text-ink">AED {currTaxValue.toFixed(2)}</span>
+                      </div>
+
+                      <div className="flex justify-between items-end border-t border-slate-200 pt-4">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue">Final Payable</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-black text-brand-blue leading-none">AED {finalTotalAmount.toFixed(2)}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="pt-6">
-                    <button
-                      type="submit"
-                      disabled={loading || message || !selectedChildId || preferredDays.length === 0 || preferredSlots.length === 0}
-                      className="w-full rounded-2xl bg-brand-blue py-5 text-sm font-black text-white shadow-xl shadow-brand-blue/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
-                    >
-                      {message ? 'Processing Order...' : `Finalize & Pay ${(selectedPlan.price - discountAmount).toLocaleString()} AED`}
+                  <form onSubmit={handleCheckout} className="space-y-4">
+                    <div className="space-y-4">
+                      <input
+                        type="text"
+                        name="name"
+                        value={cardForm.name}
+                        onChange={handleCardChange}
+                        className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold"
+                        placeholder="Cardholder Name"
+                        required
+                      />
+                      <input
+                        type="text"
+                        name="number"
+                        value={cardForm.number}
+                        onChange={handleCardChange}
+                        className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold font-mono"
+                        placeholder="Card Number"
+                        required
+                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        <input
+                          type="text"
+                          name="expiry"
+                          value={cardForm.expiry}
+                          onChange={handleCardChange}
+                          className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold text-center"
+                          placeholder="MM/YY"
+                          required
+                        />
+                        <input
+                          type="password"
+                          name="cvc"
+                          value={cardForm.cvc}
+                          onChange={handleCardChange}
+                          className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold text-center"
+                          placeholder="CVC"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <button type="submit" className="w-full rounded-2xl bg-brand-blue py-5 text-white font-black shadow-xl mt-4">
+                      🔒 Securely Pay AED {finalTotalAmount.toFixed(2)}
                     </button>
-                    {selectedPromo?.promoType === 'bogo' && (
-                      <p className="mt-3 text-[10px] font-black text-coral uppercase tracking-widest text-center animate-pulse">
-                        {claimBogo && (String(bogoChildId) === String(selectedChildId) || (!bogoChildId && !selectedChildId)) 
-                          ? `🎁 BOGO Boost: Your classes and duration will be DOUBLED for free!`
-                          : `🎁 BOGO Special: A second membership will be added for ${children.find(c => c._id === bogoChildId)?.name || 'another child'} free!`
-                        }
-                      </p>
-                    )}
-                    <p className="mt-4 text-center text-[10px] font-bold text-ink/20 uppercase tracking-widest flex items-center justify-center gap-2">
-                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"/></svg>
-                       Secure 256-bit SSL Encrypted Payment
-                    </p>
-                  </div>
-                </form>
-              </div>
+                    <p className="text-center text-[10px] font-bold text-ink/20 uppercase tracking-widest pt-2">Protected by 256-bit SSL encryption</p>
+                  </form>
+                </div>
+              )}
             </div>
           </div>
         </div>

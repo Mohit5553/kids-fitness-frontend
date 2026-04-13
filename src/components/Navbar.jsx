@@ -113,14 +113,18 @@ export default function Navbar({ className = '' }) {
                 >
                   {/* Avatar circle */}
                   <span
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black text-white select-none"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black text-white select-none overflow-hidden"
                     style={{ background: roleColor.bg }}
                   >
-                    {initials}
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl.startsWith('http') ? user.avatarUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${user.avatarUrl}`} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      initials
+                    )}
                   </span>
                   {/* Name / Admin label */}
                   <span className="text-sm font-bold text-brand-black max-w-[120px] truncate">
-                    {isStaff ? (user.role === 'admin' || user.role === 'superadmin' ? 'Admin' : user.role) : user.name}
+                    {isStaff ? (user.role === 'admin' || user.role === 'superadmin' ? 'Admin' : (user.firstName || user.name)) : (user.firstName || user.name)}
                   </span>
                   {/* Chevron */}
                   <svg
@@ -138,14 +142,18 @@ export default function Navbar({ className = '' }) {
                     <div className="px-4 py-3 border-b border-brand-black/5">
                       <div className="flex items-center gap-3">
                         <span
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-base font-black text-white shrink-0"
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-base font-black text-white shrink-0 overflow-hidden"
                           style={{ background: roleColor.bg }}
                         >
-                          {initials}
+                          {user.avatarUrl ? (
+                            <img src={user.avatarUrl.startsWith('http') ? user.avatarUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${user.avatarUrl}`} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            initials
+                          )}
                         </span>
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-brand-black truncate">
-                            {isStaff ? (user.role === 'admin' || user.role === 'superadmin' ? 'Admin' : user.role) : user.name}
+                            {user.name}
                           </p>
                           <p className="text-xs text-brand-black/50 truncate">{user.email}</p>
                         </div>
@@ -164,6 +172,16 @@ export default function Navbar({ className = '' }) {
                             d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                         </svg>
                         Dashboard
+                      </NavLink>
+                      <NavLink
+                        to="/profile"
+                        onClick={() => setIsProfileOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-brand-black/70 hover:bg-brand-blue/5 hover:text-brand-blue transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        Edit Profile
                       </NavLink>
                       <NavLink
                         to="/calendar"
@@ -255,14 +273,18 @@ export default function Navbar({ className = '' }) {
               }}
             >
               <span
-                className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-black text-white shrink-0"
+                className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-black text-white shrink-0 overflow-hidden"
                 style={{ background: roleColor.bg }}
               >
-                {initials}
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl.startsWith('http') ? user.avatarUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${user.avatarUrl}`} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  initials
+                )}
               </span>
               <div className="min-w-0">
                 <p className="font-bold text-brand-black truncate">
-                  {(user.role === 'admin' || user.role === 'superadmin') ? 'Admin' : user.name}
+                  {user.name}
                 </p>
                 <p className="text-xs text-brand-black/50 truncate">{user.email}</p>
               </div>
@@ -300,6 +322,13 @@ export default function Navbar({ className = '' }) {
                   className="text-lg font-bold text-brand-black/80 hover:text-brand-black"
                 >
                   Dashboard
+                </NavLink>
+                <NavLink
+                  to="/profile"
+                  onClick={closeMenu}
+                  className="text-lg font-bold text-brand-black/80 hover:text-brand-black"
+                >
+                  Edit Profile
                 </NavLink>
                 <NavLink
                   to="/calendar"

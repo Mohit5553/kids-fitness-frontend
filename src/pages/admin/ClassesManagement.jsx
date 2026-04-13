@@ -17,6 +17,7 @@ const emptyForm = {
   price: '',
   capacity: '',
   imageUrl: '',
+  taxId: '',
   status: 'active'
 };
 
@@ -27,6 +28,7 @@ export default function ClassesManagement() {
   const [editingId, setEditingId] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [taxes, setTaxes] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
 
   const { can } = usePermissions();
@@ -39,7 +41,8 @@ export default function ClassesManagement() {
     setLoading(true);
     const p1 = api.get('/classes?all=true').then((res) => setClasses(res.data || [])).catch(() => { });
     const p2 = api.get('/trainers?all=true').then((res) => setTrainers(res.data || [])).catch(() => { });
-    Promise.all([p1, p2]).finally(() => setLoading(false));
+    const p3 = api.get('/taxes').then(res => setTaxes(res.data.data || [])).catch(() => {});
+    Promise.all([p1, p2, p3]).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -64,6 +67,7 @@ export default function ClassesManagement() {
       price: item.price ?? '',
       capacity: item.capacity ?? '',
       imageUrl: item.imageUrl || '',
+      taxId: item.taxId?._id || item.taxId || '',
       status: item.status || 'active'
     });
   };
@@ -259,6 +263,20 @@ export default function ClassesManagement() {
                 >
                   <option value="active">Active (Visible)</option>
                   <option value="inactive">Inactive (Hidden)</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Applied Tax Rule</label>
+                <select
+                  className="w-full rounded-xl border border-orange-200/70 p-3"
+                  name="taxId"
+                  value={form.taxId}
+                  onChange={handleChange}
+                >
+                  <option value="">No Tax (Tax Exempt)</option>
+                  {taxes.map(t => (
+                    <option key={t._id} value={t._id}>{t.name} ({t.value}{t.type === 'percentage' ? '%' : ' AED'}) - {t.locationId?.name || 'All'}</option>
+                  ))}
                 </select>
               </div>
             </div>

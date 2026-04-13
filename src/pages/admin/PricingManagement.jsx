@@ -21,7 +21,8 @@ const emptyForm = {
   trainerAllocation: 'random',
   trainerId: '',
   maxAllowedMissed: 2,
-  expiryBufferDays: 7
+  expiryBufferDays: 7,
+  taxId: ''
 };
 
 export default function PricingManagement() {
@@ -31,6 +32,7 @@ export default function PricingManagement() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [trainers, setTrainers] = useState([]);
+  const [taxes, setTaxes] = useState([]);
 
   const { can } = usePermissions();
 
@@ -53,9 +55,16 @@ export default function PricingManagement() {
       .catch(() => {});
   };
 
+  const loadTaxes = () => {
+    api.get('/taxes')
+      .then(res => setTaxes(res.data.data || []))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     load();
     loadTrainers();
+    loadTaxes();
   }, []);
 
   const handleChange = (event) => {
@@ -81,7 +90,8 @@ export default function PricingManagement() {
       trainerAllocation: plan.trainerAllocation || 'random',
       trainerId: plan.trainerId?._id || plan.trainerId || '',
       maxAllowedMissed: plan.extensionRules?.maxAllowedMissed ?? 2,
-      expiryBufferDays: plan.extensionRules?.expiryBufferDays ?? 7
+      expiryBufferDays: plan.extensionRules?.expiryBufferDays ?? 7,
+      taxId: plan.taxId?._id || plan.taxId || ''
     });
   };
 
@@ -296,6 +306,20 @@ export default function PricingManagement() {
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Expiry Buffer (Days)</label>
                 <input className="w-full rounded-xl border border-orange-200/70 p-3" name="expiryBufferDays" type="number" value={form.expiryBufferDays} onChange={handleChange} />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Applied Tax Rule</label>
+                <select 
+                  className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" 
+                  name="taxId" 
+                  value={form.taxId} 
+                  onChange={handleChange}
+                >
+                  <option value="">No Tax (Tax Exempt)</option>
+                  {taxes.map(t => (
+                    <option key={t._id} value={t._id}>{t.name} ({t.value}{t.type === 'percentage' ? '%' : ' AED'}) - {t.locationId?.name || 'All'}</option>
+                  ))}
+                </select>
               </div>
             </div>
             <textarea

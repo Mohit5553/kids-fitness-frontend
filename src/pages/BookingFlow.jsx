@@ -27,6 +27,10 @@ export default function BookingFlow() {
   const [applicablePromos, setApplicablePromos] = useState([]);
   const [selectedPromo, setSelectedPromo] = useState(null);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponAmount, setCouponAmount] = useState(0);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [activeTax, setActiveTax] = useState(null);
 
   // Reset selected sessions when class, location or trainer changes
   useEffect(() => {
@@ -51,10 +55,23 @@ export default function BookingFlow() {
   const calculateDiscount = (promo, price) => {
     if (!promo || !price) return 0;
     let disc = 0;
-    if (promo.promoType === 'percentage' || (promo.promoType === 'flash' && promo.discountType === 'percentage')) {
-      disc = (price * (promo.discountValue / 100));
-    } else if (promo.promoType === 'cash' || (promo.promoType === 'flash' && promo.discountType === 'flat')) {
-      disc = Math.min(price, promo.discountValue);
+
+    // Helper: calc based on discountType
+    const calcByType = (discountType, discountValue) => {
+      if (discountType === 'percentage') {
+        return price * (discountValue / 100);
+      }
+      return Math.min(price, discountValue); // flat AED
+    };
+
+    if (promo.promoType === 'percentage') {
+      // 'percentage' type always uses percentage
+      disc = price * (promo.discountValue / 100);
+    } else if (promo.promoType === 'cash') {
+      // 'cash' type respects discountType: can be % or flat AED
+      disc = calcByType(promo.discountType || 'flat', promo.discountValue);
+    } else if (promo.promoType === 'flash') {
+      disc = calcByType(promo.discountType || 'percentage', promo.discountValue);
     } else if (promo.promoType === 'tiered') {
       const tier = promo.discountTiers
         ?.filter(t => price >= t.minAmount)
@@ -63,10 +80,10 @@ export default function BookingFlow() {
         disc = tier.type === 'percentage' ? (price * (tier.value / 100)) : Math.min(price, tier.value);
       }
     } else if (promo.promoType === 'lifestyle' || promo.promoType === 'bulk') {
-       disc = promo.discountType === 'percentage' ? (price * (promo.discountValue / 100)) : Math.min(price, promo.discountValue);
+       disc = calcByType(promo.discountType || 'percentage', promo.discountValue);
     } else if (promo.promoType === 'bogo') {
        const units = (participants?.length || 1) * (selectedSessions?.length || 1);
-       if (units < 2) return 0; // Need at least 2 units to get 1 free
+       if (units < 2) return 0;
        const numFree = Math.floor(units / 2);
        disc = numFree * (selectedClass?.price || 0);
     }
@@ -98,6 +115,49 @@ export default function BookingFlow() {
       setSelectedPromo(null);
     }
   }, [step, selectedClass?._id, selectedLocation]);
+
+  // Fetch tax rule for location/class
+  useEffect(() => {
+    if (selectedLocation) {
+      const fetchTax = async () => {
+        try {
+          if (selectedClass?.taxId) {
+             const res = await api.get(`/taxes/${selectedClass.taxId}`);
+             setActiveTax(res.data.data);
+          } else {
+             const res = await api.get(`/taxes?locationId=${selectedLocation}&status=active`);
+             // Pick the first active tax for this location
+             setActiveTax(res.data.data?.[0] || null);
+          }
+        } catch (err) {
+          console.error("Error fetching tax:", err);
+          setActiveTax(null);
+        }
+      };
+      fetchTax();
+    }
+  }, [selectedLocation, selectedClass?._id]);
+
+  const taxAmount = useMemo(() => {
+    if (!activeTax || !totalPrice) return 0;
+    
+    // TAX CALCULATION AFTER DISCOUNTS (Net Price)
+    const netBasePrice = Math.max(0, totalPrice - discountAmount - couponAmount);
+    
+    let taxAmt = 0;
+    if (activeTax.type === 'percentage') {
+      if (activeTax.calculationMethod === 'inclusive') {
+        // Extraction from net total
+        taxAmt = netBasePrice - (netBasePrice / (1 + (activeTax.value / 100)));
+      } else {
+        // Addition to net base
+        taxAmt = netBasePrice * (activeTax.value / 100);
+      }
+    } else {
+      taxAmt = activeTax.value;
+    }
+    return Math.round(taxAmt * 100) / 100;
+  }, [activeTax, totalPrice, discountAmount, couponAmount]);
 
   // Persistence: Save to sessionStorage
   useEffect(() => {
@@ -377,7 +437,9 @@ export default function BookingFlow() {
           corporateName: corporateName || getUser()?.companyName || 'Corporate Booking',
           paymentMethod: paymentType || 'center',
           promotionId: selectedPromo?._id,
-          discountAmount: discountAmount
+          discountAmount: discountAmount,
+          couponCode,
+          couponAmount: couponAmount
         };
         const res = await api.post('/bookings/group', payload);
         sessionStorage.removeItem('booking_pending_state');
@@ -397,7 +459,9 @@ export default function BookingFlow() {
             paymentStatus: paymentType === 'online' ? 'completed' : 'pending',
             guestDetails: !getUser() ? guestDetails : undefined,
             promotionId: selectedPromo?._id,
-            discountAmount: Math.round(perSessionDiscount * 100) / 100
+            discountAmount: Math.round(perSessionDiscount * 100) / 100,
+            couponCode,
+            couponAmount: Math.round((couponAmount / totalSessions) * 100) / 100
           };
           const res = await api.post('/bookings', payload);
           results.push(res.data);
@@ -953,10 +1017,25 @@ export default function BookingFlow() {
                                    <p className="text-[11px] font-bold text-ink/40 bg-slate-100 px-2 py-0.5 rounded-md inline-block mt-0.5 whitespace-nowrap">{p.relation || 'Me'}</p>
                                 </div>
                               </div>
-                              <div className="text-right shrink-0">
-                                 <p className="text-sm font-black text-brand-blue">{p.age} Years</p>
-                                 <p className="text-[9px] font-black uppercase tracking-widest text-ink/20 mt-1">{p.gender}</p>
-                              </div>
+                              <div className="flex items-center gap-5">
+                                 <div className="text-right shrink-0">
+                                    <p className="text-sm font-black text-brand-blue">{p.age} Years</p>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-ink/20 mt-1">{p.gender}</p>
+                                 </div>
+                                 <button
+                                   onClick={() => {
+                                     if (participants.length > 1) {
+                                       setParticipants(prev => prev.filter((_, idx) => idx !== i));
+                                     } else {
+                                       toast.error("At least one participant is required");
+                                     }
+                                   }}
+                                   className="w-10 h-10 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm active:scale-90"
+                                   title="Remove Participant"
+                                 >
+                                    <span className="text-xl font-bold">×</span>
+                                 </button>
+                               </div>
                            </div>
                          ))}
                       </div>
@@ -985,8 +1064,15 @@ export default function BookingFlow() {
                                <div className="text-left">
                                  <p className="font-black text-ink text-sm">{promo.name}</p>
                                  <p className="text-[10px] font-bold text-emerald-600 uppercase">
-                                   {promo.promoType === 'bogo' ? 'Buy 1 Get 1 Free' : `Save AED ${calculateDiscount(promo, totalPrice)}`}
-                                 </p>
+                                    {promo.promoType === 'bogo'
+                                      ? 'Buy 1 Get 1 Free'
+                                      : (() => {
+                                          const saved = calculateDiscount(promo, totalPrice);
+                                          const isPercent = promo.discountType === 'percentage' || promo.promoType === 'percentage';
+                                          return `Save AED ${Math.round(saved)}${isPercent ? ` (${promo.discountValue}% off)` : ''}`;
+                                        })()
+                                    }
+                                  </p>
                                </div>
                              </div>
                              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${selectedPromo?._id === promo._id ? 'bg-brand-blue border-brand-blue text-white' : 'border-white bg-white group-hover:border-slate-200'}`}>
@@ -1064,37 +1150,143 @@ export default function BookingFlow() {
                   )}
 
                   {/* Pricing Footer */}
-                  <div className="mt-10 pt-10 border-t-4 border-dashed border-slate-100 flex flex-col md:flex-row justify-between items-center gap-8">
-                    <div className="text-center md:text-left">
-                      <div className="flex items-baseline gap-2 justify-center md:justify-start">
-                        <span className="text-5xl font-black text-brand-blue tracking-tighter">
-                          AED {Math.max(0, totalPrice - discountAmount).toLocaleString()}
-                        </span>
-                        <span className="text-sm font-bold text-ink/30 uppercase tracking-widest italic">To Pay</span>
+                  <div className="mt-16 pt-12 border-t-2 border-slate-100/50">
+                    <div className="grid md:grid-cols-2 gap-12 items-start">
+                      {/* Left: Financial Breakdown */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-8 h-8 rounded-full bg-brand-blue/10 flex items-center justify-center text-brand-blue text-sm">🧾</div>
+                          <h4 className="text-xs font-black uppercase tracking-[0.2em] text-ink/40">Order Summary</h4>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-sm font-bold text-ink/40">Gross Subtotal</span>
+                            <span className="text-sm font-black text-ink">
+                               AED {(activeTax?.calculationMethod === 'inclusive' ? (totalPrice - taxAmount) : totalPrice).toLocaleString()}
+                            </span>
+                          </div>
+
+                          {discountAmount > 0 && (
+                            <div className="flex justify-between items-baseline group">
+                              <span className="text-sm font-bold text-emerald-600 flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Promotions & Savings
+                              </span>
+                              <span className="text-sm font-black text-emerald-600">-AED {discountAmount.toLocaleString()}</span>
+                            </div>
+                          )}
+
+                          {taxAmount > 0 && (
+                            <div className="flex justify-between items-baseline">
+                              <span className="text-[11px] font-black uppercase tracking-widest text-ink/30 italic">
+                                {activeTax?.calculationMethod === 'inclusive' ? 'Included' : 'Additional'} VAT ({activeTax?.value}% {activeTax?.name})
+                              </span>
+                              <span className="text-sm font-black text-ink/40">AED {taxAmount.toLocaleString()}</span>
+                            </div>
+                          )}
+
+                          <div className="pt-4 border-t border-slate-100 flex justify-between items-baseline">
+                            <span className="text-lg font-black text-ink">Total Amount</span>
+                            <div className="text-right">
+                              <p className="text-3xl font-black text-brand-blue tracking-tighter">
+                                AED {Math.max(0, (activeTax?.calculationMethod === 'inclusive' ? totalPrice : (totalPrice + taxAmount)) - discountAmount - couponAmount).toLocaleString()}
+                              </p>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-ink/20 mt-1">Inclusive of all taxes</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                          <p className="text-[10px] font-bold text-ink/40 leading-relaxed uppercase tracking-wider text-center md:text-left">
+                             {selectedClass?.price || 0} AED PER UNIT × {participants.length} PARTICIPANTS × {selectedSessions.length} SESSIONS
+                          </p>
+                        </div>
                       </div>
-                      {discountAmount > 0 && (
-                        <p className="text-xs font-black text-emerald-600 mt-2 flex items-center gap-2">
-                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                           Promo Applied: -AED {discountAmount} (Saved!)
-                        </p>
-                      )}
-                      <p className="text-[11px] text-ink/40 font-black uppercase tracking-[0.2em] mt-3 bg-slate-100/50 px-4 py-2 rounded-full border border-slate-100 inline-block font-body">
-                         {selectedClass?.price || 0} AED × {participants.length} PPL × {selectedSessions.length} SESS
-                      </p>
+
+                      {/* Right: Voucher & Action */}
+                      <div className="space-y-8">
+                        <div className="bg-white rounded-[32px] p-8 border-2 border-slate-100 shadow-sm relative overflow-hidden group hover:border-brand-blue/30 transition-all">
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
+                          <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-6">
+                              <span className="text-xl">🎟️</span>
+                              <div>
+                                <h4 className="text-xs font-black uppercase tracking-widest text-ink/80">Redeem Voucher</h4>
+                                <p className="text-[10px] text-ink/40 font-bold mt-1">Enter your cash coupon / voucher code below</p>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <input 
+                                type="text"
+                                className="flex-1 bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-6 text-sm font-black uppercase tracking-widest text-ink placeholder:text-ink/20 outline-none focus:border-brand-blue focus:shadow-inner transition-all"
+                                placeholder="CODE (CPN-XXXX)"
+                                value={couponCode}
+                                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                disabled={couponAmount > 0 || isValidatingCoupon}
+                              />
+                              {couponAmount > 0 ? (
+                                <button 
+                                  onClick={() => { setCouponAmount(0); setCouponCode(''); }}
+                                  className="bg-red-50 text-red-500 px-6 rounded-2xl text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                >Remove</button>
+                              ) : (
+                                <button 
+                                  onClick={async () => {
+                                    if (!getUser()) {
+                                      toast.error('Please login to use coupons');
+                                      setStep(6);
+                                      return;
+                                    }
+                                    setIsValidatingCoupon(true);
+                                    try {
+                                      const res = await api.post('/coupons/validate', { code: couponCode });
+                                      setCouponAmount(res.data.data.amount);
+                                      toast.success('Coupon applied!');
+                                    } catch (err) {
+                                      toast.error(err.response?.data?.message || 'Invalid coupon');
+                                    } finally {
+                                      setIsValidatingCoupon(false);
+                                    }
+                                  }}
+                                  disabled={!couponCode || isValidatingCoupon}
+                                  className="bg-brand-blue text-white px-8 rounded-2xl text-[10px] font-black uppercase disabled:opacity-50 hover:bg-ocean transition-all shadow-lg active:scale-95"
+                                >
+                                  {isValidatingCoupon ? '...' : 'Apply'}
+                                </button>
+                              )}
+                            </div>
+                            {couponAmount > 0 && (
+                                <p className="mt-3 text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    ✓ AED {couponAmount} voucher active
+                                </p>
+                            )}
+                        </div>
                     </div>
-                    <button onClick={() => getUser() ? setStep(7) : setStep(6)} className="w-full md:w-auto bg-brand-blue text-white px-14 py-6 rounded-[2.5rem] font-black shadow-glow hover:scale-[1.03] active:scale-[0.98] transition-all text-xl hover:shadow-brand-blue/30 group">
-                       Secure Booking Now <span className="ml-2 group-hover:translate-x-1 transition-transform inline-block">→</span>
+
+                    <button 
+                      onClick={() => getUser() ? setStep(7) : setStep(6)} 
+                      className="w-full md:w-auto bg-brand-blue text-white px-14 py-6 rounded-[2.5rem] font-black shadow-glow hover:scale-[1.03] active:scale-[0.98] transition-all text-xl hover:shadow-brand-blue/30 group flex flex-col items-center"
+                    >
+                       <span>Secure Booking Now <span className="ml-2 group-hover:translate-x-1 transition-transform inline-block">→</span></span>
+                       <span className="text-[10px] font-bold opacity-60 uppercase tracking-widest mt-1">
+                         Total: AED {Math.max(0, (totalPrice - discountAmount - couponAmount) + (activeTax?.calculationMethod === 'inclusive' ? 0 : taxAmount)).toLocaleString()}
+                       </span>
                     </button>
+                    </div>
                   </div>
                 </div>
-                
+
                 <div className="mt-12 text-center">
                   <button onClick={() => setStep(4)} className="text-sm font-bold text-ink/40 hover:text-brand-blue transition-colors flex items-center justify-center gap-2 mx-auto group">
                     <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span> Edit details & participants
                   </button>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
             {step === 6 && (
               <div className="animate-rise text-center py-10">
@@ -1178,7 +1370,7 @@ export default function BookingFlow() {
               <div className="animate-rise text-center py-10">
                 {paymentType === 'online' ? (
                   <PaymentForm
-                    totalAmount={Math.max(0, totalPrice - discountAmount)}
+                    totalAmount={Math.max(0, (totalPrice - discountAmount - couponAmount) + (activeTax?.calculationMethod === 'inclusive' ? 0 : taxAmount))}
                     onSubmit={handleCreateBooking}
                     onCancel={() => { setPaymentType(''); setStep(5); }}
                   />
