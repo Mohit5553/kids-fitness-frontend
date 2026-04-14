@@ -31,6 +31,10 @@ export default function BookingManagement() {
   const [viewingChildHistory, setViewingChildHistory] = useState([]);
   const [loadingChildProfile, setLoadingChildProfile] = useState(false);
 
+  // Membership Schedule Modal
+  const [viewingMembershipSchedule, setViewingMembershipSchedule] = useState(null);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
+
   const fetchUserProfile = async (userId) => {
     if (!userId) return;
     setLoadingProfile(true);
@@ -63,6 +67,18 @@ export default function BookingManagement() {
       console.error(err);
     } finally {
       setLoadingChildProfile(false);
+    }
+  };
+
+  const fetchMembershipSchedule = async (bookingId) => {
+    setLoadingSchedule(true);
+    try {
+      const res = await api.get(`/memberships/booking/${bookingId}`);
+      setViewingMembershipSchedule(res.data);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to fetch membership schedule');
+    } finally {
+      setLoadingSchedule(false);
     }
   };
 
@@ -628,6 +644,76 @@ export default function BookingManagement() {
       )}
 
       {/* CHILD PROFILE MODAL */}
+       {/* MEMBERSHIP SCHEDULE MODAL (Nested) */}
+      {viewingMembershipSchedule && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[40px] w-full max-w-xl max-h-[80vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="bg-indigo-900 p-8 text-white flex justify-between items-start shrink-0">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Membership Schedule</p>
+                <h3 className="font-display text-2xl font-black text-white">{viewingMembershipSchedule.planId?.name}</h3>
+                <p className="text-xs font-bold text-white/50 mt-1">
+                  Valid: {new Date(viewingMembershipSchedule.startDate).toLocaleDateString()} — {new Date(viewingMembershipSchedule.endDate).toLocaleDateString()}
+                </p>
+              </div>
+              <button onClick={() => setViewingMembershipSchedule(null)} className="rounded-full bg-white/10 p-2 hover:bg-white/20 transition-all">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 space-y-4 bg-slate-50/50">
+               {viewingMembershipSchedule.generatedSessions?.length > 0 ? (
+                  viewingMembershipSchedule.generatedSessions.map((session, sidx) => (
+                    <div key={session._id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between gap-4">
+                       <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xs">
+                             {sidx + 1}
+                          </div>
+                          <div>
+                             <p className="text-sm font-black text-ink">
+                                {new Date(session.startTime).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                             </p>
+                             <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] font-bold text-ink/30 uppercase tracking-widest">
+                                   {new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                <span className="w-1 h-1 rounded-full bg-slate-200"></span>
+                                <span className="text-[10px] font-bold text-ink/30 uppercase tracking-widest">
+                                   Trainer: {session.trainerId?.name || 'TBA'}
+                                </span>
+                             </div>
+                          </div>
+                       </div>
+                       <span className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                          session.status === 'scheduled' ? 'bg-indigo-50 text-indigo-600' :
+                          session.status === 'attended' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
+                       }`}>
+                          {session.status}
+                       </span>
+                    </div>
+                  ))
+               ) : (
+                  <div className="py-12 text-center text-ink/20">
+                     <p className="text-sm font-bold">No sessions found for this membership.</p>
+                  </div>
+               )}
+            </div>
+
+            <div className="p-8 border-t border-slate-100 bg-white flex justify-end shrink-0">
+              <button onClick={() => setViewingMembershipSchedule(null)} className="px-8 py-3 rounded-2xl bg-slate-50 text-ink/40 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all">
+                Close Schedule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loadingSchedule && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/5 backdrop-blur-[1px]">
+          <div className="h-12 w-12 animate-spin rounded-full border-[4px] border-brand-blue border-t-transparent shadow-xl" />
+        </div>
+      )}
+
       {viewingChild && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-[40px] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
@@ -698,6 +784,14 @@ export default function BookingManagement() {
                           <p className="text-[10px] font-bold text-ink/30 uppercase tracking-widest mt-1">
                             {new Date(b.sessionId?.startTime || b.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · {b.sessionId?.trainerId?.name || 'Assigned Trainer'}
                           </p>
+                          {b.bookingType === 'package' && (
+                             <button 
+                                onClick={() => fetchMembershipSchedule(b._id)}
+                                className="mt-2 text-[10px] font-black text-brand-blue uppercase tracking-widest hover:underline flex items-center gap-1.5"
+                             >
+                                <span>📅</span> View Schedule →
+                             </button>
+                          )}
                         </div>
                       </div>
                       <span className={`shrink-0 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${b.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :

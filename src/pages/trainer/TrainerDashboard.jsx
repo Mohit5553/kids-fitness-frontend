@@ -22,6 +22,7 @@ export default function TrainerDashboard() {
   const [cancelReason, setCancelReason] = useState('');
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
   const [now, setNow] = useState(new Date());
+  const [sessionCategory, setSessionCategory] = useState('all'); // 'all', 'one-day', 'membership'
 
   // Live updates to the dashboard time every minute
   useEffect(() => {
@@ -136,11 +137,19 @@ export default function TrainerDashboard() {
         const isPast = now > currentEndWindow;
         const isUpcoming = now < checkInWindow;
 
-        if (viewType === 'current') return isLocationMatch && isCurrent;
-        if (viewType === 'past') return isLocationMatch && isPast;
-        if (viewType === 'upcoming') return isLocationMatch && isUpcoming;
+        let isTimeMatch = true;
+        if (viewType === 'current') isTimeMatch = isCurrent;
+        else if (viewType === 'past') isTimeMatch = isPast;
+        else if (viewType === 'upcoming') isTimeMatch = isUpcoming;
 
-        return isLocationMatch;
+        let isCategoryMatch = true;
+        if (sessionCategory === 'one-day') {
+          isCategoryMatch = !s.membershipId;
+        } else if (sessionCategory === 'membership') {
+          isCategoryMatch = !!s.membershipId;
+        }
+
+        return isLocationMatch && isTimeMatch && isCategoryMatch;
       })
       .sort((a, b) => {
         if (viewType === 'upcoming' || viewType === 'current') {
@@ -200,12 +209,22 @@ export default function TrainerDashboard() {
   };
 
   const handleApproveAttendance = async (bookingId) => {
+    // Optimistically update the local roster state immediately
+    setRoster(prev =>
+      prev.map(b =>
+        b._id === bookingId ? { ...b, status: 'attended' } : b
+      )
+    );
     try {
       await api.put(`/bookings/${bookingId}/status`, { status: 'attended' });
       toast.success('Attendance approved');
-      // Refresh roster for the selected session
-      handleViewRoster(selectedSession);
     } catch (err) {
+      // Revert on failure
+      setRoster(prev =>
+        prev.map(b =>
+          b._id === bookingId ? { ...b, status: 'confirmed' } : b
+        )
+      );
       toast.error(err.response?.data?.message || 'Failed to approve attendance');
     }
   };
@@ -311,6 +330,28 @@ export default function TrainerDashboard() {
                         Cancelled
                       </button>
                     </div>
+
+                    {/* Session Type Filter */}
+                    <div className="flex bg-slate-100 p-1 rounded-xl gap-1 self-start">
+                      <button
+                        onClick={() => setSessionCategory('all')}
+                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${sessionCategory === 'all' ? 'bg-white text-indigo-600 shadow-sm' : 'text-ink/30 hover:text-ink/60'}`}
+                      >
+                        📂 All
+                      </button>
+                      <button
+                        onClick={() => setSessionCategory('one-day')}
+                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${sessionCategory === 'one-day' ? 'bg-white text-blue-500 shadow-sm' : 'text-ink/30 hover:text-ink/60'}`}
+                      >
+                        🎫 One-Day
+                      </button>
+                      <button
+                        onClick={() => setSessionCategory('membership')}
+                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${sessionCategory === 'membership' ? 'bg-white text-purple-600 shadow-sm' : 'text-ink/30 hover:text-ink/60'}`}
+                      >
+                        📦 Membership
+                      </button>
+                    </div>
                   </div>
 
                   {locations.length > 1 && (
@@ -339,9 +380,27 @@ export default function TrainerDashboard() {
                     {filteredSessions.map((session) => (
                       <div key={session._id} className={`rounded-2xl border p-6 transition-all ${selectedSession?._id === session._id ? 'border-coral bg-coral/5 shadow-md' : 'border-slate-100 bg-slate-50'}`}>
                         <div className="flex justify-between items-start mb-4">
-                          <span className="rounded-lg bg-white px-3 py-1 text-[10px] font-bold text-coral uppercase tracking-wider shadow-sm">
-                            {session.classId?.title || 'Class'}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span className="rounded-lg bg-white px-3 py-1 text-[10px] font-bold text-coral uppercase tracking-wider shadow-sm">
+                              {session.classId?.title || 'Class'}
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {!session.trainerId && (
+                                <span className="text-[8px] font-black text-white bg-indigo-500 px-2 py-0.5 rounded-md uppercase tracking-widest inline-block self-start shadow-sm">
+                                  🔔 Needs Trainer
+                                </span>
+                              )}
+                              {session.membershipId ? (
+                                <span className="text-[8px] font-black text-white bg-purple-600 px-2 py-0.5 rounded-md uppercase tracking-widest inline-block self-start shadow-sm">
+                                  📦 Membership
+                                </span>
+                              ) : (
+                                <span className="text-[8px] font-black text-white bg-blue-500 px-2 py-0.5 rounded-md uppercase tracking-widest inline-block self-start shadow-sm">
+                                  🎫 One-Day Session
+                                </span>
+                              )}
+                            </div>
+                          </div>
                           <span className={`h-2 w-2 rounded-full ${session.status === 'scheduled' ? 'bg-green-500' : 'bg-red-500'}`} title={session.status} />
                         </div>
 
@@ -368,7 +427,7 @@ export default function TrainerDashboard() {
 
                         <div className="mt-6 pt-4 border-t border-slate-200/60 flex justify-between items-center">
                           <span className="text-[10px] font-black text-ink/30 uppercase tracking-[0.2em]">
-                            {session.bookedParticipants} / {session.capacity} Attendees
+                            {session.bookedParticipants} {session.classType === 'Class' && `/ ${session.capacity}`} Attendees
                           </span>
                           <div className="flex gap-2">
                             {viewType === 'upcoming' && session.status !== 'cancelled' && (
@@ -379,7 +438,7 @@ export default function TrainerDashboard() {
                                       onClick={() => handleUpdateTrainerStatus(session._id, 'accepted')}
                                       className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/10"
                                     >
-                                      Accept
+                                      {!session.trainerId ? 'Claim & Accept' : 'Accept'}
                                     </button>
                                     <button
                                       onClick={() => handleUpdateTrainerStatus(session._id, 'rejected')}
@@ -446,8 +505,8 @@ export default function TrainerDashboard() {
                       ×
                     </button>
                   </div>
-
-                  {loadingRoster ? (
+                  <div className="max-h-[72vh] overflow-y-auto pr-4 custom-scrollbar">
+                    {loadingRoster ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-4">
                       <div className="h-8 w-8 animate-spin rounded-full border-4 border-coral border-t-transparent" />
                       <p className="text-xs font-bold text-ink/30 uppercase tracking-widest">Loading roster...</p>
@@ -527,7 +586,8 @@ export default function TrainerDashboard() {
                     </div>
                   )}
                 </div>
-              )}
+              </div>
+            )}
             </>
           )}
 

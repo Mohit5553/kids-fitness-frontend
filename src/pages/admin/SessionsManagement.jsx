@@ -468,7 +468,8 @@ export default function SessionsManagement() {
                         className={`text-xs font-bold transition-all group/occ ${session.bookedParticipants > 0 ? 'cursor-pointer hover:underline' : 'cursor-default'}`}
                       >
                         Occupancy: <span className={`${session.bookedParticipants >= session.capacity ? 'text-coral' : 'text-green-500'} ${session.bookedParticipants > 0 ? 'group-hover/occ:text-brand-blue' : ''}`}>
-                          {session.bookedParticipants || 0} / {session.capacity}
+                          {session.bookedParticipants || 0}
+                          {session.classType === 'Class' && ` / ${session.capacity}`}
                         </span>
                       </button>
                     </div>
@@ -614,7 +615,7 @@ export default function SessionsManagement() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8">
+            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
               {loadingParticipants ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-4">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-blue border-t-transparent" />
@@ -629,6 +630,11 @@ export default function SessionsManagement() {
                           <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest leading-none mb-1">Parent / Contact</p>
                           <h4 className="text-sm font-black text-ink">{booking.userId?.name || booking.guestDetails?.name || 'Guest'}</h4>
                           <p className="text-[10px] font-bold text-ink/40 mt-0.5">{booking.userId?.phone || booking.guestDetails?.phone || 'No phone'}</p>
+                          {booking.planId?.name && (
+                            <div className="mt-2 text-[8px] font-black uppercase tracking-widest text-brand-blue bg-brand-blue/5 border border-brand-blue/10 px-2 py-0.5 rounded-lg inline-block">
+                              📦 {booking.planId.name}
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-col items-end gap-2">
                           <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${booking.status === 'confirmed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
