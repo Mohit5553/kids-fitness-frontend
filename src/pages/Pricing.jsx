@@ -31,11 +31,16 @@ export default function Pricing() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [checkoutStep, setCheckoutStep] = useState(1);
   const [activeTax, setActiveTax] = useState(null);
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Coupon State
   const [couponInput, setCouponInput] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
+  // Payment State
+  const [paymentType, setPaymentType] = useState('online'); // 'online' or 'center'
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const fetchPlans = async () => {
     try {
@@ -106,6 +111,8 @@ export default function Pricing() {
     setActiveTax(null);
     setCouponInput('');
     setAppliedCoupon(null);
+    setPaymentType('online');
+    setIsProcessing(false);
     setCardForm({ name: '', number: '', expiry: '', cvc: '' });
   };
 
@@ -141,41 +148,45 @@ export default function Pricing() {
     setCardForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const calculateDiscount = (promo, plan) => {
-    if (!promo || !plan) return 0;
+  const calculateDiscount = (promo, basePrice) => {
+    if (!promo || !basePrice) return 0;
+    
+    const calcByType = (type, val) => {
+      if (type === 'percentage') return basePrice * (val / 100);
+      return Math.min(basePrice, val);
+    };
+
     let disc = 0;
-    if (promo.promoType === 'percentage' || (promo.promoType === 'flash' && promo.discountType === 'percentage')) {
-      disc = (plan.price * (promo.discountValue / 100));
-    } else if (promo.promoType === 'cash' || (promo.promoType === 'flash' && promo.discountType === 'flat')) {
-      disc = Math.min(plan.price, promo.discountValue);
+    if (promo.promoType === 'percentage') {
+      disc = basePrice * (promo.discountValue / 100);
+    } else if (promo.promoType === 'cash' || promo.promoType === 'flash' || promo.promoType === 'lifestyle' || promo.promoType === 'bulk') {
+      disc = calcByType(promo.discountType || (promo.promoType === 'percentage' ? 'percentage' : 'flat'), promo.discountValue);
     } else if (promo.promoType === 'tiered') {
       const tier = promo.discountTiers
-        ?.filter(t => plan.price >= t.minAmount)
+        ?.filter(t => basePrice >= t.minAmount)
         .sort((a, b) => b.minAmount - a.minAmount)[0];
       if (tier) {
-        disc = tier.type === 'percentage' ? (plan.price * (tier.value / 100)) : Math.min(plan.price, tier.value);
+        disc = tier.type === 'percentage' ? (basePrice * (tier.value / 100)) : Math.min(basePrice, tier.value);
       }
-    } else if (promo.promoType === 'lifestyle' || promo.promoType === 'bulk') {
-       disc = promo.discountType === 'percentage' ? (plan.price * (promo.discountValue / 100)) : Math.min(plan.price, promo.discountValue);
     } else if (promo.promoType === 'bogo') {
-       disc = 0;
+      disc = 0;
     }
     return Math.round(disc * 100) / 100;
   };
 
-  useEffect(() => {
-    if (selectedPromo && selectedPlan) {
-      setDiscountAmount(calculateDiscount(selectedPromo, selectedPlan));
-    } else {
-      setDiscountAmount(0);
-    }
-  }, [selectedPromo, selectedPlan]);
-  
   const totalWeeklySessions = preferredDays.length * (preferredSlots.length || 1);
   const baseCapacity = selectedPlan?.classesIncluded || 1;
   const effectiveCapacity = baseCapacity * (claimBogo ? 2 : 1);
   const membershipUnits = Math.max(1, Math.ceil(totalWeeklySessions / effectiveCapacity));
   const multipliedPrice = selectedPlan ? (selectedPlan.price * membershipUnits) : 0;
+
+  useEffect(() => {
+    if (selectedPromo && multipliedPrice) {
+      setDiscountAmount(calculateDiscount(selectedPromo, multipliedPrice));
+    } else {
+      setDiscountAmount(0);
+    }
+  }, [selectedPromo, multipliedPrice]);
 
   const currentCouponAmount = appliedCoupon?.amount || 0;
   const taxableAmount = selectedPlan ? Math.max(0, multipliedPrice - discountAmount - currentCouponAmount) : 0;
@@ -199,14 +210,18 @@ export default function Pricing() {
     setError('');
 
     if (!selectedPlan) return;
-    if (!cardForm.name || !cardForm.number || !cardForm.expiry || !cardForm.cvc) {
-      setError('Please complete card details.');
-      return;
+    
+    if (paymentType === 'online') {
+       if (!cardForm.name || !cardForm.number || !cardForm.expiry || !cardForm.cvc) {
+          setError('Please complete card details.');
+          return;
+       }
     }
 
-    const last4 = cardForm.number.replace(/\s/g, '').slice(-4);
-    const reference = `mock_${Date.now()}`;
+    const last4 = paymentType === 'online' ? cardForm.number.replace(/\s/g, '').slice(-4) : undefined;
+    const reference = paymentType === 'online' ? `mock_${Date.now()}` : `center_${Date.now()}`;
 
+    setIsProcessing(true);
     try {
       const payment = await api.post('/payments', {
         planId: selectedPlan._id,
@@ -216,7 +231,8 @@ export default function Pricing() {
         couponCode: appliedCoupon?.code,
         taxAmount: Math.round(currTaxValue * 100) / 100,
         promotionId: selectedPromo?._id,
-        paymentMethod: 'card',
+        paymentMethod: paymentType,
+        status: paymentType === 'online' ? 'paid' : 'pending',
         reference,
         last4,
         membershipUnits
@@ -231,16 +247,19 @@ export default function Pricing() {
         sessionsPerWeek: totalWeeklySessions,
         claimBogo,
         bogoChildId: bogoChildId || selectedChildId,
-        membershipUnits
+        membershipUnits,
+        startDate
       });
 
-      setMessage('Payment successful! Your schedule has been generated.');
+      setMessage(paymentType === 'online' ? 'Payment successful! Your schedule has been generated.' : 'Booking confirmed! Please pay at the center to activate.');
       setTimeout(() => {
         closeCheckout();
         navigate('/dashboard');
       }, 2000);
     } catch (err) {
       setError(err?.response?.data?.message || 'Payment failed. Try again.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -516,7 +535,6 @@ export default function Pricing() {
                       })}
                     </div>
                   </div>
-
                   <div className="text-left">
                     <label className="text-[10px] font-black uppercase text-ink/30 ml-2 mb-2 block">3. Time Slots</label>
                     <div className="grid grid-cols-3 gap-2 bg-slate-50 p-4 rounded-3xl">
@@ -531,6 +549,32 @@ export default function Pricing() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                  
+                  <div className="text-left">
+                     <label className="text-[10px] font-black uppercase text-ink/30 ml-2 mb-2 block">4. Membership Start Date</label>
+                     <div className="bg-slate-50 p-4 rounded-3xl">
+                        <input 
+                           type="date"
+                           min={new Date().toISOString().split('T')[0]}
+                           value={startDate}
+                           onChange={(e) => setStartDate(e.target.value)}
+                           className="w-full bg-white rounded-xl py-3 px-4 text-sm font-bold shadow-sm outline-none focus:ring-2 focus:ring-brand-blue/20"
+                        />
+                        <p className="text-[9px] font-bold text-ink/20 uppercase tracking-widest mt-3 ml-1">
+                           Your membership will end on {(() => {
+                              const d = new Date(startDate);
+                              if (selectedPlan.type === 'subscription' && selectedPlan.billingCycle) {
+                                 if (selectedPlan.billingCycle === 'weekly') d.setDate(d.getDate() + 7);
+                                 else if (selectedPlan.billingCycle === 'monthly') d.setMonth(d.getMonth() + 1);
+                                 else if (selectedPlan.billingCycle === 'yearly') d.setFullYear(d.getFullYear() + 1);
+                              } else if (selectedPlan.durationWeeks) {
+                                 d.setDate(d.getDate() + (selectedPlan.durationWeeks * 7));
+                              }
+                              return d.toLocaleDateString();
+                           })()}
+                        </p>
+                     </div>
                   </div>
 
                   {applicablePromos.length > 0 && (
@@ -547,7 +591,7 @@ export default function Pricing() {
                             <div className="text-left">
                               <p className="font-bold text-xs">{promo.name}</p>
                               <p className="text-[9px] font-black text-emerald-600 uppercase">
-                                {promo.promoType === 'bogo' ? 'Buy 1 Get 1 FREE' : `Save ${calculateDiscount(promo, selectedPlan)} AED`}
+                                {promo.promoType === 'bogo' ? 'Buy 1 Get 1 FREE' : `Save ${calculateDiscount(promo, multipliedPrice)} AED`}
                               </p>
                             </div>
                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPromo?._id === promo._id ? 'bg-brand-blue border-brand-blue text-white' : 'border-slate-100'}`}>
@@ -659,9 +703,35 @@ export default function Pricing() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-8 animate-in slide-in-from-left-4">
-                  {/* Summary Card */}
-                  <div className="bg-slate-50 rounded-3xl p-6 space-y-4 text-left border border-slate-100">
+                <div className="space-y-6 animate-in slide-in-from-left-4">
+                  {/* Payment Method Selector */}
+                  <div className="bg-slate-50 p-6 rounded-[32px] border border-slate-100 flex flex-col sm:flex-row gap-4">
+                     <button
+                        type="button"
+                        onClick={() => setPaymentType('online')}
+                        className={`flex-1 p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${paymentType === 'online' ? 'border-brand-blue bg-white shadow-xl' : 'border-transparent opacity-50 hover:bg-white/50'}`}
+                     >
+                        <span className="text-3xl">💳</span>
+                        <div className="text-center">
+                           <p className="text-sm font-black text-ink">Pay Online</p>
+                           <p className="text-[10px] font-bold text-ink/30 uppercase mt-1">Instant Activation</p>
+                        </div>
+                     </button>
+                     <button
+                        type="button"
+                        onClick={() => setPaymentType('center')}
+                        className={`flex-1 p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${paymentType === 'center' ? 'border-brand-blue bg-white shadow-xl' : 'border-transparent opacity-50 hover:bg-white/50'}`}
+                     >
+                        <span className="text-3xl">🏢</span>
+                        <div className="text-center">
+                           <p className="text-sm font-black text-ink">Pay at Center</p>
+                           <p className="text-[10px] font-bold text-ink/30 uppercase mt-1">Cash or Card on-site</p>
+                        </div>
+                     </button>
+                  </div>
+
+                  <div className="space-y-1">
+
                     <label className="text-[10px] font-black uppercase text-ink/30 block mb-2">Checkout Summary</label>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center text-sm font-bold">
@@ -709,52 +779,96 @@ export default function Pricing() {
                   </div>
 
                   <form onSubmit={handleCheckout} className="space-y-4">
-                    <div className="space-y-4">
-                      <input
-                        type="text"
-                        name="name"
-                        value={cardForm.name}
-                        onChange={handleCardChange}
-                        className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold"
-                        placeholder="Cardholder Name"
-                        required
-                      />
-                      <input
-                        type="text"
-                        name="number"
-                        value={cardForm.number}
-                        onChange={handleCardChange}
-                        className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold font-mono"
-                        placeholder="Card Number"
-                        required
-                      />
-                      <div className="grid grid-cols-2 gap-4">
-                        <input
-                          type="text"
-                          name="expiry"
-                          value={cardForm.expiry}
-                          onChange={handleCardChange}
-                          className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold text-center"
-                          placeholder="MM/YY"
-                          required
-                        />
-                        <input
-                          type="password"
-                          name="cvc"
-                          value={cardForm.cvc}
-                          onChange={handleCardChange}
-                          className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold text-center"
-                          placeholder="CVC"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <button type="submit" className="w-full rounded-2xl bg-brand-blue py-5 text-white font-black shadow-xl mt-4">
-                      🔒 Securely Pay AED {finalTotalAmount.toFixed(2)}
-                    </button>
-                    <p className="text-center text-[10px] font-bold text-ink/20 uppercase tracking-widest pt-2">Protected by 256-bit SSL encryption</p>
+                    {paymentType === 'online' ? (
+                       <div className="space-y-4 animate-in fade-in duration-300">
+                         <div className="space-y-4">
+                           <input
+                             type="text"
+                             name="name"
+                             value={cardForm.name}
+                             onChange={handleCardChange}
+                             className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold"
+                             placeholder="Cardholder Name"
+                             required
+                           />
+                           <input
+                             type="text"
+                             name="number"
+                             value={cardForm.number}
+                             onChange={handleCardChange}
+                             className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold font-mono"
+                             placeholder="Card Number"
+                             required
+                           />
+                           <div className="grid grid-cols-2 gap-4">
+                             <input
+                               type="text"
+                               name="expiry"
+                               value={cardForm.expiry}
+                               onChange={handleCardChange}
+                               className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold text-center"
+                               placeholder="MM/YY"
+                               required
+                             />
+                             <input
+                               type="password"
+                               name="cvc"
+                               value={cardForm.cvc}
+                               onChange={handleCardChange}
+                               className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold text-center"
+                               placeholder="CVC"
+                               required
+                             />
+                           </div>
+                         </div>
+                         <button 
+                            type="submit" 
+                            disabled={isProcessing}
+                            className="w-full rounded-2xl bg-brand-blue py-5 text-white font-black shadow-xl mt-4 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                         >
+                           {isProcessing ? (
+                              <>
+                                 <div className="w-5 h-5 border-4 border-white border-t-transparent rounded-full animate-spin" />
+                                 <span>Processing...</span>
+                              </>
+                           ) : (
+                              <>
+                                 <span>🔒 Securely Pay AED {finalTotalAmount.toFixed(2)}</span>
+                              </>
+                           )}
+                         </button>
+                         <p className="text-center text-[10px] font-bold text-ink/20 uppercase tracking-widest pt-2">Protected by 256-bit SSL encryption</p>
+                       </div>
+                    ) : (
+                       <div className="animate-in slide-in-from-top-4 duration-500">
+                          <div className="p-8 rounded-[32px] bg-emerald-50/50 border-2 border-dashed border-emerald-200 text-center mb-6">
+                             <span className="text-4xl block mb-4">✅</span>
+                             <h4 className="text-lg font-black text-emerald-900 mb-2">Ready to Book?</h4>
+                             <p className="text-sm text-emerald-700/70 font-bold leading-relaxed">
+                                You will pay at the reception when you visit the center. Your sessions will be held for you.
+                             </p>
+                          </div>
+                          <button 
+                            type="submit" 
+                            disabled={isProcessing}
+                            className="w-full rounded-2xl bg-brand-blue py-5 text-white font-black shadow-xl flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                          >
+                            {isProcessing ? (
+                               <>
+                                  <div className="w-5 h-5 border-4 border-white border-t-transparent rounded-full animate-spin" />
+                                  <span>Confirming...</span>
+                               </>
+                            ) : (
+                               <>
+                                  <span>Confirm Booking & Pay at Center →</span>
+                               </>
+                            )}
+                          </button>
+                       </div>
+                    )}
                   </form>
                 </div>
+
               )}
             </div>
           </div>

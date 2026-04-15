@@ -209,6 +209,10 @@ export default function MyBookings() {
                           Ref: {booking.paymentReference}
                         </span>
                       )}
+                      {/* Booking Type Badge */}
+                      <span className={`rounded px-2  py-0.5 text-[10px] font-bold uppercase tracking-tight ${booking.bookingType === 'package' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-slate-50 text-slate-500 border border-slate-100'}`}>
+                        {booking.bookingType === 'package' ? '📦 Membership / Package' : '🎟️ Single Session'}
+                      </span>
                     </div>
                     <div className="mt-2 space-y-1">
                       <p className="flex items-center gap-2 text-xs text-ink/70">
@@ -271,10 +275,10 @@ export default function MyBookings() {
                   <div className="flex flex-col items-end gap-3">
                     <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${booking.refundStatus === 'refunded' ? 'hidden' : // Hide if refunded
                         booking.status === 'confirmed' ? 'bg-moss/10 text-moss' :
-                          booking.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                          (booking.status === 'pending' || (booking.paymentMethod === 'center' && booking.status === 'pending')) ? 'bg-amber-100 text-amber-600 border border-amber-200 shadow-sm' :
                             'bg-red-100 text-red-600'
                       }`}>
-                      {booking.paymentMethod === 'center' && booking.status === 'pending' ? 'Pay at Center' : booking.status}
+                      {booking.paymentMethod === 'center' && booking.status === 'pending' ? 'Pending Payment' : booking.status}
                     </span>
 
                     {booking.refundStatus && booking.refundStatus !== 'none' && (
