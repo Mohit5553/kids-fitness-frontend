@@ -18,6 +18,7 @@ const emptyForm = {
   capacity: '',
   imageUrl: '',
   taxId: '',
+  creditCost: 1,
   status: 'active'
 };
 
@@ -68,6 +69,7 @@ export default function ClassesManagement() {
       capacity: item.capacity ?? '',
       imageUrl: item.imageUrl || '',
       taxId: item.taxId?._id || item.taxId || '',
+      creditCost: item.creditCost ?? 1,
       status: item.status || 'active'
     });
   };
@@ -83,7 +85,8 @@ export default function ClassesManagement() {
     const payload = {
       ...form,
       price: Number(form.price),
-      capacity: form.capacity ? Number(form.capacity) : undefined
+      capacity: form.capacity ? Number(form.capacity) : undefined,
+      creditCost: Number(form.creditCost || 1)
     };
 
     try {
@@ -245,7 +248,7 @@ export default function ClassesManagement() {
               />
             </div>
             <div className="grid gap-3 md:grid-cols-2">
-              <input
+               <input
                 className="rounded-xl border border-orange-200/70 p-3"
                 name="capacity"
                 type="number"
@@ -253,6 +256,17 @@ export default function ClassesManagement() {
                 value={form.capacity}
                 onChange={handleChange}
               />
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Credit Cost</label>
+                <input
+                  className="w-full rounded-xl border border-orange-200/70 p-3 bg-indigo-50/10"
+                  name="creditCost"
+                  type="number"
+                  placeholder="Credits per session"
+                  value={form.creditCost}
+                  onChange={handleChange}
+                />
+              </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Visibility Status</label>
                 <select
@@ -372,6 +386,7 @@ export default function ClassesManagement() {
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <p className="text-xl font-black text-brand-blue">AED {item.price}</p>
+                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{item.creditCost || 1} Credits</p>
                   <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${item.status === 'inactive' ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-green-50 text-green-500 border border-green-100'}`}>
                     {item.status || 'Active'}
                   </span>

@@ -68,9 +68,39 @@ export default function InvoiceView() {
       </div>
    );
 
-   const subtotal = invoice.items?.reduce((sum, item) => sum + (item.total || 0), 0) || 0;
-   const finalTotal = invoice.totalAmount || subtotal;
-   const totalInWords = numberToWords(finalTotal);
+   // ── Financial Breakdown ──────────────────────────────────────
+   // 1. Item Amount = sum of positive line items only (before discounts & tax)
+   const itemAmount = invoice.items?.reduce((sum, item) => {
+      const val = (item.unitPrice || 0) * (item.quantity || 1);
+      return val > 0 ? sum + val : sum;
+   }, 0) || 0;
+
+   // 2. Discount — read stored fields first, then fall back to negative line items
+   const storedDiscount = (invoice.discountAmount || 0) + (invoice.couponAmount || 0);
+   const itemsDiscount = invoice.items?.reduce((sum, item) => {
+      const val = (item.unitPrice || 0) * (item.quantity || 1);
+      return val < 0 ? sum + Math.abs(val) : sum;
+   }, 0) || 0;
+   const discountAmount = storedDiscount > 0 ? storedDiscount : itemsDiscount;
+
+   // Detect discount label from item descriptions for display
+   const discountItem = invoice.items?.find(i => (i.unitPrice || 0) * (i.quantity || 1) < 0);
+   const discountLabel = discountItem?.description ||
+      (invoice.couponCode ? `Coupon: ${invoice.couponCode}` : 'Promotion Applied');
+
+   // 3. Amount After Discount
+   const amountAfterDiscount = itemAmount - discountAmount;
+
+   // 4. VAT / Tax — use stored taxAmount, with item-level fallback
+   const taxAmount = invoice.taxAmount || invoice.items?.reduce((sum, i) => {
+      const expected = (i.unitPrice || 0) * (i.quantity || 1);
+      const detected = (i.total > expected + 0.01) ? (i.total - expected) : (i.taxAmount || 0);
+      return sum + detected;
+   }, 0) || 0;
+
+   // 5. Total Amount — use stored amount (source of truth), fallback to computed
+   const totalAmount = invoice.amount || (amountAfterDiscount + taxAmount);
+   const totalInWords = numberToWords(totalAmount);
 
    return (
       <div className="min-h-screen bg-white md:bg-slate-50 flex flex-col font-display">
@@ -271,53 +301,59 @@ export default function InvoiceView() {
                         </table>
                      </div>
 
-                     {/* Highlighted Totals Box */}
-                     <div className="bg-brand-blue/5 rounded-[2rem] p-8 print:p-6 space-y-8">
-                        <div className="space-y-3 max-w-[350px] ml-auto font-display">
-                           <div className="flex items-center justify-between text-[11px] font-black">
-                              <span className="text-ink/30 uppercase tracking-[0.3em]">Gross Subtotal</span>
-                              <span className="text-ink/60 tracking-tight">
-                                 AED {(invoice.items.reduce((sum, i) => {
-                                    // Only sum positive items for Gross Subtotal to avoid confusing subtraction math
-                                    const val = (i.unitPrice || 0) * (i.quantity || 1);
-                                    return val > 0 ? sum + val : sum;
-                                 }, 0)).toFixed(2)}
-                              </span>
-                           </div>
-                           
-                           {(invoice.discountAmount > 0 || invoice.couponAmount > 0) && (
-                              <div className="pt-2 border-t border-white/40">
-                                 <div className="flex items-center justify-between text-emerald-600 text-[11px] font-black">
-                                    <span className="uppercase tracking-[0.3em]">Total Savings</span>
-                                    <span className="tracking-tight">- AED {(invoice.discountAmount + invoice.couponAmount).toFixed(2)}</span>
-                                 </div>
-                              </div>
-                           )}
+                     {/* ── Financial Summary Box ── */}
+                     <div className="rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm">
 
-                           <div className="flex items-center justify-between text-[11px] font-black">
-                              <span className="text-ink/30 uppercase tracking-[0.3em]">Total Tax</span>
-                              <span className="text-ink/60 tracking-tight">
-                                 AED {(invoice.taxAmount || invoice.items.reduce((sum, i) => {
-                                    // Fallback detection for older or group records
-                                    const expected = (i.unitPrice || 0) * (i.quantity || 1);
-                                    const detectedTax = (i.total > expected + 0.01) ? (i.total - expected) : (i.taxAmount || 0);
-                                    return sum + detectedTax;
-                                 }, 0)).toFixed(2)}
-                              </span>
-                           </div>
+                        {/* Row helper: reusable label + value row */}
+                        {/* 1. Item Amount */}
+                        <div className="flex items-center justify-between px-8 py-4 bg-slate-50/80 border-b border-slate-100">
+                           <span className="text-[10px] font-black text-ink/40 uppercase tracking-[0.3em]">Item Amount</span>
+                           <span className="text-sm font-black text-ink tracking-tight">AED {itemAmount.toFixed(2)}</span>
                         </div>
 
-                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-8 border-t-2 border-white/50">
-                           <div className="space-y-2">
-                              <h4 className="text-[10px] font-black text-brand-blue uppercase tracking-[0.4em]">Net Amount Due</h4>
-                              <p className="text-[8px] font-black text-ink/20 uppercase tracking-widest leading-relaxed max-w-[250px]">
+                        {/* 2. Discount — only shown if > 0 */}
+                        {discountAmount > 0 && (
+                           <div className="flex items-center justify-between px-8 py-4 bg-emerald-50/60 border-b border-emerald-100">
+                              <div className="flex items-center gap-2">
+                                 <span className="text-[8px] bg-emerald-100 text-emerald-600 font-black uppercase tracking-widest px-2 py-0.5 rounded-md">Discount</span>
+                                 <span className="text-[10px] font-black text-emerald-700 uppercase tracking-[0.3em]">
+                                    {discountLabel}
+                                 </span>
+                              </div>
+                              <span className="text-sm font-black text-emerald-600 tracking-tight">- AED {discountAmount.toFixed(2)}</span>
+                           </div>
+                        )}
+
+                        {/* 3. Amount After Discount — only shown if discount exists */}
+                        {discountAmount > 0 && (
+                           <div className="flex items-center justify-between px-8 py-4 bg-white border-b border-slate-100">
+                              <span className="text-[10px] font-black text-ink/40 uppercase tracking-[0.3em]">Amount After Discount</span>
+                              <span className="text-sm font-black text-ink tracking-tight">AED {amountAfterDiscount.toFixed(2)}</span>
+                           </div>
+                        )}
+
+                        {/* 4. VAT */}
+                        <div className="flex items-center justify-between px-8 py-4 bg-slate-50/80 border-b border-slate-100">
+                           <div className="flex items-center gap-2">
+                              <span className="text-[8px] bg-brand-blue/10 text-brand-blue font-black uppercase tracking-widest px-2 py-0.5 rounded-md">VAT 5%</span>
+                              <span className="text-[10px] font-black text-ink/40 uppercase tracking-[0.3em]">Tax Amount</span>
+                           </div>
+                           <span className="text-sm font-black text-ink/60 tracking-tight">AED {taxAmount.toFixed(2)}</span>
+                        </div>
+
+                        {/* 5. Total Amount — prominent */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-8 py-6 bg-brand-blue">
+                           <div className="space-y-1">
+                              <h4 className="text-[10px] font-black text-white/60 uppercase tracking-[0.4em]">Total Amount</h4>
+                              <p className="text-[8px] font-black text-white/30 uppercase tracking-widest leading-relaxed max-w-[260px]">
                                  {totalInWords}
                               </p>
                            </div>
-                           <div className="text-left md:text-right">
-                              <span className="text-5xl font-black text-brand-blue tracking-tighter leading-none block">AED {invoice.amount.toFixed(2)}</span>
-                           </div>
+                           <span className="text-5xl font-black text-white tracking-tighter leading-none">
+                              AED {totalAmount.toFixed(2)}
+                           </span>
                         </div>
+
                      </div>
 
                      {/* Footer Redesign with Icons - Hidden on Print to save space */}

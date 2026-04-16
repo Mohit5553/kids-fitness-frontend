@@ -535,7 +535,10 @@ export default function WalkingBooking() {
         sessionsPerWeek,
         membershipUnits,
         claimBogo: isDoubled || isSiblingBogo,
-        bogoChildId: isDoubled ? primaryChildId : (isSiblingBogo ? selectedChildrenIds[1] : undefined)
+        bogoChildId: isDoubled ? primaryChildId : (isSiblingBogo ? selectedChildrenIds[1] : undefined),
+        discountAmount,
+        couponCode,
+        couponAmount
       });
 
       setCreatedBookings([{ bookingNumber: `MBR-${reference}`, _id: payRes.data._id }]);

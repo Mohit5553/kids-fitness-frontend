@@ -69,10 +69,13 @@ export default function ExtensionPanel() {
                     "{req.reason || 'No reason provided.'}"
                   </p>
                   {req.newDate && (
-                    <div className="mt-4 p-4 rounded-2xl bg-brand-blue/5 border border-brand-blue/10">
-                      <p className="text-[10px] font-black uppercase text-brand-blue mb-1">Proposed Reschedule</p>
-                      <p className="text-sm font-bold text-brand-blue">
-                        {new Date(req.newDate).toLocaleDateString()} at {req.newSlot}
+                    <div className={`mt-4 p-4 rounded-2xl border ${req.type === 'extend' ? 'bg-indigo-50 border-indigo-100' : 'bg-brand-blue/5 border-brand-blue/10'}`}>
+                      <p className={`text-[10px] font-black uppercase mb-1 ${req.type === 'extend' ? 'text-indigo-600' : 'text-brand-blue'}`}>
+                        {req.type === 'extend' ? 'Proposed New End Date' : 'Proposed Reschedule'}
+                      </p>
+                      <p className={`text-sm font-black ${req.type === 'extend' ? 'text-indigo-600' : 'text-brand-blue'}`}>
+                        {new Date(req.newDate).toLocaleDateString()}
+                        {req.type === 'reschedule' && req.newSlot && ` at ${req.newSlot}`}
                       </p>
                     </div>
                   )}

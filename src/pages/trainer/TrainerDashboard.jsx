@@ -23,6 +23,7 @@ export default function TrainerDashboard() {
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
   const [now, setNow] = useState(new Date());
   const [sessionCategory, setSessionCategory] = useState('all'); // 'all', 'one-day', 'membership'
+  const [showRosterModal, setShowRosterModal] = useState(false);
 
   // Live updates to the dashboard time every minute
   useEffect(() => {
@@ -143,10 +144,16 @@ export default function TrainerDashboard() {
         else if (viewType === 'upcoming') isTimeMatch = isUpcoming;
 
         let isCategoryMatch = true;
+        const isMembershipSession =
+          !!s.membershipId ||
+          s.classType === 'Membership' ||
+          s.classType === 'Plan' ||
+          (Array.isArray(s.classId?.packageNames) && s.classId.packageNames.length > 0);
+
         if (sessionCategory === 'one-day') {
-          isCategoryMatch = !s.membershipId;
+          isCategoryMatch = !isMembershipSession;
         } else if (sessionCategory === 'membership') {
-          isCategoryMatch = !!s.membershipId;
+          isCategoryMatch = isMembershipSession;
         }
 
         return isLocationMatch && isTimeMatch && isCategoryMatch;
@@ -158,7 +165,7 @@ export default function TrainerDashboard() {
           return new Date(b.startTime) - new Date(a.startTime);
         }
       });
-  }, [sessions, locationFilter, viewType, now]);
+  }, [sessions, locationFilter, viewType, now, sessionCategory]);
 
   const filteredBookings = useMemo(() => {
     return allBookings.filter(b => locationFilter === 'all' || (b.locationId?._id || b.locationId) === locationFilter);
@@ -168,17 +175,19 @@ export default function TrainerDashboard() {
     return trials.filter(t => locationFilter === 'all' || (t.locationId?._id || t.locationId) === locationFilter);
   }, [trials, locationFilter]);
 
+  // Close roster modal on Escape key
   useEffect(() => {
-    console.log(`[TrainerDashboard] Total sessions:`, sessions.length);
-    console.log(`[TrainerDashboard] View type:`, viewType);
-    console.log(`[TrainerDashboard] Filtered sessions:`, filteredSessions.length);
-  }, [sessions, viewType, filteredSessions]);
+    const handleKey = (e) => { if (e.key === 'Escape') setShowRosterModal(false); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
   const handleViewRoster = async (session) => {
     if (session.status === 'cancelled') return;
     setSelectedSession(session);
     setLoadingRoster(true);
     setRoster([]);
+    setShowRosterModal(true);
     try {
       const res = await api.get(`/bookings?sessionId=${session._id}`);
       setRoster(res.data || []);
@@ -295,8 +304,8 @@ export default function TrainerDashboard() {
         <div className="grid lg:grid-cols-3 gap-8">
           {activeTab === 'schedule' && (
             <>
-              {/* Sessions List */}
-              <div className={`rounded-[32px] bg-white p-8 shadow-sm border border-slate-100 ${selectedSession ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+              {/* Sessions List — full width now, roster opens as modal */}
+              <div className="lg:col-span-3 rounded-[32px] bg-white p-8 shadow-sm border border-slate-100">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                   <div className="flex flex-col gap-4">
                     <h2 className="font-display text-2xl text-ink">
@@ -390,7 +399,7 @@ export default function TrainerDashboard() {
                                   🔔 Needs Trainer
                                 </span>
                               )}
-                              {session.membershipId ? (
+                              {(session.membershipId || session.classType === 'Plan' || (Array.isArray(session.classId?.packageNames) && session.classId.packageNames.length > 0)) ? (
                                 <span className="text-[8px] font-black text-white bg-purple-600 px-2 py-0.5 rounded-md uppercase tracking-widest inline-block self-start shadow-sm">
                                   📦 Membership
                                 </span>
@@ -589,6 +598,131 @@ export default function TrainerDashboard() {
               </div>
             )}
             </>
+          )}
+
+          {/* ===== ROSTER FULL-SCREEN MODAL ===== */}
+          {showRosterModal && selectedSession && (
+            <div
+              className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md"
+              onClick={(e) => { if (e.target === e.currentTarget) setShowRosterModal(false); }}
+            >
+              <div className="relative w-full max-w-3xl max-h-[90vh] bg-white rounded-[40px] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+
+                {/* Modal Header */}
+                <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-white flex items-start justify-between shrink-0">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-1">Attendee Roster</p>
+                    <h2 className="text-2xl font-black text-white leading-tight">{selectedSession.classId?.title || 'Session'}</h2>
+                    <div className="flex items-center gap-4 mt-3 flex-wrap">
+                      <span className="text-[10px] font-black text-white/50 uppercase tracking-widest flex items-center gap-1.5">
+                        📅 {new Date(selectedSession.startTime).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                      </span>
+                      <span className="text-[10px] font-black text-white/50 uppercase tracking-widest flex items-center gap-1.5">
+                        ⏰ {new Date(selectedSession.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {new Date(selectedSession.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <span className="text-[10px] font-black text-white/50 uppercase tracking-widest flex items-center gap-1.5">
+                        📍 {selectedSession.locationId?.name || 'Central'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowRosterModal(false)}
+                    className="h-10 w-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all font-black text-xl border border-white/10"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50">
+                  {loadingRoster ? (
+                    <div className="flex flex-col items-center justify-center py-24 gap-4">
+                      <div className="h-10 w-10 animate-spin rounded-full border-4 border-coral border-t-transparent" />
+                      <p className="text-xs font-bold text-ink/30 uppercase tracking-widest">Loading roster...</p>
+                    </div>
+                  ) : roster.length > 0 ? (
+                    <div className="space-y-5">
+                      {roster.map((booking) => (
+                        <div key={booking._id} className="p-6 rounded-[28px] bg-white border border-slate-100 shadow-sm relative overflow-hidden">
+                          <div className="absolute top-0 right-0 p-3">
+                            <span className="text-[8px] font-black text-ink/10 uppercase tracking-widest">#{booking.bookingNumber}</span>
+                          </div>
+
+                          <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-4">
+                            <div>
+                              <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest">Parent / Contact</p>
+                              <h4 className="text-sm font-black text-ink mt-0.5">{booking.userId?.name || booking.guestDetails?.name || 'Guest User'}</h4>
+                              <p className="text-[10px] font-bold text-ink/50 mt-1">{booking.userId?.phone || booking.guestDetails?.phone || booking.userId?.email || 'No contact'}</p>
+                            </div>
+                            <span className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${
+                              booking.status === 'attended' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                              booking.status === 'confirmed' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                              'bg-amber-50 text-amber-600 border border-amber-100'
+                            }`}>
+                              {booking.status === 'attended' ? '✔ Verified' : booking.status}
+                            </span>
+                          </div>
+
+                          <div className="space-y-3 mb-4">
+                            <p className="text-[9px] font-black text-coral uppercase tracking-widest">Participants ({booking.participants?.length})</p>
+                            {booking.participants?.map((p, idx) => (
+                              <div key={idx} className="flex items-center gap-4 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-sm font-black text-ink/30">
+                                  {p.name?.charAt(0) || p.childId?.name?.charAt(0) || '?'}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-sm font-black text-ink">{p.name || p.childId?.name}</p>
+                                  <div className="flex gap-3 mt-0.5">
+                                    <span className="text-[10px] font-bold text-ink/30 uppercase">{p.age || p.childId?.age} Years</span>
+                                    <span className="text-[10px] font-bold text-ink/30 uppercase">{p.gender || p.childId?.gender}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                              <span className="text-[9px] font-black text-ink/20 uppercase tracking-[0.2em]">{booking.paymentMethod === 'online' ? 'Paid Online' : 'Pay at Center'}</span>
+                              {viewType === 'current' && booking.status === 'confirmed' && (
+                                <button
+                                  onClick={() => handleApproveAttendance(booking._id)}
+                                  className="px-4 py-1.5 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-md active:scale-95"
+                                >
+                                  Approve Attendance
+                                </button>
+                              )}
+                            </div>
+                            <span className="text-[10px] font-black text-ink/70">AED {booking.totalAmount}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-24 text-center flex flex-col items-center justify-center">
+                      <div className="w-20 h-20 bg-white rounded-[28px] shadow-lg flex items-center justify-center text-4xl mb-6 grayscale opacity-40">👥</div>
+                      <p className="text-sm font-bold text-ink/30 uppercase tracking-widest">No attendees yet</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="p-6 border-t border-slate-100 bg-white shrink-0 flex gap-3">
+                  <button
+                    onClick={() => setShowRosterModal(false)}
+                    className="flex-1 py-3 rounded-2xl bg-slate-100 text-ink/50 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => window.print()}
+                    className="flex-1 py-3 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg"
+                  >
+                    🖨 Print Full Roster
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           {activeTab === 'bookings' && (
