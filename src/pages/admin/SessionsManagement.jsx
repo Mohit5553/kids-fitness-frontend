@@ -628,11 +628,16 @@ export default function SessionsManagement() {
                       <div className="flex justify-between items-start mb-4">
                         <div>
                           <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest leading-none mb-1">Parent / Contact</p>
-                          <h4 className="text-sm font-black text-ink">{booking.userId?.name || booking.guestDetails?.name || 'Guest'}</h4>
+                          <h4 className="text-sm font-black text-ink">{booking.userId?.name || booking.guestDetails?.name || booking.packageInfo?.parentName || 'Guest'}</h4>
                           <p className="text-[10px] font-bold text-ink/40 mt-0.5">{booking.userId?.phone || booking.guestDetails?.phone || 'No phone'}</p>
-                          {booking.planId?.name && (
+                          {(booking.planId?.name || booking.packageInfo?.name) && (
                             <div className="mt-2 text-[8px] font-black uppercase tracking-widest text-brand-blue bg-brand-blue/5 border border-brand-blue/10 px-2 py-0.5 rounded-lg inline-block">
-                              📦 {booking.planId.name}
+                              📦 {booking.planId?.name || booking.packageInfo?.name}
+                            </div>
+                          )}
+                          {booking.isVirtualMembership && (
+                            <div className="mt-1 text-[8px] font-black uppercase tracking-widest text-ocean/60 bg-ocean/5 border border-ocean/10 px-2 py-0.5 rounded-lg inline-block ml-1">
+                              🆔 {booking.bookingNumber}
                             </div>
                           )}
                         </div>
@@ -662,8 +667,8 @@ export default function SessionsManagement() {
                               {p.name?.charAt(0) || '?'}
                             </div>
                             <div>
-                              <p className="text-xs font-black text-ink leading-none">{p.name || p.childId?.name}</p>
-                              <p className="text-[9px] font-bold text-ink/30 uppercase mt-1">{p.age || p.childId?.age}Y • {p.gender || p.childId?.gender}</p>
+                              <p className="text-xs font-black text-ink leading-none">{p.name || p.childId?.name || booking.packageInfo?.childName}</p>
+                              <p className="text-[9px] font-bold text-ink/30 uppercase mt-1">{p.age || p.childId?.age || ''}Y • {p.gender || p.childId?.gender || ''}</p>
                             </div>
                           </div>
                         ))}

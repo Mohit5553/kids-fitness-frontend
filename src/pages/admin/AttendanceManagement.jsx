@@ -72,7 +72,8 @@ export default function AttendanceManagement() {
                name: p.name || p.childId?.name || 'Unknown',
                age: p.age || p.childId?.age || '',
                gender: p.gender || p.childId?.gender || '',
-               bookingId: b._id
+               bookingId: b._id,
+               packageName: b.packageInfo?.name || b.planId?.name || ''
              });
           });
         });
@@ -198,7 +199,7 @@ export default function AttendanceManagement() {
                   <option value="">{form.sessionId ? (attendees.length > 0 ? 'Select a name...' : 'No attendees found for this session') : 'Select session first'}</option>
                   {attendees.map((a) => (
                     <option key={a.id} value={a.childId || a.name}>
-                      {a.name} {a.age ? `(${a.age} yrs)` : ''}
+                      {a.name} {a.age ? `(${a.age} yrs)` : ''} {a.packageName ? `[📦 ${a.packageName}]` : ''}
                     </option>
                   ))}
                 </select>
@@ -284,7 +285,8 @@ export default function AttendanceManagement() {
                     </div>
                   </div>
                   <p className="text-xs font-bold text-ink/50 leading-relaxed text-left">
-                    {record.sessionId?.classId?.title || 'Class'} · {record.sessionId?.trainerId?.name || 'No Trainer'}
+                    {record.sessionId?.classId?.title || 'Class'} · {record.sessionId?.trainerId?.name || 'No Trainer'} 
+                    {record.bookingId?.packageInfo?.name && ` [📦 ${record.bookingId.packageInfo.name}]`}
                   </p>
                   <p className="text-[10px] font-bold text-ink/30 mt-1">
                     {new Date(record.sessionId?.startTime || record.bookingId?.date || record.checkedInAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}

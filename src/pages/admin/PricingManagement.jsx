@@ -8,13 +8,18 @@ const emptyForm = {
   name: '',
   price: '',
   validity: '',
+  validityValue: '',
+  validityUnit: 'weeks',
   type: 'pack',
   classesIncluded: '',
   durationWeeks: '',
+  durationValue: '',
+  durationUnit: 'weeks',
   billingCycle: 'none',
   benefits: '',
   tagline: '',
   isFeatured: false,
+  isUnlimited: false,
   sessionType: 'group',
   validDays: 'both',
   timeSlots: '',
@@ -22,7 +27,12 @@ const emptyForm = {
   trainerId: '',
   maxAllowedMissed: 2,
   expiryBufferDays: 7,
-  taxId: ''
+  taxId: '',
+  creditsIncluded: 0,
+  dailyBookingLimit: 0,
+  cancellationWindow: 6,
+  allowFreezing: false,
+  allowFreezing: false
 };
 
 export default function PricingManagement() {
@@ -77,13 +87,18 @@ export default function PricingManagement() {
       name: plan.name || '',
       price: plan.price ?? '',
       validity: plan.validity || '',
+      validityValue: plan.validityValue ?? '',
+      validityUnit: plan.validityUnit || 'weeks',
       type: plan.type || 'pack',
       classesIncluded: plan.classesIncluded ?? '',
       durationWeeks: plan.durationWeeks ?? '',
+      durationValue: plan.durationValue ?? '',
+      durationUnit: plan.durationUnit || 'weeks',
       billingCycle: plan.billingCycle || 'none',
       benefits: (plan.benefits || []).join(', '),
       tagline: plan.tagline || '',
       isFeatured: !!plan.isFeatured,
+      isUnlimited: plan.classesIncluded === 0,
       sessionType: plan.sessionType || 'group',
       validDays: plan.validDays || 'both',
       timeSlots: (plan.timeSlots || []).join(', '),
@@ -91,7 +106,12 @@ export default function PricingManagement() {
       trainerId: plan.trainerId?._id || plan.trainerId || '',
       maxAllowedMissed: plan.extensionRules?.maxAllowedMissed ?? 2,
       expiryBufferDays: plan.extensionRules?.expiryBufferDays ?? 7,
-      taxId: plan.taxId?._id || plan.taxId || ''
+      cancellationWindow: plan.extensionRules?.cancellationWindow ?? 6,
+      allowFreezing: !!plan.extensionRules?.allowFreezing,
+      taxId: plan.taxId?._id || plan.taxId || '',
+      creditsIncluded: plan.creditsIncluded ?? 0,
+      dailyBookingLimit: plan.dailyBookingLimit ?? 0,
+      dailyBookingLimit: plan.dailyBookingLimit ?? 0
     });
   };
 
@@ -107,14 +127,22 @@ export default function PricingManagement() {
     const payload = {
       ...form,
       price: Number(form.price),
-      classesIncluded: form.classesIncluded ? Number(form.classesIncluded) : undefined,
+      classesIncluded: form.isUnlimited ? 0 : (form.classesIncluded ? Number(form.classesIncluded) : undefined),
       durationWeeks: form.durationWeeks ? Number(form.durationWeeks) : undefined,
+      durationValue: form.durationValue ? Number(form.durationValue) : undefined,
+      durationUnit: form.durationUnit,
+      validityValue: form.validityValue ? Number(form.validityValue) : undefined,
+      validityUnit: form.validityUnit,
       benefits: form.benefits.split(',').map((item) => item.trim()).filter(Boolean),
       timeSlots: form.timeSlots.split(',').map((item) => item.trim()).filter(Boolean),
       extensionRules: {
         maxAllowedMissed: Number(form.maxAllowedMissed),
-        expiryBufferDays: Number(form.expiryBufferDays)
+        expiryBufferDays: Number(form.expiryBufferDays),
+        cancellationWindow: Number(form.cancellationWindow),
+        allowFreezing: Boolean(form.allowFreezing)
       },
+      creditsIncluded: Number(form.creditsIncluded || 0),
+      dailyBookingLimit: Number(form.dailyBookingLimit || 0),
       trainerId: (form.trainerAllocation === 'fixed' && form.trainerId) ? form.trainerId : null
     };
 
@@ -173,43 +201,156 @@ export default function PricingManagement() {
                 required
               />
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <input
-                className="rounded-xl border border-orange-200/70 p-3"
-                name="validity"
-                placeholder="Validity (e.g. 8 weeks)"
-                value={form.validity}
-                onChange={handleChange}
-              />
-              <select
-                className="rounded-xl border border-orange-200/70 p-3"
-                name="type"
-                value={form.type}
-                onChange={handleChange}
-              >
-                <option value="dropin">Drop-in</option>
-                <option value="pack">Pack</option>
-                <option value="term">Term</option>
-                <option value="subscription">Subscription</option>
-              </select>
-              <input
-                className="rounded-xl border border-orange-200/70 p-3"
-                name="classesIncluded"
-                type="number"
-                placeholder="Classes included"
-                value={form.classesIncluded}
-                onChange={handleChange}
-              />
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Validity</label>
+                  <input
+                    className="w-full rounded-xl border border-orange-200/70 p-3"
+                    name="validityValue"
+                    type="number"
+                    placeholder="Val"
+                    value={form.validityValue}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Unit</label>
+                  <select
+                    className="w-full rounded-xl border border-orange-200/70 p-3"
+                    name="validityUnit"
+                    value={form.validityUnit}
+                    onChange={handleChange}
+                  >
+                    <option value="days">Days</option>
+                    <option value="weeks">Weeks</option>
+                    <option value="months">Months</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Plan Category</label>
+                <select
+                  className="w-full rounded-xl border border-orange-200/70 p-3"
+                  name="type"
+                  value={form.type}
+                  onChange={handleChange}
+                >
+                  <option value="dropin">Drop-in</option>
+                  <option value="pack">Pack / Packaged</option>
+                  <option value="term">Term / Weekly</option>
+                  <option value="subscription">Subscription</option>
+                  <option value="time-based">Time-Based Access</option>
+                  <option value="credit-based">Credit-Based</option>
+                </select>
+              </div>
             </div>
-            <div className="grid gap-3 md:grid-cols-4">
-              <input
-                className="rounded-xl border border-orange-200/70 p-3"
-                name="durationWeeks"
-                type="number"
-                placeholder="Duration (weeks)"
-                value={form.durationWeeks}
-                onChange={handleChange}
-              />
+
+            <div className="grid gap-3 md:grid-cols-2 pt-1">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Duration</label>
+                  <input
+                    className="w-full rounded-xl border border-orange-200/70 p-3"
+                    name="durationValue"
+                    type="number"
+                    placeholder="Dur"
+                    value={form.durationValue}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Unit</label>
+                  <select
+                    className="w-full rounded-xl border border-orange-200/70 p-3"
+                    name="durationUnit"
+                    value={form.durationUnit}
+                    onChange={handleChange}
+                  >
+                    <option value="days">Days</option>
+                    <option value="weeks">Weeks</option>
+                    <option value="months">Months</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="relative">
+                <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Sessions</label>
+                <input
+                  className={`w-full rounded-xl border border-orange-200/70 p-3 ${form.isUnlimited || form.type === 'credit-based' ? 'bg-slate-50 text-ink/20' : ''}`}
+                  name="classesIncluded"
+                  type="number"
+                  placeholder="Classes included"
+                  value={form.isUnlimited || form.type === 'credit-based' ? '' : form.classesIncluded}
+                  onChange={handleChange}
+                  disabled={form.isUnlimited || form.type === 'credit-based'}
+                />
+                <div className="mt-2 flex items-center gap-2 px-1">
+                  <input
+                    type="checkbox"
+                    id="isUnlimited"
+                    checked={form.isUnlimited}
+                    onChange={(e) => setForm(prev => ({ ...prev, isUnlimited: e.target.checked }))}
+                    className="h-4 w-4 rounded border-orange-200 text-coral focus:ring-coral"
+                  />
+                  <label htmlFor="isUnlimited" className="text-[10px] font-bold uppercase text-ink/40">Unlimited Sessions</label>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-4 border-t border-slate-50 pt-3">
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-ink/40 uppercase ml-2">Daily Booking Limit</label>
+                <input
+                  className="w-full rounded-xl border border-orange-200/70 p-3"
+                  name="dailyBookingLimit"
+                  type="number"
+                  placeholder="Daily Limit (0=∞)"
+                  value={form.dailyBookingLimit}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {form.type === 'credit-based' && (
+                <div className="space-y-1">
+                   <label className="text-[9px] font-bold text-ink/40 uppercase ml-2">Total Credits</label>
+                   <input
+                     className="w-full rounded-xl border border-orange-200/70 p-3 bg-indigo-50/30"
+                     name="creditsIncluded"
+                     type="number"
+                     placeholder="Credits"
+                     value={form.creditsIncluded}
+                     onChange={handleChange}
+                   />
+                </div>
+              )}
+
+              <div className="space-y-1">
+                 <label className="text-[9px] font-bold text-ink/40 uppercase ml-2">Cancel Window (hrs)</label>
+                 <input
+                   className="w-full rounded-xl border border-orange-200/70 p-3"
+                   name="cancellationWindow"
+                   type="number"
+                   placeholder="Window (e.g. 6)"
+                   value={form.cancellationWindow}
+                   onChange={handleChange}
+                 />
+              </div>
+
+              <div className="flex items-center gap-3 px-3 pt-4">
+                  <input
+                    type="checkbox"
+                    id="allowFreezing"
+                    checked={form.allowFreezing}
+                    onChange={(e) => setForm(prev => ({ ...prev, allowFreezing: e.target.checked }))}
+                    className="h-5 w-5 rounded border-orange-200 text-brand-blue"
+                  />
+                  <label htmlFor="allowFreezing" className="text-[10px] font-bold uppercase text-ink/40">Allow Freezing</label>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="md:col-span-1" />
               {form.type === 'subscription' && (
                 <select
                   className="rounded-xl border border-orange-200/70 p-3"
@@ -298,7 +439,7 @@ export default function PricingManagement() {
                     </div>
                 </div>
             )}
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-3">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Max Missed Sessions (Allow rescue)</label>
                 <input className="w-full rounded-xl border border-orange-200/70 p-3" name="maxAllowedMissed" type="number" value={form.maxAllowedMissed} onChange={handleChange} />
@@ -307,7 +448,7 @@ export default function PricingManagement() {
                 <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Expiry Buffer (Days)</label>
                 <input className="w-full rounded-xl border border-orange-200/70 p-3" name="expiryBufferDays" type="number" value={form.expiryBufferDays} onChange={handleChange} />
               </div>
-              <div className="space-y-1 md:col-span-2">
+              <div className="space-y-1 md:col-span-1">
                 <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Applied Tax Rule</label>
                 <select 
                   className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" 
@@ -360,9 +501,15 @@ export default function PricingManagement() {
                   <p className="font-semibold">{plan.name}</p>
                   <p className="text-xs text-ink/70">{plan.validity}</p>
                   <p className="text-xs text-ink/70">
-                    Type: {plan.type}
+                    {plan.classesIncluded === 0 ? '∞ Unlimited Classes' : (plan.type === 'credit-based' ? `${plan.creditsIncluded} Total Credits` : `${plan.classesIncluded} Classes`)}
+                  </p>
+                  <p className="text-xs text-ink/70">
+                    Type: <span className="capitalize">{plan.type?.replace('-', ' ')}</span>
                     {plan.type === 'subscription' && plan.billingCycle !== 'none' && ` (${plan.billingCycle})`}
                   </p>
+                  {plan.dailyBookingLimit > 0 && (
+                     <p className="text-[9px] font-bold text-coral uppercase tracking-tighter">Max {plan.dailyBookingLimit} bookings/day</p>
+                  )}
                 </div>
                 <p className="text-sm font-semibold text-ocean">AED {plan.price}</p>
               </div>

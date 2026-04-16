@@ -248,7 +248,11 @@ export default function Pricing() {
         claimBogo,
         bogoChildId: bogoChildId || selectedChildId,
         membershipUnits,
-        startDate
+        startDate,
+        discountAmount,
+        couponCode: appliedCoupon?.code,
+        couponAmount: currentCouponAmount,
+        promotionId: selectedPromo?._id
       });
 
       setMessage(paymentType === 'online' ? 'Payment successful! Your schedule has been generated.' : 'Booking confirmed! Please pay at the center to activate.');
@@ -449,34 +453,118 @@ export default function Pricing() {
       {/* Details Modal */}
       {detailsPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm" onClick={() => setDetailsPlan(null)}>
-          <div className="relative w-full max-w-lg bg-white rounded-[2.5rem] p-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-2xl font-black mb-4">{detailsPlan.name}</h2>
-            <div className="space-y-4 text-sm font-bold text-ink/60">
-              <p>{detailsPlan.tagline}</p>
-              <div className="grid grid-cols-2 gap-4 pt-4">
-                <div className="bg-slate-50 p-4 rounded-2xl">
-                  <p className="text-xs uppercase text-ink/30 mb-1">Classes</p>
-                  <p className="text-xl font-black text-brand-blue">{detailsPlan.classesIncluded || '∞'}</p>
+          <div className="relative w-full max-w-lg bg-white rounded-[2.5rem] p-8 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Header with Close Button */}
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-blue/40">Membership Details</span>
+                <h2 className="text-3xl font-black text-ink mt-1">{detailsPlan.name}</h2>
+              </div>
+              <button 
+                onClick={() => setDetailsPlan(null)}
+                className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-ink/30 hover:bg-slate-100 hover:text-coral transition-all"
+                title="Close"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+              {/* Tagline */}
+              {detailsPlan.tagline && (
+                <p className="text-sm font-bold text-ink/50 italic leading-relaxed">"{detailsPlan.tagline}"</p>
+              )}
+
+              {/* Core Specs Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-50">
+                  <p className="text-[9px] font-black uppercase text-ink/30 mb-1">Entitlement</p>
+                  <p className="text-xl font-black text-brand-blue">
+                    {detailsPlan.type === 'credit-based' ? `${detailsPlan.creditsIncluded} Credits` : (detailsPlan.classesIncluded || '∞ Unlimited')}
+                  </p>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-2xl">
-                  <p className="text-xs uppercase text-ink/30 mb-1">Duration</p>
-                  <p className="text-xl font-black text-brand-blue">{detailsPlan.durationWeeks || '—'} Weeks</p>
+                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-50">
+                  <p className="text-[9px] font-black uppercase text-ink/30 mb-1">Validity</p>
+                  <p className="text-xl font-black text-brand-blue">{detailsPlan.validity || `${detailsPlan.durationWeeks} Weeks`}</p>
                 </div>
               </div>
-              <ul className="space-y-2">
-                {detailsPlan.benefits?.map((b, i) => (
-                  <li key={i} className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> {b}
-                  </li>
-                ))}
-              </ul>
+
+              {/* Advanced Specs Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                 <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50/30 border border-indigo-50">
+                    <span className="text-lg">🏋️</span>
+                    <div>
+                       <p className="text-[8px] font-black uppercase text-indigo-400">Session Mode</p>
+                       <p className="text-xs font-bold text-ink capitalize">{detailsPlan.sessionType || 'Group'} Session</p>
+                    </div>
+                 </div>
+                 <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50/30 border border-emerald-50">
+                    <span className="text-lg">🗓️</span>
+                    <div>
+                       <p className="text-[8px] font-black uppercase text-emerald-500">Access Days</p>
+                       <p className="text-xs font-bold text-ink capitalize">{detailsPlan.validDays === 'both' ? 'All Days' : detailsPlan.validDays}</p>
+                    </div>
+                 </div>
+              </div>
+
+              {/* Trainer Info (Added) */}
+              {detailsPlan.trainerId && (
+                 <div className="flex items-center gap-4 p-4 rounded-2xl bg-brand-blue/5 border border-brand-blue/10 animate-in slide-in-from-bottom-2 duration-300">
+                    {detailsPlan.trainerId.avatarUrl ? (
+                       <img src={detailsPlan.trainerId.avatarUrl} alt={detailsPlan.trainerId.name} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm" />
+                    ) : (
+                       <div className="w-12 h-12 rounded-full bg-brand-blue/10 flex items-center justify-center text-xl">👤</div>
+                    )}
+                    <div>
+                       <p className="text-[9px] font-black uppercase tracking-widest text-brand-blue">Dedicated Trainer</p>
+                       <p className="text-sm font-black text-ink">{detailsPlan.trainerId.name}</p>
+                       <p className="text-[9px] font-bold text-ink/40 uppercase">Assigned for all sessions</p>
+                    </div>
+                 </div>
+              )}
+
+              {/* Limits & Rules */}
+              <div className="bg-brand-blue/5 rounded-3xl p-5 space-y-3">
+                 <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue mb-2">Membership Rules</p>
+                 <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-ink/60">Daily Booking Limit</span>
+                    <span className="text-xs font-black text-ink">{detailsPlan.dailyBookingLimit > 0 ? `${detailsPlan.dailyBookingLimit} Classes` : 'Unlimited'}</span>
+                 </div>
+                 <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-ink/60">Cancel Window</span>
+                    <span className="text-xs font-black text-ink">{detailsPlan.extensionRules?.cancellationWindow || 6} Hours</span>
+                 </div>
+                 <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-ink/60">Freeze Option</span>
+                    <span className="text-xs font-black text-emerald-600">{detailsPlan.extensionRules?.allowFreezing ? '✓ Supported' : '× Not Supported'}</span>
+                 </div>
+              </div>
+
+              {/* Benefits Section */}
+              {detailsPlan.benefits?.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 pl-1">Included Benefits</p>
+                  <ul className="space-y-2.5">
+                    {detailsPlan.benefits.map((b, i) => (
+                      <li key={i} className="flex items-center gap-3 text-sm font-bold text-ink/70 bg-white p-3 rounded-xl border border-slate-50 shadow-sm">
+                        <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">✓</div>
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-            <button
-              onClick={() => { setDetailsPlan(null); openCheckout(detailsPlan); }}
-              className="mt-8 w-full rounded-2xl bg-brand-blue py-4 text-white font-black shadow-lg"
-            >
-              Book This Plan
-            </button>
+
+            <div className="mt-8 pt-4 border-t border-slate-50">
+               <button
+                 onClick={() => { setDetailsPlan(null); openCheckout(detailsPlan); }}
+                 className="w-full rounded-2xl bg-brand-blue py-5 text-white font-black shadow-lg shadow-brand-blue/20 hover:shadow-brand-blue/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+               >
+                 Book This Plan
+               </button>
+               <p className="text-[9px] font-bold text-ink/20 text-center uppercase tracking-widest mt-4">Safe & Secure Payment via Stripe</p>
+            </div>
           </div>
         </div>
       )}

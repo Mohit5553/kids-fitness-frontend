@@ -122,8 +122,11 @@ function TimeView({ sessions }) {
                         <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${s.attendanceStatus === 'present' ? 'bg-emerald-50 text-emerald-500' :
                           s.attendanceStatus === 'absent' ? 'bg-rose-50 text-rose-500' : 'bg-brand-blue/5 text-brand-blue'
                           }`}>
-                          {s.attendanceStatus}
+                          {s.attendanceStatus === 'trainer-cancelled' ? 'Protected' : s.attendanceStatus}
                         </span>
+                        {s.attendanceStatus === 'trainer-cancelled' && (
+                           <span className="text-[7px] font-black text-emerald-600 uppercase bg-emerald-50 px-1.5 py-0.5 rounded shadow-sm">Trainer Cancelled</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -229,10 +232,12 @@ export default function Membership() {
     }
 
     try {
+      const payableAmount = Math.max(0, (selectedPlan.price || 0) - (couponAmount || 0));
+
       // 1. Create Payment
       const payment = await api.post('/payments', {
         planId: selectedPlan._id,
-        amount: selectedPlan.price,
+        amount: Math.round(payableAmount * 100) / 100,
         paymentMethod: 'card',
         reference: `mock_dash_${Date.now()}`,
         last4: cardForm.number.slice(-4),
@@ -260,6 +265,19 @@ export default function Membership() {
       fetchMemberships();
     } catch (err) {
       setError(err.response?.data?.message || 'Checkout failed. Please check your card details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleFreeze = async (mId) => {
+    try {
+      setLoading(true);
+      const res = await api.post(`/memberships/${mId}/freeze`);
+      setMessage(res.data.message);
+      fetchMemberships();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Action failed');
     } finally {
       setLoading(false);
     }
@@ -383,26 +401,58 @@ export default function Membership() {
                         <div className="space-y-4">
                           <p className="text-sm font-black text-ink tracking-tight">{m.planId?.name || 'Standard Package'}</p>
                           <div className="space-y-2">
-                            <div className="flex justify-between items-center pr-12">
-                              <span className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Usage</span>
-                              <span className="text-[9px] font-black text-brand-blue uppercase tracking-widest">
-                                {remaining}/{totalSessions}
-                              </span>
-                            </div>
-                            <div className="w-full max-w-[200px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-brand-blue to-teal-400 rounded-full transition-all duration-700 shadow-sm"
-                                style={{ width: `${totalSessions > 0 ? (used / totalSessions) * 100 : 0}%` }}
-                              />
-                            </div>
+                            {m.classesRemaining === -1 ? (
+                              /* Unlimited / Time plan */
+                              <div className="flex flex-col gap-2">
+                                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${m.planId?.type === 'time-based' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
+                                   {m.planId?.type === 'time-based' ? '⌛ Time Access' : '∞ Unlimited'}
+                                </span>
+                                {m.planId?.dailyBookingLimit > 0 && (
+                                   <p className="text-[8px] font-bold text-ink/20 uppercase tracking-widest">Limit: {m.planId.dailyBookingLimit}/day</p>
+                                )}
+                              </div>
+                            ) : m.planId?.type === 'credit-based' ? (
+                               /* Credit-based plan */
+                               <div className="space-y-2">
+                                 <div className="flex justify-between items-center pr-12">
+                                   <span className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Credits</span>
+                                   <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">
+                                     {m.creditsRemaining}/{ (m.planId.creditsIncluded || 0) * (m.membershipUnits || 1) }
+                                   </span>
+                                 </div>
+                                 <div className="w-full max-w-[200px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                   <div
+                                     className="h-full bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full transition-all duration-700 shadow-sm"
+                                     style={{ width: `${((m.planId.creditsIncluded || 0) * (m.membershipUnits || 1)) > 0 ? (m.creditsRemaining / ((m.planId.creditsIncluded || 0) * (m.membershipUnits || 1))) * 100 : 0}%` }}
+                                   />
+                                 </div>
+                               </div>
+                            ) : (
+                               /* Standard Session-based plan */
+                               <>
+                                 <div className="flex justify-between items-center pr-12">
+                                   <span className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Usage</span>
+                                   <span className="text-[9px] font-black text-brand-blue uppercase tracking-widest">
+                                     {remaining}/{totalSessions}
+                                   </span>
+                                 </div>
+                                 <div className="w-full max-w-[200px] h-1.5 bg-slate-100 rounded-full overflow-hidden" title="Sessions Remaining">
+                                   <div
+                                     className="h-full bg-gradient-to-r from-brand-blue to-teal-400 rounded-full transition-all duration-700 shadow-sm"
+                                     style={{ width: `${totalSessions > 0 ? (remaining / totalSessions) * 100 : 0}%` }}
+                                   />
+                                 </div>
+                               </>
+                            )}
                           </div>
                         </div>
 
                         {/* Status Column */}
                         <div className="text-center">
                           <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest ${m.status === 'active' ? 'bg-emerald-50 text-emerald-500 shadow-sm shadow-emerald-500/10 border border-emerald-100' :
-                              m.status === 'expired' ? 'bg-rose-50 text-rose-500 border border-rose-100' :
-                                'bg-slate-50 text-slate-400 border border-slate-100'}`}>
+                               m.status === 'frozen' ? 'bg-indigo-50 text-indigo-500 border border-indigo-200 animate-pulse' :
+                               m.status === 'expired' ? 'bg-rose-50 text-rose-500 border border-rose-100' :
+                                 'bg-slate-50 text-slate-400 border border-slate-100'}`}>
                             {m.status || 'Active'}
                           </span>
                         </div>
@@ -415,7 +465,24 @@ export default function Membership() {
                           </div>
                           <div className="flex items-center gap-6">
                             <span className="text-[9px] font-black text-ink/20 uppercase tracking-[0.2em] w-8">End</span>
-                            <span className="text-[10px] font-black text-ink">{new Date(m.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                            <div className="flex flex-col gap-1">
+                              {/* Show old date crossed out if membership was extended */}
+                              {m.previousEndDate && (
+                                <span className="text-[10px] font-black text-rose-400 line-through decoration-rose-400 decoration-2">
+                                  {new Date(m.previousEndDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </span>
+                              )}
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10px] font-black ${m.previousEndDate ? 'text-emerald-600' : 'text-ink'}`}>
+                                  {new Date(m.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </span>
+                                {m.previousEndDate && (
+                                  <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[7px] font-black uppercase tracking-widest border border-emerald-100">
+                                    Extended
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
 
@@ -427,20 +494,38 @@ export default function Membership() {
                           >
                             View Schedule
                           </button>
-                          <button
-                            onClick={() => setShowExtensionRequest({ membershipId: m._id, type: 'extend' })}
-                            className="w-full max-w-[120px] px-4 py-2 border border-brand-blue/20 text-brand-blue text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-brand-blue/5 transition-all flex items-center justify-center gap-2"
-                          >
-                            <span>➕</span> Extend
-                          </button>
-                          {m.bookingId && (
-                            <button
-                              onClick={() => navigate(`/invoice/booking/${m.bookingId._id || m.bookingId}`)}
-                              className="w-full max-w-[120px] px-4 py-2 border border-slate-100 text-ink/30 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 hover:text-brand-blue transition-all flex items-center justify-center gap-2"
-                            >
-                              <span>📄</span> Invoice
-                            </button>
-                          )}
+                           {m.status === 'active' && m.planId?.allowFreezing && (
+                              <button
+                                onClick={() => handleToggleFreeze(m._id)}
+                                className="w-full max-w-[120px] px-4 py-2 border border-slate-100 text-ink/30 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 hover:text-indigo-400 transition-all flex items-center justify-center gap-2"
+                              >
+                                <span>⏸</span> Pause
+                              </button>
+                           )}
+                           {m.status === 'frozen' && (
+                              <button
+                                onClick={() => handleToggleFreeze(m._id)}
+                                className="w-full max-w-[120px] px-4 py-2 bg-indigo-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-all hover:-translate-y-0.5"
+                              >
+                                Resume
+                               </button>
+                            )}
+                            {m.status === 'active' && (
+                               <button
+                                 onClick={() => setShowExtensionRequest({ membershipId: m._id, endDate: m.endDate, type: 'extend' })}
+                                 className="w-full max-w-[120px] px-4 py-2 border border-slate-100 text-ink/30 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 hover:text-emerald-500 transition-all flex items-center justify-center gap-2"
+                               >
+                                 <span>⏳</span> Extend
+                               </button>
+                            )}
+                           {m.bookingId && (
+                              <button
+                                onClick={() => navigate(`/invoice/booking/${m.bookingId._id || m.bookingId}`)}
+                                className="w-full max-w-[120px] px-4 py-2 border border-slate-100 text-ink/30 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 hover:text-brand-blue transition-all flex items-center justify-center gap-2"
+                              >
+                                <span>📄</span> Invoice
+                              </button>
+                           )}
                         </div>
                       </div>
                     );
