@@ -21,6 +21,7 @@ export default function AdminDashboard() {
     { to: `${base}/roles`, title: 'Role Master', desc: 'Define granular CRUD permissions.', perm: 'roles:view' },
     { to: `${base}/promotions`, title: 'Promotions', desc: 'Create and manage discount campaigns.', perm: 'promotions:view' },
     { to: `${base}/trials`, title: 'Trial requests', desc: 'Follow up with new leads.', perm: 'trials:view' },
+    { to: `${base}/leads`, title: 'General Inquiries', desc: 'View messages from the contact form.', perm: 'trials:view' },
     { to: `${base}/attendance`, title: 'Attendance', desc: 'Track and verify member attendance.', perm: 'attendance:view' },
     { to: `${base}/payments`, title: 'Payments', desc: 'Monitor transactions and exports.', perm: 'payments:view' },
     { to: `${base}/locations`, title: 'Locations', desc: 'Add or remove gym branches.', perm: 'locations:view' },

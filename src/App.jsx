@@ -58,6 +58,7 @@ import PaymentsManagement from './pages/admin/PaymentsManagement.jsx';
 import LocationManagement from './pages/admin/LocationManagement.jsx';
 import SpecialtiesManagement from './pages/admin/SpecialtiesManagement.jsx';
 import RoleMaster from './pages/admin/RoleMaster.jsx';
+import LeadsManagement from './pages/admin/LeadsManagement.jsx';
 import CorporateBooking from './pages/admin/CorporateBooking.jsx';
 import SystemSettings from './pages/admin/SystemSettings.jsx';
 import ExtensionPanel from './pages/admin/ExtensionPanel.jsx';
@@ -154,6 +155,7 @@ export default function App() {
 
             <Route element={<RequirePermission permission="trials:view" />}>
               <Route path="/:roleSlug/trials" element={<TrialsManagement />} />
+              <Route path="/:roleSlug/leads" element={<LeadsManagement />} />
             </Route>
 
             <Route element={<RequirePermission permission="payments:view" />}>
