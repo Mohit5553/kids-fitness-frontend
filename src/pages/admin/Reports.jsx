@@ -49,14 +49,24 @@ export default function Reports() {
       let data = res.data || [];
       
       // Process bookings to extract capacity and timing
-      if (reportType === 'bookings') {
-        data = data.map(item => ({
+      if (reportType === 'bookings' || reportType === 'payments') {
+        const process = (list) => (list || []).map(item => ({
           ...item,
           capacity: item.classId?.capacity || 'N/A',
+          combinedDiscount: (Number(item.discountAmount) || 0) + (Number(item.couponAmount) || 0),
           slotTiming: item.sessionId ? (
             `${new Date(item.sessionId.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} - ${item.sessionId.endTime ? new Date(item.sessionId.endTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}`
           ) : 'N/A'
         }));
+
+        if (reportType === 'bookings' && data.purchases) {
+          data = {
+            purchases: process(data.purchases),
+            sessions: process(data.sessions)
+          };
+        } else {
+          data = process(data);
+        }
       }
       
       setReportData(data);
@@ -159,9 +169,21 @@ export default function Reports() {
       { key: 'transactionId', label: 'Txn ID' },
       { key: 'paymentStatus', label: 'Payment' },
       { key: 'promotionId', label: 'Promotion' },
-      { key: 'discountAmount', label: 'Discount' },
+      { key: 'combinedDiscount', label: 'Discount' },
       { key: 'processedBy', label: 'Cashier' },
       { key: 'locationId', label: 'Location' },
+    ],
+    membership_sessions: [
+      { key: 'bookingNumber', label: 'Session Ref.' },
+      { key: 'userId', label: 'Member' },
+      { key: 'participants', label: 'Students' },
+      { key: 'classId', label: 'Class' },
+      { key: 'sessionId', label: 'Trainer' },
+      { key: 'slotTiming', label: 'Slot Timing' },
+      { key: 'date', label: 'Session Date' },
+      { key: 'status', label: 'Activity' },
+      { key: 'method', label: 'Check-in' },
+      { key: 'locationId', label: 'Branch' },
     ],
     classes: [
       { key: 'title', label: 'Title' },
@@ -204,7 +226,7 @@ export default function Reports() {
       { key: 'paymentMethod', label: 'Method' },
       { key: 'status', label: 'Status' },
       { key: 'promotionId', label: 'Promotion' },
-      { key: 'discountAmount', label: 'Discount' },
+      { key: 'combinedDiscount', label: 'Discount' },
       { key: 'processedBy', label: 'Cashier' },
       { key: 'reference', label: 'Reference' },
     ],
@@ -297,7 +319,7 @@ export default function Reports() {
       return <span title={value} className="truncate max-w-[150px] inline-block">{value}</span>;
     }
 
-    if (key === 'status' || key === 'paymentStatus' || key === 'sessionStatus') {
+    if (key === 'status' || key === 'paymentStatus' || key === 'sessionStatus' || key === 'refundStatus') {
       const colors = {
         active: 'text-moss bg-moss/10',
         inactive: 'text-ink/40 bg-slate-100',
@@ -309,7 +331,9 @@ export default function Reports() {
         failed: 'text-red-600 bg-red-50',
         new: 'text-brand-blue bg-brand-blue/10',
         open: 'text-brand-blue bg-brand-blue/10',
-        closed: 'text-ink/40 bg-slate-100'
+        closed: 'text-ink/40 bg-slate-100',
+        requested: 'text-amber-600 bg-amber-50',
+        refunded: 'text-rose-600 bg-rose-50 border border-rose-100'
       };
       const statusValue = String(value).toLowerCase();
       return <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${colors[statusValue] || 'bg-slate-50'}`}>{value}</span>;
@@ -318,11 +342,15 @@ export default function Reports() {
     return String(value);
   };
 
-  const filteredData = reportData.filter(item => {
-    if (!searchQuery) return true;
+  const filterList = (list) => {
+    if (!searchQuery) return list;
     const q = searchQuery.toLowerCase();
-    return JSON.stringify(item).toLowerCase().includes(q);
-  });
+    return (list || []).filter(item => JSON.stringify(item).toLowerCase().includes(q));
+  };
+
+  const filteredData = reportType === 'bookings' && reportData.purchases 
+    ? { purchases: filterList(reportData.purchases), sessions: filterList(reportData.sessions) }
+    : filterList(reportData);
 
   const columns = COLUMNS[reportType] || [];
 
@@ -456,57 +484,122 @@ export default function Reports() {
           </div>
         )}
 
-        {/* Results Table */}
-        <div className="bg-white rounded-[32px] overflow-hidden shadow-sm border border-slate-200/60">
-          <div className="overflow-x-auto min-h-[400px]">
-            <table className="w-full text-left border-collapse table-auto">
-              <thead className="bg-[#F8FAFC] border-b border-slate-100">
-                <tr>
-                  {columns.map(col => (
-                    <th key={col.key} className="px-6 py-5 text-[10px] font-black text-ink/40 uppercase tracking-widest whitespace-nowrap">{col.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {loading ? (
-                  Array(5).fill(0).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      {columns.map((_, j) => (
-                        <td key={j} className="px-6 py-5"><div className="h-4 bg-slate-50 rounded-lg w-full"></div></td>
-                      ))}
-                    </tr>
-                  ))
-                ) : filteredData.length > 0 ? filteredData.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/40 transition-colors group">
+        {/* Results Sections */}
+        {reportType === 'bookings' && filteredData.purchases ? (
+          <div className="flex flex-col gap-10">
+            <ReportSection 
+              title="Orders & Revenue (Single & Package Purchases)" 
+              data={filteredData.purchases} 
+              columns={COLUMNS.bookings} 
+              renderValue={renderValue}
+              loading={loading}
+            />
+            <ReportSection 
+              title="Membership Utilization (Usage Sessions)" 
+              data={filteredData.sessions} 
+              columns={COLUMNS.membership_sessions} 
+              renderValue={renderValue}
+              loading={loading}
+            />
+          </div>
+        ) : (
+          <div className="bg-white rounded-[32px] overflow-hidden shadow-sm border border-slate-200/60">
+            <div className="overflow-x-auto min-h-[400px]">
+              <table className="w-full text-left border-collapse table-auto">
+                <thead className="bg-[#F8FAFC] border-b border-slate-100">
+                  <tr>
                     {columns.map(col => (
-                      <td key={col.key} className="px-6 py-5 text-[11px] font-bold text-ink/70">
-                        {renderValue(col.key, item[col.key])}
-                      </td>
+                      <th key={col.key} className="px-6 py-5 text-[10px] font-black text-ink/40 uppercase tracking-widest whitespace-nowrap">{col.label}</th>
                     ))}
                   </tr>
-                )) : (
-                  <tr>
-                    <td colSpan="100" className="px-6 py-32 text-center">
-                       <div className="text-5xl mb-6 opacity-20">📊</div>
-                       <h3 className="font-display text-2xl text-ink font-bold">No results found</h3>
-                       <p className="text-sm text-ink/40 mt-2 max-w-xs mx-auto font-medium">Try broadening your filters or selecting a different data source.</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          {filteredData.length > 0 && (
-            <div className="px-8 py-5 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center">
-              <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest">
-                Showing {filteredData.length} records
-              </p>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {loading ? (
+                    Array(5).fill(0).map((_, i) => (
+                      <tr key={i} className="animate-pulse">
+                        {columns.map((_, j) => (
+                          <td key={j} className="px-6 py-5"><div className="h-4 bg-slate-50 rounded-lg w-full"></div></td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : filteredData.length > 0 ? filteredData.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50/40 transition-colors group">
+                      {columns.map(col => (
+                        <td key={col.key} className="px-6 py-5 text-[11px] font-bold text-ink/70">
+                          {renderValue(col.key, item[col.key])}
+                        </td>
+                      ))}
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan="100" className="px-6 py-32 text-center">
+                        <div className="text-5xl mb-6 opacity-20">📊</div>
+                        <h3 className="font-display text-2xl text-ink font-bold">No results found</h3>
+                        <p className="text-sm text-ink/40 mt-2 max-w-xs mx-auto font-medium">Try broadening your filters or selecting a different data source.</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
+            {filteredData.length > 0 && (
+              <div className="px-8 py-5 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center">
+                <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest">
+                  Showing {filteredData.length} records
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </main>
       <Footer />
     </div>
   );
 }
 
+function ReportSection({ title, data, columns, renderValue, loading }) {
+  return (
+    <div className="bg-white rounded-[32px] overflow-hidden shadow-sm border border-slate-200/60">
+      <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between">
+        <h2 className="text-[11px] font-black text-brand-blue uppercase tracking-[0.2em]">{title}</h2>
+        <span className="text-[10px] font-bold text-ink/30 bg-white border border-slate-100 px-3 py-1 rounded-full">{data.length} Records</span>
+      </div>
+      <div className="overflow-x-auto min-h-[200px]">
+        <table className="w-full text-left border-collapse table-auto">
+          <thead className="bg-[#F8FAFC] border-b border-slate-100">
+            <tr>
+              {columns.map(col => (
+                <th key={col.key} className="px-6 py-5 text-[10px] font-black text-ink/40 uppercase tracking-widest whitespace-nowrap">{col.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {loading ? (
+              Array(3).fill(0).map((_, i) => (
+                <tr key={i} className="animate-pulse">
+                  {columns.map((_, j) => (
+                    <td key={j} className="px-6 py-5"><div className="h-4 bg-slate-50 rounded-lg w-full"></div></td>
+                  ))}
+                </tr>
+              ))
+            ) : data.length > 0 ? data.map((item, idx) => (
+              <tr key={idx} className="hover:bg-slate-50/40 transition-colors group">
+                {columns.map(col => (
+                  <td key={col.key} className="px-6 py-5 text-[11px] font-bold text-ink/70">
+                    {renderValue(col.key, item[col.key])}
+                  </td>
+                ))}
+              </tr>
+            )) : (
+              <tr>
+                <td colSpan="100" className="px-6 py-20 text-center">
+                  <span className="text-sm text-ink/30 font-medium">No records matching the filter in this section.</span>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

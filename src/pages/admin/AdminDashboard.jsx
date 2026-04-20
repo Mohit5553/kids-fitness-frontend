@@ -15,7 +15,7 @@ export default function AdminDashboard() {
     { to: `${base}/classes`, title: 'Classes', desc: 'Create and update programs.', perm: 'classes:view' },
     { to: `${base}/sessions`, title: 'Session calendar', desc: 'Schedule classes and copy QR tokens.', perm: 'sessions:view' },
     { to: `${base}/trainers`, title: 'Trainers', desc: 'Manage coach profiles and status.', perm: 'trainers:view' },
-    { to: `${base}/pricing`, title: 'Pricing', desc: 'Update plan pricing and benefits.', perm: 'pricing:view' },
+    { to: `${base}/pricing`, title: 'Add Membership', desc: 'Update plan pricing and benefits.', perm: 'pricing:view' },
     { to: `${base}/bookings`, title: 'Bookings', desc: 'Approve or cancel class requests.', perm: 'bookings:view' },
     { to: `${base}/users`, title: 'Users', desc: 'Update roles and manage accounts.', perm: 'users:view' },
     { to: `${base}/roles`, title: 'Role Master', desc: 'Define granular CRUD permissions.', perm: 'roles:view' },

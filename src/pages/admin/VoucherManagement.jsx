@@ -137,10 +137,22 @@ export default function VoucherManagement() {
   const displayGroups = [];
   const processedBatches = new Set();
 
+  const getVisualStatus = (item) => {
+    if (item.status === 'redeemed') return 'redeemed';
+    if (item.status === 'expired' || new Date(item.expiryDate) < new Date()) return 'expired';
+    return item.status;
+  };
+
   coupons.forEach(coupon => {
     if (coupon.batchId) {
       if (!processedBatches.has(coupon.batchId)) {
         const batchItems = coupons.filter(c => c.batchId === coupon.batchId);
+        const statuses = new Set(batchItems.map(getVisualStatus));
+        let batchStatus = 'active';
+        if (statuses.size > 1) batchStatus = 'mixed';
+        else if (statuses.has('expired')) batchStatus = 'expired';
+        else if (statuses.has('redeemed')) batchStatus = 'redeemed';
+
         displayGroups.push({
           type: 'batch',
           id: coupon.batchId,
@@ -149,7 +161,7 @@ export default function VoucherManagement() {
           amount: coupon.amount,
           expiryDate: coupon.expiryDate,
           couponType: coupon.type,
-          status: batchItems.every(i => i.status === 'active') ? 'active' : 'mixed'
+          status: batchStatus
         });
         processedBatches.add(coupon.batchId);
       }
@@ -241,10 +253,11 @@ export default function VoucherManagement() {
                       </td>
                       <td className="px-8 py-6">
                         <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                          (group.type === 'batch' ? group.status : group.item.status) === 'active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                          (group.type === 'batch' ? group.status : getVisualStatus(group.item)) === 'active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                          (group.type === 'batch' ? group.status : getVisualStatus(group.item)) === 'redeemed' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' :
                           'bg-rose-50 text-rose-600 border border-rose-100'
                         }`}>
-                          {group.type === 'batch' ? group.status : group.item.status}
+                          {((group.type === 'batch' ? group.status : getVisualStatus(group.item)) === 'redeemed') ? 'Used' : (group.type === 'batch' ? group.status : getVisualStatus(group.item))}
                         </span>
                       </td>
                       <td className="px-8 py-6 text-sm font-bold text-ink/40">
@@ -329,6 +342,7 @@ export default function VoucherManagement() {
                          <tr className="bg-white">
                             <th className="px-10 py-5 text-[10px] font-black text-ink/20 uppercase tracking-widest border-b border-slate-50">S.No</th>
                             <th className="px-10 py-5 text-[10px] font-black text-ink/20 uppercase tracking-widest border-b border-slate-50">Voucher Code</th>
+                            <th className="px-10 py-5 text-[10px] font-black text-ink/20 uppercase tracking-widest border-b border-slate-50">Status</th>
                             <th className="px-10 py-5 text-[10px] font-black text-ink/20 uppercase tracking-widest border-b border-slate-50">Created On</th>
                             <th className="px-10 py-5 text-[10px] font-black text-ink/20 uppercase tracking-widest border-b border-slate-50 text-right">Action</th>
                          </tr>
@@ -338,6 +352,15 @@ export default function VoucherManagement() {
                            <tr key={item._id} className="group hover:bg-slate-50/50 transition-colors">
                               <td className="px-10 py-5 text-sm font-bold text-ink/20">{(modalPage - 1) * modalItemsPerPage + idx + 1}</td>
                               <td className="px-10 py-5 font-mono text-lg font-black text-brand-blue">{item.code}</td>
+                              <td className="px-10 py-5">
+                                 <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                                    item.status === 'active' ? 'bg-emerald-50 text-emerald-600' :
+                                    item.status === 'redeemed' ? 'bg-indigo-50 text-indigo-600' :
+                                    'bg-rose-50 text-rose-600'
+                                 }`}>
+                                    {item.status === 'redeemed' ? 'Used' : item.status}
+                                 </span>
+                              </td>
                               <td className="px-10 py-5 text-sm font-bold text-ink/40">{new Date(item.createdAt).toLocaleDateString()}</td>
                               <td className="px-10 py-5 text-right">
                                  <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all px-2">

@@ -10,6 +10,7 @@ export default function SystemSettings() {
   const [counters, setCounters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inputValues, setInputValues] = useState({});
+  const [globalSettings, setGlobalSettings] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   
   const { can } = usePermissions();
@@ -17,12 +18,19 @@ export default function SystemSettings() {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/settings/counters');
-      setCounters(res.data || []);
-      // Initialize input values
+      const [countersRes, globalRes] = await Promise.all([
+        api.get('/settings/counters'),
+        api.get('/settings/global')
+      ]);
+      
+      setCounters(countersRes.data || []);
       const vals = {};
-      res.data.forEach(c => { vals[c.name] = c.seq; });
+      countersRes.data.forEach(c => { vals[c.name] = c.seq; });
       setInputValues(vals);
+
+      const settingsMap = {};
+      globalRes.data.forEach(s => { settingsMap[s.key] = s.value; });
+      setGlobalSettings(settingsMap);
     } catch (err) {
       toast.error('Failed to load system settings');
     } finally {
@@ -59,6 +67,20 @@ export default function SystemSettings() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleToggleGlobal = async (key, currentValue) => {
+     setIsSaving(true);
+     const newValue = !currentValue;
+     try {
+        await api.put(`/settings/global/${key}`, { value: newValue });
+        setGlobalSettings({ ...globalSettings, [key]: newValue });
+        toast.success('Setting updated successfully');
+     } catch (err) {
+        toast.error('Failed to update setting');
+     } finally {
+        setIsSaving(false);
+     }
   };
 
   return (
@@ -136,6 +158,38 @@ export default function SystemSettings() {
                   <h5 className="text-[10px] font-black text-coral uppercase tracking-widest mb-1">Safety Lock</h5>
                   <p className="text-sm font-bold text-ink">Strict Unique Check Active</p>
                </div>
+            </div>
+          </section>
+          
+          {/* Payment Settings Section */}
+          <section className="soft-card rounded-[40px] p-8 border-2 border-slate-50 bg-white/80 backdrop-blur-sm">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-2xl">
+                💳
+              </div>
+              <div>
+                <h2 className="text-2xl font-display text-ink">Payment Configuration</h2>
+                <p className="text-sm text-ink/40">Manage visible payment methods for public checkout</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="p-6 rounded-3xl bg-slate-50/50 border border-slate-100 flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-ink mb-1">Allow "Pay at Center"</h4>
+                  <p className="text-xs text-ink/50 leading-relaxed max-w-sm">
+                    Enable this to allow users to book online and pay with cash or card physically at your location.
+                  </p>
+                </div>
+                
+                <button 
+                  onClick={() => handleToggleGlobal('allowCenterPayment', globalSettings.allowCenterPayment ?? true)}
+                  disabled={isSaving}
+                  className={`w-14 h-8 rounded-full transition-all relative flex items-center px-1 ${!!(globalSettings.allowCenterPayment ?? true) ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                >
+                  <div className={`w-6 h-6 rounded-full bg-white shadow-sm transition-all ${!!(globalSettings.allowCenterPayment ?? true) ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
             </div>
           </section>
 

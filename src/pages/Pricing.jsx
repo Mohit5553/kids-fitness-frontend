@@ -41,6 +41,7 @@ export default function Pricing() {
   // Payment State
   const [paymentType, setPaymentType] = useState('online'); // 'online' or 'center'
   const [isProcessing, setIsProcessing] = useState(false);
+  const [globalSettings, setGlobalSettings] = useState({});
 
   const fetchPlans = async () => {
     try {
@@ -56,6 +57,14 @@ export default function Pricing() {
 
   useEffect(() => {
     fetchPlans();
+    
+    // Fetch global settings
+    api.get('/settings/global').then(res => {
+      const settingsMap = {};
+      res.data.forEach(s => { settingsMap[s.key] = s.value; });
+      setGlobalSettings(settingsMap);
+    }).catch(() => {});
+
     const handleChange = () => fetchPlans();
     window.addEventListener('location-change', handleChange);
     return () => window.removeEventListener('location-change', handleChange);
@@ -221,6 +230,23 @@ export default function Pricing() {
     const last4 = paymentType === 'online' ? cardForm.number.replace(/\s/g, '').slice(-4) : undefined;
     const reference = paymentType === 'online' ? `mock_${Date.now()}` : `center_${Date.now()}`;
 
+    const user = getUser();
+    // GENDER VALIDATION
+    if (selectedPlan.gender && selectedPlan.gender !== 'mixed') {
+       let pGender = '';
+       if (selectedChildId === 'self') {
+          pGender = user?.gender;
+       } else if (selectedChildId) {
+          const child = children.find(c => c._id === selectedChildId);
+          pGender = child?.gender;
+       }
+
+       if (pGender && pGender !== 'other' && pGender !== selectedPlan.gender) {
+          setError(`Gender Mismatch: This membership is restricted to ${selectedPlan.gender}s only.`);
+          return;
+       }
+    }
+
     setIsProcessing(true);
     try {
       const payment = await api.post('/payments', {
@@ -241,12 +267,12 @@ export default function Pricing() {
       await api.post('/memberships', {
         planId: selectedPlan._id,
         paymentId: payment.data._id,
-        childId: selectedChildId,
+        childId: selectedChildId === 'self' ? null : (selectedChildId || null),
         preferredDays,
         preferredSlots,
         sessionsPerWeek: totalWeeklySessions,
         claimBogo,
-        bogoChildId: bogoChildId || selectedChildId,
+        bogoChildId: bogoChildId || (selectedChildId === 'self' ? null : selectedChildId),
         membershipUnits,
         startDate,
         discountAmount,
@@ -578,7 +604,7 @@ export default function Pricing() {
               <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">
                 {checkoutStep === 1 ? 'Step 1: Scheduling' : 'Step 2: Payment'}
               </p>
-              <h3 className="text-2xl font-black">{selectedPlan.name}</h3>
+              <h3 className="text-2xl font-black">{selectedPlan.name} — {selectedPlan.price} AED</h3>
               {checkoutStep === 2 && (
                 <button onClick={() => setCheckoutStep(1)} className="mt-4 text-[10px] font-black uppercase tracking-widest border border-white/30 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-all">← Back to scheduling</button>
               )}
@@ -598,6 +624,7 @@ export default function Pricing() {
                       className="w-full rounded-2xl bg-slate-50 p-4 text-sm font-bold focus:ring-4 focus:ring-brand-blue/5 outline-none"
                     >
                       <option value="">Choose a child...</option>
+                      <option value="self">Book for Self (Account Holder)</option>
                       {children.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                     </select>
                   </div>
@@ -782,6 +809,22 @@ export default function Pricing() {
                   <button
                     onClick={() => {
                       if (!selectedChildId || preferredDays.length === 0) return setError('Please complete selection.');
+                      
+                      const user = getUser();
+                      if (selectedPlan.gender && selectedPlan.gender !== 'mixed') {
+                         let pGender = '';
+                         if (selectedChildId === 'self') {
+                            pGender = user?.gender;
+                         } else {
+                            const child = children.find(c => c._id === selectedChildId);
+                            pGender = child?.gender;
+                         }
+
+                         if (pGender && pGender !== 'other' && pGender !== selectedPlan.gender) {
+                            return setError(`This membership is exclusively for ${selectedPlan.gender}s.`);
+                         }
+                      }
+
                       setError('');
                       setCheckoutStep(2);
                     }}
@@ -794,28 +837,30 @@ export default function Pricing() {
                 <div className="space-y-6 animate-in slide-in-from-left-4">
                   {/* Payment Method Selector */}
                   <div className="bg-slate-50 p-6 rounded-[32px] border border-slate-100 flex flex-col sm:flex-row gap-4">
-                     <button
-                        type="button"
-                        onClick={() => setPaymentType('online')}
-                        className={`flex-1 p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${paymentType === 'online' ? 'border-brand-blue bg-white shadow-xl' : 'border-transparent opacity-50 hover:bg-white/50'}`}
-                     >
-                        <span className="text-3xl">💳</span>
-                        <div className="text-center">
-                           <p className="text-sm font-black text-ink">Pay Online</p>
-                           <p className="text-[10px] font-bold text-ink/30 uppercase mt-1">Instant Activation</p>
-                        </div>
-                     </button>
-                     <button
-                        type="button"
-                        onClick={() => setPaymentType('center')}
-                        className={`flex-1 p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${paymentType === 'center' ? 'border-brand-blue bg-white shadow-xl' : 'border-transparent opacity-50 hover:bg-white/50'}`}
-                     >
-                        <span className="text-3xl">🏢</span>
-                        <div className="text-center">
-                           <p className="text-sm font-black text-ink">Pay at Center</p>
-                           <p className="text-[10px] font-bold text-ink/30 uppercase mt-1">Cash or Card on-site</p>
-                        </div>
-                     </button>
+                      <button
+                         type="button"
+                         onClick={() => setPaymentType('online')}
+                         className={`flex-1 p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${paymentType === 'online' ? 'border-brand-blue bg-white shadow-xl' : 'border-transparent opacity-50 hover:bg-white/50'}`}
+                      >
+                         <span className="text-3xl">💳</span>
+                         <div className="text-center">
+                            <p className="text-sm font-black text-ink">Pay Online</p>
+                            <p className="text-[10px] font-bold text-ink/30 uppercase mt-1">Instant Activation</p>
+                         </div>
+                      </button>
+                      {(globalSettings.allowCenterPayment ?? true) && (
+                        <button
+                          type="button"
+                          onClick={() => setPaymentType('center')}
+                          className={`flex-1 p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${paymentType === 'center' ? 'border-brand-blue bg-white shadow-xl' : 'border-transparent opacity-50 hover:bg-white/50'}`}
+                        >
+                          <span className="text-3xl">🏢</span>
+                          <div className="text-center">
+                              <p className="text-sm font-black text-ink">Pay at Center</p>
+                              <p className="text-[10px] font-bold text-ink/30 uppercase mt-1">Cash or Card on-site</p>
+                          </div>
+                        </button>
+                      )}
                   </div>
 
                   <div className="space-y-1">

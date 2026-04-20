@@ -219,6 +219,23 @@ export default function Membership() {
 
     if (!selectedPlan) return;
 
+    // GENDER VALIDATION
+    if (selectedPlan.gender && selectedPlan.gender !== 'mixed') {
+       let pGender = '';
+       if (!selectedChildId) {
+          pGender = user?.gender;
+       } else {
+          const child = children.find(c => c._id === selectedChildId);
+          pGender = child?.gender;
+       }
+
+       if (pGender && pGender !== 'other' && pGender !== selectedPlan.gender) {
+          setError(`Gender Mismatch: This membership is restricted to ${selectedPlan.gender}s only.`);
+          setLoading(false);
+          return;
+       }
+    }
+
     if (!selectedChildId && children.length > 0) {
       setError('Please select a child or choose Individual.');
       setLoading(false);

@@ -32,7 +32,7 @@ const emptyForm = {
   dailyBookingLimit: 0,
   cancellationWindow: 6,
   allowFreezing: false,
-  allowFreezing: false
+  gender: 'mixed'
 };
 
 export default function PricingManagement() {
@@ -111,7 +111,7 @@ export default function PricingManagement() {
       taxId: plan.taxId?._id || plan.taxId || '',
       creditsIncluded: plan.creditsIncluded ?? 0,
       dailyBookingLimit: plan.dailyBookingLimit ?? 0,
-      dailyBookingLimit: plan.dailyBookingLimit ?? 0
+      gender: plan.gender || 'mixed'
     });
   };
 
@@ -176,7 +176,7 @@ export default function PricingManagement() {
     <div>
       <Navbar />
       <main className="page-shell py-12">
-        <h1 className="font-display text-3xl">Pricing Management</h1>
+        <h1 className="font-display text-3xl">Add Membership</h1>
         <p className="mt-2 text-sm text-ink/70">Update plan pricing and benefits.</p>
         {message ? <p className="mt-3 text-sm text-coral">{message}</p> : null}
 
@@ -397,6 +397,14 @@ export default function PricingManagement() {
                   <option value="weekday">Weekdays (Mon-Fri)</option>
                   <option value="weekend">Weekends (Sat-Sun)</option>
                   <option value="both">All Days</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Target Gender</label>
+                <select className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" name="gender" value={form.gender} onChange={handleChange}>
+                  <option value="mixed">Mixed (All)</option>
+                  <option value="male">Male Only</option>
+                  <option value="female">Female Only</option>
                 </select>
               </div>
               <div className="space-y-1">
