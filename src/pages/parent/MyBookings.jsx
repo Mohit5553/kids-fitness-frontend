@@ -149,7 +149,7 @@ export default function MyBookings() {
       <main className="page-shell py-12">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <h1 className="font-display text-3xl">My Bookings</h1>
+            <h1 className="font-display text-3xl">My Booking</h1>
             <p className="mt-2 text-sm text-ink/70">Pay and manage your class bookings.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -192,8 +192,16 @@ export default function MyBookings() {
             </div>
           ) : filteredBookings.length > 0 ? (
             filteredBookings.map((booking) => (
-              <div key={booking._id} className="relative overflow-hidden rounded-2xl bg-white p-5 shadow-sm border border-black/5 transition hover:shadow-md">
-                <div className="flex flex-wrap items-start justify-between gap-4">
+              <div key={booking._id} className="relative overflow-hidden rounded-[32px] bg-white shadow-sm border border-black/5 transition hover:shadow-md group">
+                {booking.refundStatus && booking.refundStatus !== 'none' && (
+                  <div className={`py-2.5 px-8 text-center text-[10px] font-black uppercase tracking-[0.3em] shadow-sm ${
+                    booking.refundStatus === 'refunded' ? 'bg-rose-500 text-white' : 'bg-amber-400 text-ink'
+                  }`}>
+                    {booking.refundStatus === 'refunded' ? '✨ Order Processed & Refunded ✨' : '⏳ Refund Request Under Review ⏳'}
+                  </div>
+                )}
+                <div className="p-8">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex-1 min-w-[200px]">
                     <div className="flex items-center gap-2">
                       <p className="font-display text-lg font-semibold text-ink">
@@ -246,82 +254,84 @@ export default function MyBookings() {
                       </div>
                     )}
 
-                    {/* Progress Tracker */}
-                    <div className="mt-4 flex items-center gap-1">
-                      <div className="flex-1 flex flex-col gap-1.5">
-                        <div className="flex justify-between text-[8px] font-black uppercase tracking-wider text-ink/30 px-1">
-                          <span>Paid</span>
-                          <span>Attended</span>
-                          <span>Finalized</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden flex">
-                          <div className={`h-full transition-all duration-500 ${booking.status !== 'pending' && booking.status !== 'cancelled' ? 'w-1/3 bg-emerald-400' : 'w-0'}`} />
-                          <div className={`h-full transition-all duration-500 border-l border-white ${['attended', 'completed'].includes(booking.status) ? 'w-1/3 bg-sky-400' : 'w-0'}`} />
-                          <div className={`h-full transition-all duration-500 border-l border-white ${booking.status === 'completed' ? 'w-1/3 bg-indigo-400' : 'w-0'}`} />
-                        </div>
-                      </div>
-                    </div>
+                    {booking.refundStatus && booking.refundStatus !== 'none' && booking.refundStatus === 'declined' && booking.refundRejectionReason && (
+                      <p className="text-[10px] text-red-500 font-medium max-w-[150px] text-right">
+                        Reason: {booking.refundRejectionReason}
+                      </p>
+                    )}
 
-                    <div className="mt-4 pt-4 border-t border-slate-50 flex justify-end">
+                    <div className="mt-4 pt-4 border-t border-slate-50 flex items-center gap-4">
                       <Link
                         to={`/invoice/booking/${booking._id}`}
-                        className="text-[9px] font-black text-brand-blue uppercase tracking-widest hover:underline flex items-center gap-1.5"
+                        className="text-[9px] font-black text-brand-blue/40 uppercase tracking-widest hover:text-brand-blue transition-colors flex items-center gap-1.5"
                       >
-                        <span>📜</span> View Official Invoice
+                        <span>📜</span> View Invoice
                       </Link>
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-end gap-3">
-                    <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${booking.refundStatus === 'refunded' ? 'hidden' : // Hide if refunded
-                        booking.status === 'confirmed' ? 'bg-moss/10 text-moss' :
-                          (booking.status === 'pending' || (booking.paymentMethod === 'center' && booking.status === 'pending')) ? 'bg-amber-100 text-amber-600 border border-amber-200 shadow-sm' :
-                            'bg-red-100 text-red-600'
-                      }`}>
-                      {booking.paymentMethod === 'center' && booking.status === 'pending' ? 'Pending Payment' : booking.status}
-                    </span>
+                  <div className="flex flex-col items-end gap-3 min-w-[120px]">
+                    <div className="flex flex-col items-end gap-2">
+                       <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider shadow-sm border transition-all ${
+                          booking.refundStatus === 'refunded' ? 'bg-rose-100 text-rose-600 border-rose-200 shadow-rose-100/20' :
+                          booking.status === 'confirmed' ? 'bg-moss/10 text-moss border-transparent' :
+                          (booking.status === 'pending' || (booking.paymentMethod === 'center' && booking.status === 'pending')) ? 'bg-amber-100 text-amber-600 border-amber-200' :
+                          'bg-red-100 text-red-600 border-red-200'
+                       }`}>
+                         {booking.refundStatus === 'refunded' ? 'Refunded' : (booking.paymentMethod === 'center' && booking.status === 'pending' ? 'Pending Payment' : booking.status)}
+                       </span>
 
-                    {booking.refundStatus && booking.refundStatus !== 'none' && (
-                      <div className="flex flex-col items-end gap-1">
-                        <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${booking.refundStatus === 'requested' ? 'bg-sky-100 text-sky-700' :
-                          booking.refundStatus === 'refunded' ? 'bg-moss/20 text-moss' :
-                            'bg-red-50 text-red-400'
-                          }`}>
-                          Refund: {booking.refundStatus}
-                        </span>
-                        {booking.refundStatus === 'declined' && booking.refundRejectionReason && (
-                          <p className="text-[10px] text-red-500 font-medium max-w-[150px] text-right">
-                            Reason: {booking.refundRejectionReason}
-                          </p>
-                        )}
-                      </div>
-                    )}
+                       {booking.refundStatus && booking.refundStatus !== 'none' && booking.refundStatus !== 'refunded' && (
+                         <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider shadow-sm border ${
+                            booking.refundStatus === 'requested' ? 'bg-amber-100 text-amber-600 border-amber-200' :
+                            booking.refundStatus === 'refunded' ? 'bg-rose-100 text-rose-600 border-rose-200' :
+                            'bg-red-50 text-red-400 border-red-100'
+                         }`}>
+                           {booking.refundStatus === 'requested' ? 'Refund Requested' : booking.refundStatus === 'refunded' ? 'Refunded' : `Refund: ${booking.refundStatus}`}
+                         </span>
+                       )}
+                    </div>
 
-                    {booking.status !== 'confirmed' && booking.status !== 'cancelled' && booking.paymentStatus !== 'completed' && booking.paymentMethod !== 'center' ? (
-                      <button
-                        className="rounded-full bg-coral px-5 py-2 text-xs font-bold text-white shadow-lg shadow-coral/20 transition hover:scale-105 active:scale-95"
-                        onClick={() => openPayment(booking)}
-                      >
-                        Pay now
-                      </button>
-                    ) : booking.paymentMethod === 'center' && booking.paymentStatus === 'pending' ? (
-                      <p className="text-[10px] font-bold text-ink/30 italic">Please pay at the center front desk</p>
-                    ) : isRefundable(booking) ? (
-                      <button
-                        className="rounded-full border border-red-200 bg-red-50 px-5 py-2 text-xs font-bold text-red-600 transition hover:bg-red-100 hover:scale-105 active:scale-95"
-                        onClick={() => handleRefundRequest(booking._id)}
-                      >
-                        Request Refund
-                      </button>
-                    ) : null}
+                    <div className="mt-auto">
+                      {booking.status !== 'confirmed' && booking.status !== 'cancelled' && booking.paymentStatus !== 'completed' && booking.paymentMethod !== 'center' ? (
+                        <button
+                          className="rounded-full bg-coral px-5 py-2 text-xs font-bold text-white shadow-lg shadow-coral/20 transition hover:scale-105 active:scale-95"
+                          onClick={() => openPayment(booking)}
+                        >
+                          Pay now
+                        </button>
+                      ) : booking.paymentMethod === 'center' && booking.paymentStatus === 'pending' ? (
+                        <p className="text-[10px] font-bold text-ink/30 italic">Please pay at the center</p>
+                      ) : isRefundable(booking) ? (
+                        <button
+                          className="rounded-full border border-red-200 bg-red-50 px-5 py-2 text-xs font-bold text-red-600 transition hover:bg-red-100 hover:scale-105 active:scale-95"
+                          onClick={() => handleRefundRequest(booking._id)}
+                        >
+                          Request Refund
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-slate-50 flex items-center gap-4">
-                    <Link
-                      to={`/invoice/booking/${booking._id}`}
-                      className="text-[9px] font-black text-brand-blue/40 uppercase tracking-widest hover:text-brand-blue transition-colors flex items-center gap-1.5"
-                    >
-                      <span>📜</span> View Invoice
-                    </Link>
+                </div>
+              </div>
+
+                {/* Full-Width Milestone Indicator */}
+                <div className="mt-2 pt-8 border-t border-slate-100/50 flex flex-col gap-2 bg-slate-50/30">
+                  <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-ink/20 px-8">
+                    <span>Paid</span>
+                    <span>Attended</span>
+                    <span>Finalized</span>
+                    <span>Refund</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-100/50 flex shadow-inner">
+                    <div className={`h-full w-1/4 transition-all duration-700 ${(booking.status !== 'pending' && booking.status !== 'cancelled') || booking.refundStatus === 'refunded' || booking.refundStatus === 'requested' ? 'bg-emerald-400' : 'bg-transparent'}`} />
+                    <div className={`h-full w-1/4 transition-all duration-700 border-l border-white ${['attended', 'completed'].includes(booking.status) ? 'bg-sky-400' : 'bg-transparent'}`} />
+                    <div className={`h-full w-1/4 transition-all duration-700 border-l border-white ${booking.status === 'completed' ? 'bg-indigo-400' : 'bg-transparent'}`} />
+                    <div className={`h-full w-1/4 transition-all duration-700 border-l border-white ${
+                      booking.refundStatus === 'refunded' ? 'bg-rose-400' :
+                      booking.refundStatus === 'requested' ? 'bg-amber-400' : 
+                      booking.refundStatus === 'declined' ? 'bg-red-200' : 'bg-transparent'
+                    }`} />
                   </div>
                 </div>
               </div>

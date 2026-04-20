@@ -139,6 +139,27 @@ export default function BookingManagement() {
     setFilteredBookings(result);
   }, [searchQuery, statusFilter, dateFilter, locationFilter, bookings]);
 
+  const isBookingLocked = (booking) => {
+    // 1. Lock if status is already 'completed'
+    if (booking.status === 'completed') return true;
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    // 2. Differentiate Session vs Package
+    // Note: isVirtualMembership represents a specific session check-in, so it behaves like a session
+    if (booking.bookingType === 'session' || booking.isVirtualMembership) {
+      const bookingDateRaw = booking.date || booking.sessionId?.startTime;
+      if (!bookingDateRaw) return false;
+      return new Date(bookingDateRaw) < startOfToday;
+    } else {
+      // Overall Membership Package row
+      const isExpired = booking.membershipEndDate && new Date(booking.membershipEndDate) < startOfToday;
+      const isUsedUp = (typeof booking.classesRemaining === 'number' && booking.classesRemaining === 0);
+      return isExpired || isUsedUp;
+    }
+  };
+
   const updateStatus = async (id, status) => {
     await api.put(`/bookings/${id}/status`, { status });
     load();
@@ -489,9 +510,13 @@ export default function BookingManagement() {
                       </span>
                     )}
                     <div>
-                      <p className="text-xs font-black text-ink/30 uppercase tracking-widest mb-1 text-right">Status</p>
+                      <p className="text-xs font-black text-ink/30 uppercase tracking-widest mb-1 text-right flex items-center justify-end gap-1">
+                        {isBookingLocked(booking) && <span title="Status Locked">🔒</span>}
+                        Status
+                      </p>
                       {canEdit ? (
                         <select
+                          disabled={isBookingLocked(booking)}
                           className={`rounded-xl border-none p-2.5 text-xs font-bold transition-all outline-none focus:ring-2 ${booking.status === 'completed' ? 'bg-indigo-100 text-indigo-700 focus:ring-indigo-200' :
                             booking.status === 'attended' ? 'bg-sky-100 text-sky-700 focus:ring-sky-200' :
                               booking.status === 'confirmed' ? 'bg-moss/10 text-moss focus:ring-moss/20' :
@@ -509,11 +534,11 @@ export default function BookingManagement() {
                             }
                           }}
                         >
-                          <option value="pending">Pending</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="attended">Attended</option>
+                          <option value="pending" disabled={booking.status !== 'pending'}>Pending</option>
+                          <option value="confirmed" disabled={['attended', 'completed'].includes(booking.status)}>Confirmed</option>
+                          <option value="attended" disabled={booking.status === 'completed'}>Attended</option>
                           <option value="completed">Completed</option>
-                          <option value="cancelled">Cancelled</option>
+                          <option value="cancelled" disabled={['attended', 'completed'].includes(booking.status)}>Cancelled</option>
                         </select>
                       ) : (
                         <span className={`inline-block rounded-xl px-3 py-1.5 text-xs font-bold ${booking.status === 'confirmed' ? 'bg-moss/10 text-moss' :

@@ -51,6 +51,7 @@ export default function BookingFlow() {
   const [myChildren, setMyChildren] = useState([]);
   const [isCorporateMode, setIsCorporateMode] = useState(false);
   const [corporateName, setCorporateName] = useState('');
+  const [globalSettings, setGlobalSettings] = useState({});
   
   const calculateDiscount = (promo, price) => {
     if (!promo || !price) return 0;
@@ -229,9 +230,16 @@ export default function BookingFlow() {
     }
   }, [step, selectedClass, loading, isRestoring]);
 
-  // Step 1: Fetch Classes
   useEffect(() => {
     setLoading(true);
+    
+    // Fetch global settings
+    api.get('/settings/global').then(res => {
+      const settingsMap = {};
+      res.data.forEach(s => { settingsMap[s.key] = s.value; });
+      setGlobalSettings(settingsMap);
+    }).catch(() => {});
+
     const params = {
       locationId: locationIdFromUrl || undefined
     };
@@ -1379,17 +1387,19 @@ export default function BookingFlow() {
                     <h2 className="font-display text-3xl font-black text-ink mb-2">Payment Method</h2>
                     <p className="text-ink/60 mb-10">Choose how you would like to pay for your session.</p>
 
-                    <div className="grid gap-4 sm:grid-cols-2 text-left">
-                      <button onClick={() => setPaymentType('online')} className="p-8 rounded-[40px] border-2 border-slate-50 bg-white hover:border-brand-blue hover:shadow-xl transition-all group flex flex-col items-center">
+                    <div className={`grid gap-4 ${(globalSettings.allowCenterPayment ?? true) ? 'sm:grid-cols-2' : 'max-w-xs mx-auto'} text-left`}>
+                      <button onClick={() => setPaymentType('online')} className="p-8 rounded-[40px] border-2 border-slate-50 bg-white hover:border-brand-blue hover:shadow-xl transition-all group flex flex-col items-center w-full">
                         <div className="w-16 h-16 rounded-full bg-brand-blue/10 flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">💳</div>
                         <h3 className="font-display text-xl group-hover:text-brand-blue">Online Payment</h3>
-                        <p className="text-xs text-ink/40 mt-2 font-medium">Add a card • Secure and fast</p>
+                        <p className="text-xs text-ink/40 mt-2 font-medium text-center">Add a card • Secure and fast</p>
                       </button>
-                      <button onClick={handleCreateBooking} className="p-8 rounded-[40px] border-2 border-slate-50 bg-white hover:border-brand-blue hover:shadow-xl transition-all group flex flex-col items-center">
-                        <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">📍</div>
-                        <h3 className="font-display text-xl group-hover:text-brand-blue">Pay at Center</h3>
-                        <p className="text-xs text-ink/40 mt-2 font-medium">Cash or Card at the gym</p>
-                      </button>
+                      {(globalSettings.allowCenterPayment ?? true) && (
+                        <button onClick={handleCreateBooking} className="p-8 rounded-[40px] border-2 border-slate-50 bg-white hover:border-brand-blue hover:shadow-xl transition-all group flex flex-col items-center w-full">
+                          <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">📍</div>
+                          <h3 className="font-display text-xl group-hover:text-brand-blue">Pay at Center</h3>
+                          <p className="text-xs text-ink/40 mt-2 font-medium text-center">Cash or Card at the gym</p>
+                        </button>
+                      )}
                     </div>
 
                     <div className="mt-12">

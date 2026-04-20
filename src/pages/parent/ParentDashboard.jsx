@@ -7,7 +7,7 @@ import api from '../../api/api.js';
 const actions = [
   { to: '/dashboard/children', title: 'Add child profile', desc: 'Register a new child and set preferences.' },
   { to: '/calendar', title: 'Book from calendar', desc: 'Choose upcoming sessions and reserve seats.' },
-  { to: '/dashboard/bookings', title: 'Pay for bookings', desc: 'Complete payments to confirm classes.' },
+  { to: '/dashboard/bookings', title: 'My Booking', desc: 'Complete payments to confirm classes.' },
   { to: '/dashboard/membership', title: 'Manage membership', desc: 'Upgrade or renew a plan.' },
   { to: '/dashboard/coupons', title: 'My Cash Coupons', desc: 'View and track your earned vouchers.' },
   { to: '/profile', title: 'Manage profile', desc: 'Update your personal info and security settings.' }
@@ -140,7 +140,7 @@ export default function ParentDashboard() {
                 <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
               </Link>
               <Link className="flex items-center gap-2 text-brand-blue hover:underline" to="/dashboard/bookings">
-                <span>Pay bookings</span>
+                <span>My Booking</span>
                 <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
               </Link>
               <Link className="flex items-center gap-2 text-brand-blue hover:underline" to="/dashboard/payments">

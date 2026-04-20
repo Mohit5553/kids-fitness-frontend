@@ -645,6 +645,15 @@ export default function SessionsManagement() {
                           <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${booking.status === 'confirmed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
                             {booking.status}
                           </span>
+                          {booking.refundStatus && booking.refundStatus !== 'none' && (
+                             <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border ${
+                               booking.refundStatus === 'requested' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                               booking.refundStatus === 'refunded' ? 'bg-rose-50 text-rose-600 border-rose-200' :
+                               'bg-red-50 text-red-400 border-red-100'
+                             }`}>
+                               {booking.refundStatus === 'requested' ? 'Refund Req.' : booking.refundStatus}
+                             </span>
+                          )}
                           {!booking.isVirtualMembership && (
                             <button
                               onClick={() => handleSendReminder(booking._id)}
@@ -714,8 +723,8 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
   const [form, setForm] = useState({
     classId: '',
     trainerId: '',
-    planId: '',
     startTime: '',
+    endTime: '',
     durationMinutes: 60,
     days: [], // 0 = Sun, 1 = Mon ...
     startDate: '',
@@ -727,7 +736,6 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
   const [loading, setLoading] = useState(false);
 
   const selectedClass = classes.find(c => c._id === form.classId);
-  const selectedPlan = plans.find(p => p._id === form.planId);
 
   const filteredTrainers = useMemo(() => {
     if (!form.classId) return trainers;
@@ -745,18 +753,6 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
       }));
     }
   }, [selectedClass]);
-
-  useEffect(() => {
-    if (selectedPlan) {
-      // If it's a term plan, set total weeks or occurences
-      if (selectedPlan.durationWeeks) {
-        setForm(prev => ({ ...prev, occurences: selectedPlan.durationWeeks }));
-      }
-      if (selectedPlan.classesIncluded) {
-        setForm(prev => ({ ...prev, occurences: selectedPlan.classesIncluded }));
-      }
-    }
-  }, [selectedPlan]);
 
   const generatePreview = () => {
     if (!form.classId || !form.startDate || form.days.length === 0 || !form.startTime) {
@@ -778,7 +774,12 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
         sessionStart.setHours(parseInt(timeArr[0]), parseInt(timeArr[1]), 0, 0);
         
         const sessionEnd = new Date(sessionStart);
-        sessionEnd.setMinutes(sessionEnd.getMinutes() + (parseInt(form.durationMinutes) || 60));
+        if (form.endTime) {
+          const endTimeArr = form.endTime.split(':');
+          sessionEnd.setHours(parseInt(endTimeArr[0]), parseInt(endTimeArr[1]), 0, 0);
+        } else {
+          sessionEnd.setMinutes(sessionEnd.getMinutes() + (parseInt(form.durationMinutes) || 60));
+        }
 
         sessions.push({
           classId: form.classId,
@@ -846,20 +847,6 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Duration Plan (Optional)</label>
-                  <select 
-                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink"
-                    value={form.planId}
-                    onChange={e => setForm({...form, planId: e.target.value})}
-                  >
-                    <option value="">No specific plan (Manual count)</option>
-                    {plans.map(p => <option key={p._id} value={p._id}>{p.name} ({p.durationWeeks || p.classesIncluded || '?'})</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid gap-6 md:grid-cols-3">
-                <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Trainer</label>
                   <select 
                     className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink"
@@ -870,6 +857,9 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
                     {filteredTrainers.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
                   </select>
                 </div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-3">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Start Time</label>
                   <input 
@@ -880,7 +870,16 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Total Occurences</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">End Time (Optional)</label>
+                  <input 
+                    type="time" 
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink" 
+                    value={form.endTime}
+                    onChange={e => setForm({...form, endTime: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Total Occurrences</label>
                   <input 
                     type="number" 
                     className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink" 

@@ -542,7 +542,7 @@ export default function WalkingBooking() {
       });
 
       setCreatedBookings([{ bookingNumber: `MBR-${reference}`, _id: payRes.data._id }]);
-      setStep(6);
+      setStep(8);
       toast.success('Membership package purchased!');
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Purchase failed');
