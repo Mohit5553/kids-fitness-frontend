@@ -13,6 +13,7 @@ export default function Login() {
   const redirect = searchParams.get('redirect');
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (event) => {
     setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
@@ -32,6 +33,7 @@ export default function Login() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
+    setLoading(true);
     try {
       const res = await api.post('/auth/login', form);
       login(res.data);
@@ -47,6 +49,8 @@ export default function Login() {
       }
     } catch (err) {
       setError(err?.response?.data?.message || 'Login failed. Check your credentials.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,8 +86,22 @@ export default function Login() {
                 Forgot Password?
               </Link>
             </div>
-            <button className="rounded-full bg-coral px-5 py-3 text-sm font-semibold text-white mt-2" type="submit">
-              Login
+            <button
+              className="rounded-full bg-coral px-5 py-3 text-sm font-semibold text-white mt-2 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Logging in...
+                </>
+              ) : (
+                'Login'
+              )}
             </button>
           </form>
           <p className="mt-4 text-sm text-ink/70">

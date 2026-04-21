@@ -92,7 +92,11 @@ export default function ParentDashboard() {
             <h3 className="font-display text-lg">Attendance snapshot</h3>
             <p className="mt-2 text-sm text-ink/70">See check-ins and missed classes at a glance.</p>
             <div className="mt-4 space-y-3">
-              {attendance.length > 0 ? (
+              {loading ? (
+                Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="h-16 rounded-xl bg-slate-50 border border-slate-100 animate-pulse" />
+                ))
+              ) : attendance.length > 0 ? (
                 attendance.map(record => (
                   <div key={record._id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 animate-in fade-in slide-in-from-bottom-1">
                     <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-black">

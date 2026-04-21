@@ -173,15 +173,27 @@ export default function Membership() {
   const [membershipsPerPage] = useState(10);
 
   const fetchMemberships = () => {
-    api.get('/memberships/mine').then((res) => setMemberships(res.data || [])).catch(() => { });
+    setLoading(true);
+    api.get('/memberships/mine').then((res) => {
+      setMemberships(res.data || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   };
 
   const fetchPlans = () => {
-    api.get('/plans').then((res) => setPlans(res.data || [])).catch(() => { });
+    setLoading(true);
+    api.get('/plans').then((res) => {
+      setPlans(res.data || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   };
 
   const fetchChildren = () => {
-    api.get('/children/mine').then((res) => setChildren(res.data || [])).catch(() => { });
+    setLoading(true);
+    api.get('/children/mine').then((res) => {
+      setChildren(res.data || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -373,7 +385,18 @@ export default function Membership() {
             </div>
 
             <div className="divide-y divide-slate-50 font-display">
-              {filteredMemberships.length === 0 ? (
+              {loading ? (
+                Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="grid grid-cols-[1.5fr_1.5fr_2fr_1fr_1.5fr_1.5fr] gap-6 px-12 py-10 items-center animate-pulse">
+                    <div className="h-8 bg-slate-50 rounded-lg w-3/4" />
+                    <div className="h-10 bg-slate-50 rounded-xl w-1/2" />
+                    <div className="h-12 bg-slate-50 rounded-2xl w-full" />
+                    <div className="h-6 bg-slate-50 rounded-full w-20 mx-auto" />
+                    <div className="h-8 bg-slate-50 rounded-lg w-3/4" />
+                    <div className="h-10 bg-slate-50 rounded-xl w-full" />
+                  </div>
+                ))
+              ) : filteredMemberships.length === 0 ? (
                 <div className="p-20 text-center">
                   <span className="text-4xl mb-4 block grayscale opacity-30">📂</span>
                   <p className="text-sm font-bold text-ink/30 uppercase tracking-widest">
@@ -603,7 +626,21 @@ export default function Membership() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {plans.map((plan) => (
+            {loading ? (
+              Array(3).fill(0).map((_, i) => (
+                <div key={i} className="soft-card h-[600px] rounded-[3rem] p-8 animate-pulse bg-white/50 border border-slate-50 flex flex-col">
+                   <div className="h-4 bg-slate-100 rounded-lg w-1/4 mb-2" />
+                   <div className="h-10 bg-slate-100 rounded-2xl w-3/4 mb-8" />
+                   <div className="h-20 bg-slate-100 rounded-3xl w-full mb-8" />
+                   <div className="space-y-4 flex-1">
+                     <div className="h-4 bg-slate-100 rounded-lg w-5/6" />
+                     <div className="h-4 bg-slate-100 rounded-lg w-4/6" />
+                     <div className="h-4 bg-slate-100 rounded-lg w-5/6" />
+                   </div>
+                   <div className="h-16 bg-slate-100 rounded-[2rem] w-full mt-10" />
+                </div>
+              ))
+            ) : plans.map((plan) => (
               <div key={plan._id} className={`soft-card relative overflow-hidden rounded-[3rem] p-8 transition-all hover:scale-[1.02] active:scale-[0.98] ${plan.isFeatured ? 'border-4 border-coral bg-white shadow-2xl' : 'bg-white/80'}`}>
                 {plan.isFeatured && (
                   <div className="absolute top-6 right-6 rounded-full bg-coral px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg">
