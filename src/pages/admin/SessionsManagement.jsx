@@ -36,6 +36,8 @@ export default function SessionsManagement() {
   const [participantsList, setParticipantsList] = useState([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
   const [sendingReminderId, setSendingReminderId] = useState(null);
+  const [sendingTrainerReminderId, setSendingTrainerReminderId] = useState(null);
+  const [sendingAllReminders, setSendingAllReminders] = useState(false);
 
   const { can } = usePermissions();
   const { selectedBranch } = useBranch();
@@ -203,15 +205,62 @@ export default function SessionsManagement() {
     }
   };
 
-  const handleSendReminder = async (bookingId) => {
-    setSendingReminderId(bookingId);
+  const handleSendReminder = async (booking) => {
+    const id = booking._id;
+    const isVirtual = booking.isVirtualMembership;
+    setSendingReminderId(id);
     try {
-      await api.post(`/bookings/${bookingId}/reminder`);
+      let url = `/bookings/${id}/reminder`;
+      if (isVirtual && viewingParticipantsSession) {
+        url += `?sessionId=${viewingParticipantsSession._id}`;
+      }
+      await api.post(url);
       toast.success('Reminder email sent successfully!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send reminder');
     } finally {
       setSendingReminderId(null);
+    }
+  };
+
+  const handleSendTrainerReminder = async (sessionId) => {
+    setSendingTrainerReminderId(sessionId);
+    try {
+      await api.post(`/sessions/${sessionId}/trainer-reminder`);
+      toast.success('Trainer reminder sent successfully!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send trainer reminder');
+    } finally {
+      setSendingTrainerReminderId(null);
+    }
+  };
+
+  const handleSendAllReminders = async () => {
+    if (!participantsList.length) return;
+    if (!window.confirm(`Are you sure you want to send reminders to all ${participantsList.length} participants?`)) return;
+    
+    setSendingAllReminders(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const booking of participantsList) {
+      try {
+        let url = `/bookings/${booking._id}/reminder`;
+        if (booking.isVirtualMembership && viewingParticipantsSession) {
+          url += `?sessionId=${viewingParticipantsSession._id}`;
+        }
+        await api.post(url);
+        successCount++;
+      } catch (err) {
+        failCount++;
+      }
+    }
+
+    setSendingAllReminders(false);
+    if (successCount > 0) {
+      toast.success(`Success: ${successCount} reminders sent.${failCount > 0 ? ` Failed: ${failCount}` : ''}`);
+    } else if (failCount > 0) {
+      toast.error(`Failed to send ${failCount} reminders.`);
     }
   };
 
@@ -424,7 +473,12 @@ export default function SessionsManagement() {
         )}
 
         <div className="grid gap-4">
-          {sessions
+          {loading ? (
+            <div className="py-20 text-center bg-white rounded-[48px] border border-dashed border-slate-200 flex flex-col items-center gap-4">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-blue border-t-transparent" />
+              <p className="text-sm font-bold text-ink/30 uppercase tracking-widest">Fetching sessions...</p>
+            </div>
+          ) : sessions
             .filter(s => view === 'active' ? new Date(s.startTime) >= new Date() : new Date(s.startTime) < new Date())
             .sort((a, b) => {
               if (view === 'active') {
@@ -476,7 +530,7 @@ export default function SessionsManagement() {
                     <div className="mt-2 text-[10px] font-black uppercase tracking-widest flex gap-2">
                       {new Date(session.startTime) < new Date() ? (
                         <span className="text-ink/30 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-                          Closed / Expired
+                           Closed / Expired
                         </span>
                       ) : (
                         <span className="text-moss bg-moss/10 px-3 py-1 rounded-full border border-moss/20">
@@ -517,6 +571,25 @@ export default function SessionsManagement() {
                       onClick={() => handleEdit(session)}
                     >
                       Edit
+                    </button>
+                  )}
+                  {session.trainerId && session.status !== 'cancelled' && (
+                    <button
+                      className="h-10 w-10 flex items-center justify-center rounded-full bg-white border border-slate-100 text-brand-blue hover:bg-brand-blue hover:text-white transition-all shadow-sm hover:shadow-md disabled:opacity-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSendTrainerReminder(session._id);
+                      }}
+                      disabled={sendingTrainerReminderId === session._id}
+                      title="Send Trainer Reminder"
+                    >
+                      {sendingTrainerReminderId === session._id ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                      )}
                     </button>
                   )}
                   {canDelete && (
@@ -607,12 +680,30 @@ export default function SessionsManagement() {
                   {viewingParticipantsSession.classId?.title} • {new Date(viewingParticipantsSession.startTime).toLocaleDateString()}
                 </p>
               </div>
-              <button 
-                onClick={() => setViewingParticipantsSession(null)} 
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white text-ink/20 hover:text-ink/60 shadow-sm border border-slate-100 transition-all font-black text-xl"
-              >
-                ×
-              </button>
+              <div className="flex items-center gap-3">
+                {participantsList.length > 0 && (
+                  <button
+                    onClick={handleSendAllReminders}
+                    disabled={sendingAllReminders}
+                    className="flex items-center gap-2 px-4 py-2 bg-brand-blue/10 text-brand-blue rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-blue hover:text-white transition-all disabled:opacity-50"
+                  >
+                    {sendingAllReminders ? (
+                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                    )}
+                    Remind All
+                  </button>
+                )}
+                <button 
+                  onClick={() => setViewingParticipantsSession(null)} 
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white text-ink/20 hover:text-ink/60 shadow-sm border border-slate-100 transition-all font-black text-xl"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
@@ -654,9 +745,9 @@ export default function SessionsManagement() {
                                {booking.refundStatus === 'requested' ? 'Refund Req.' : booking.refundStatus}
                              </span>
                           )}
-                          {!booking.isVirtualMembership && (
+                          {(booking.status === 'confirmed' || booking.status === 'scheduled') && (
                             <button
-                              onClick={() => handleSendReminder(booking._id)}
+                              onClick={() => handleSendReminder(booking)}
                               disabled={sendingReminderId === booking._id}
                               className="text-[8px] font-black uppercase tracking-widest text-brand-blue hover:text-brand-blue/70 flex items-center gap-1 transition-all disabled:opacity-50"
                             >

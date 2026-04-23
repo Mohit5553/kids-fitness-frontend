@@ -23,12 +23,17 @@ export default function AttendanceManagement() {
   const canCreate = can('attendance:create');
 
   const loadAttendance = () => {
+    setLoading(true);
     api.get('/attendance')
       .then((res) => {
         const sorted = (res.data || []).sort((a, b) => new Date(b.checkedInAt) - new Date(a.checkedInAt));
         setRecords(sorted);
+        setLoading(false);
       })
-      .catch(() => setError('Failed to load attendance logs.'));
+      .catch(() => {
+        setError('Failed to load attendance logs.');
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -245,7 +250,17 @@ export default function AttendanceManagement() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 text-left">
-            {records.map((record) => (
+            {loading ? (
+              Array(4).fill(0).map((_, i) => (
+                <div key={i} className="h-24 rounded-3xl bg-white border border-slate-100 animate-pulse p-6 flex items-center gap-6">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-slate-100 rounded-lg w-1/2" />
+                    <div className="h-3 bg-slate-100 rounded-lg w-3/4" />
+                  </div>
+                </div>
+              ))
+            ) : records.map((record) => (
               <div 
                 key={record._id} 
                 className="group relative flex items-center gap-6 rounded-3xl bg-white p-6 shadow-md transition-all hover:shadow-xl border border-transparent hover:border-brand-blue/10 animate-in fade-in slide-in-from-bottom-2"

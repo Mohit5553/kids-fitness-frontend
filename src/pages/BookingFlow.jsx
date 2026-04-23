@@ -628,7 +628,19 @@ export default function BookingFlow() {
                 )}
 
                 <div className="grid gap-6 md:grid-cols-2">
-                  {classes.map(c => (
+                  {loading ? (
+                    Array(4).fill(0).map((_, i) => (
+                      <div key={i} className="h-[400px] rounded-[40px] bg-white border-2 border-slate-50 animate-pulse flex flex-col p-6">
+                        <div className="aspect-[4/3] rounded-[32px] bg-slate-100 mb-4" />
+                        <div className="h-8 bg-slate-100 rounded-xl mb-2 w-3/4" />
+                        <div className="h-4 bg-slate-100 rounded-lg mb-6 w-1/2" />
+                        <div className="mt-auto flex justify-between">
+                          <div className="h-8 w-24 bg-slate-100 rounded-full" />
+                          <div className="h-8 w-20 bg-slate-100 rounded-xl" />
+                        </div>
+                      </div>
+                    ))
+                  ) : classes.map(c => (
                     <button
                       key={c._id}
                       onClick={() => { setSelectedClass(c); setStep(2); }}

@@ -19,6 +19,7 @@ export default function MyBookings() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -103,6 +104,7 @@ export default function MyBookings() {
     const reference = `mock_${Date.now()}`;
 
     try {
+      setIsSubmitting(true);
       await api.post('/payments/booking', {
         bookingId: selectedBooking._id,
         paymentMethod: 'card',
@@ -114,6 +116,8 @@ export default function MyBookings() {
       load();
     } catch (err) {
       setError(err?.response?.data?.message || 'Payment failed.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -417,10 +421,18 @@ export default function MyBookings() {
 
                 <div className="mt-6 flex flex-col gap-3">
                   <button
-                    className="w-full rounded-2xl bg-brand-blue py-5 text-sm font-black text-white shadow-xl shadow-brand-blue/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    className="w-full rounded-2xl bg-brand-blue py-5 text-sm font-black text-white shadow-xl shadow-brand-blue/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50 disabled:grayscale"
                     type="submit"
+                    disabled={isSubmitting}
                   >
-                    Pay AED {selectedBooking.totalAmount || selectedBooking.classId?.price || 0}
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Processing Payment...</span>
+                      </>
+                    ) : (
+                      `Pay AED ${selectedBooking.totalAmount || selectedBooking.classId?.price || 0}`
+                    )}
                   </button>
                   <button
                     type="button"

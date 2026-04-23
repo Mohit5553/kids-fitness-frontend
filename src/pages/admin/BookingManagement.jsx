@@ -4,6 +4,7 @@ import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import toast from 'react-hot-toast';
 
 export default function BookingManagement() {
   const [bookings, setBookings] = useState([]);
@@ -20,6 +21,7 @@ export default function BookingManagement() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectingBookingId, setRejectingBookingId] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [sendingReminderId, setSendingReminderId] = useState(null);
 
   // Customer Profile Modal (Simplified)
   const [viewingUser, setViewingUser] = useState(null);
@@ -235,6 +237,24 @@ export default function BookingManagement() {
     setStatusFilter('');
     setDateFilter('');
     setLocationFilter('');
+  };
+
+  const handleSendReminder = async (booking) => {
+    const id = booking._id;
+    const isVirtual = booking.isVirtualMembership;
+    setSendingReminderId(id);
+    try {
+      let url = `/bookings/${id}/reminder`;
+      if (isVirtual && booking.sessionId?._id) {
+        url += `?sessionId=${booking.sessionId._id}`;
+      }
+      await api.post(url);
+      toast.success('Reminder email sent successfully!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send reminder');
+    } finally {
+      setSendingReminderId(null);
+    }
   };
 
   const formatPaymentMethod = (method) => {
@@ -508,6 +528,22 @@ export default function BookingManagement() {
                       <span className="text-[10px] font-black text-moss uppercase tracking-widest bg-moss/10 px-2 py-0.5 rounded-full border border-moss/20">
                         Refunded
                       </span>
+                    )}
+                    {booking.status !== 'cancelled' && (
+                      <button
+                        onClick={() => handleSendReminder(booking)}
+                        disabled={sendingReminderId === booking._id}
+                        className="mb-2 text-[9px] font-black uppercase tracking-widest text-brand-blue hover:text-brand-blue/70 flex items-center gap-1.5 transition-all disabled:opacity-50"
+                      >
+                        {sendingReminderId === booking._id ? (
+                          <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                          </svg>
+                        )}
+                        {sendingReminderId === booking._id ? 'Sending...' : 'Send Reminder'}
+                      </button>
                     )}
                     <div>
                       <p className="text-xs font-black text-ink/30 uppercase tracking-widest mb-1 text-right flex items-center justify-end gap-1">
