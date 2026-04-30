@@ -14,6 +14,7 @@ const REPORT_TYPES = [
   { id: 'users', label: 'Users Report' },
   { id: 'trainer_sales', label: 'Trainer Sales Report' },
   { id: 'attendance', label: 'Attendance Report' },
+  { id: 'membership_consumption', label: 'Membership Consumption Report' },
   { id: 'promotions_usage', label: 'Promotion Usage Report' },
   { id: 'taxes', label: 'Tax Collection Report' },
 ];
@@ -24,7 +25,7 @@ export default function Reports() {
   const [reportData, setReportData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [locations, setLocations] = useState([]);
-  
+
   // Filters
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -32,8 +33,8 @@ export default function Reports() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    api.get('/reports/summary').then((res) => setSummary(res.data)).catch(() => {});
-    api.get('/locations?all=true').then(res => setLocations(res.data || [])).catch(() => {});
+    api.get('/reports/summary').then((res) => setSummary(res.data)).catch(() => { });
+    api.get('/locations?all=true').then(res => setLocations(res.data || [])).catch(() => { });
   }, []);
 
   const fetchReport = async () => {
@@ -47,7 +48,7 @@ export default function Reports() {
       };
       const res = await api.get(`/reports/${reportType}`, { params });
       let data = res.data || [];
-      
+
       // Process bookings to extract capacity and timing
       if (reportType === 'bookings' || reportType === 'payments') {
         const process = (list) => (list || []).map(item => ({
@@ -68,7 +69,7 @@ export default function Reports() {
           data = process(data);
         }
       }
-      
+
       setReportData(data);
     } catch (error) {
       console.error('Failed to fetch report:', error);
@@ -83,21 +84,44 @@ export default function Reports() {
   }, [reportType]);
 
   const handleExport = () => {
-    if (reportData.length === 0) {
+    // Collect data based on report type, respecting current filters
+    const dataToExport = reportType === 'bookings' && reportData.purchases
+      ? [...(filteredData.purchases || []), ...(filteredData.sessions || [])]
+      : Array.isArray(filteredData) ? filteredData : [];
+
+    if (dataToExport.length === 0) {
       alert('No data to export');
       return;
     }
 
+    // Specific columns for Membership Consumption
+    if (reportType === 'membership_consumption') {
+      return {
+        'Membership ID': item._id.slice(-6).toUpperCase(),
+        'Child Name': item.childName,
+        'Parent Name': item.parentName,
+        'Parent Email': item.userId?.email,
+        'Parent Phone': item.userId?.phone,
+        'Plan Name': item.planName,
+        'Location': item.locationName,
+        'Status': item.status,
+        'Sessions Used': item.sessionsUsed,
+        'Sessions Remaining': item.sessionsRemaining,
+        'Total Sessions': item.totalSessions,
+        'Expiry Date': item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'
+      };
+    }
+
     // Flatten data for Excel
-    const flattenedData = reportData.map(item => {
+    const flattenedData = dataToExport.map(item => {
       const flat = {};
-      
+
       // Determine columns based on report type for better organization
       Object.keys(item).forEach(key => {
         if (['_id', '__v', 'updatedAt'].includes(key)) return;
-        
+
         let value = item[key];
-        
+
         // Handle specific nested fields
         if (key === 'userId' && typeof value === 'object') {
           flat['User Name'] = value?.name || 'N/A';
@@ -132,24 +156,24 @@ export default function Reports() {
           flat[key] = value.join(', ');
           return;
         }
-        
+
         flat[key] = value;
       });
-      
+
       return flat;
     });
 
     const worksheet = XLSX.utils.json_to_sheet(flattenedData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
-    
+
     let filename = `${reportType}_report`;
     if (startDate && endDate) {
       filename += `_${startDate}_to_${endDate}`;
     } else {
       filename += `_${new Date().toISOString().split('T')[0]}`;
     }
-    
+
     XLSX.writeFile(workbook, `${filename}.xlsx`);
   };
 
@@ -277,12 +301,24 @@ export default function Reports() {
       { key: 'totalPaid', label: 'Total (AED)' },
       { key: 'branchName', label: 'Branch' },
       { key: 'cashierName', label: 'Staff' },
+    ],
+    membership_consumption: [
+      { key: 'childName', label: 'Student' },
+      { key: 'parentName', label: 'Parent' },
+      { key: 'planName', label: 'Plan' },
+      { key: 'sessionsUsed', label: 'Used' },
+      { key: 'sessionsRemaining', label: 'Remaining' },
+      { key: 'totalSessions', label: 'Limit' },
+      { key: 'consumptionPercentage', label: 'Usage %' },
+      { key: 'expiryDate', label: 'Valid Until' },
+      { key: 'status', label: 'Status' },
+      { key: 'locationName', label: 'Branch' },
     ]
   };
 
   const renderValue = (key, value) => {
     if (value === null || value === undefined) return <span className="text-ink/20">—</span>;
-    
+
     if (key === 'createdAt' || key === 'date' || key === 'paymentDate' || key === 'checkedInAt') {
       try {
         const d = new Date(value);
@@ -312,7 +348,7 @@ export default function Reports() {
     }
 
     if (typeof value === 'object') {
-      return value.name || value.title || value.email || (value.trainerId ? value.trainerId.name : null) || <span className="text-[10px] text-brand-blue truncate max-w-[100px] inline-block">ID: ..{String(value._id || value).slice(-6)}</span>;
+      return value.bookingNumber || value.name || value.title || value.email || (value.trainerId ? value.trainerId.name : null) || <span className="text-[10px] text-brand-blue truncate max-w-[100px] inline-block">ID: ..{String(value._id || value).slice(-6)}</span>;
     }
 
     if (typeof value === 'string' && value.length > 50) {
@@ -333,10 +369,25 @@ export default function Reports() {
         open: 'text-brand-blue bg-brand-blue/10',
         closed: 'text-ink/40 bg-slate-100',
         requested: 'text-amber-600 bg-amber-50',
-        refunded: 'text-rose-600 bg-rose-50 border border-rose-100'
+        refunded: 'text-rose-600 bg-rose-50 border border-rose-100',
+        active: 'text-emerald-600 bg-emerald-50 border border-emerald-100',
+        frozen: 'text-amber-600 bg-amber-50 border border-amber-100',
+        expired: 'text-ink/30 bg-slate-100 border border-slate-200/50'
       };
       const statusValue = String(value).toLowerCase();
       return <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${colors[statusValue] || 'bg-slate-50'}`}>{value}</span>;
+    }
+
+    if (key === 'consumptionPercentage') {
+      const percentage = Number(value) || 0;
+      return (
+        <div className="flex items-center gap-2 w-24">
+          <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-coral transition-all duration-700" style={{ width: `${percentage}%` }}></div>
+          </div>
+          <span className="text-[9px] font-black text-ink/40">{percentage}%</span>
+        </div>
+      );
     }
 
     return String(value);
@@ -348,7 +399,7 @@ export default function Reports() {
     return (list || []).filter(item => JSON.stringify(item).toLowerCase().includes(q));
   };
 
-  const filteredData = reportType === 'bookings' && reportData.purchases 
+  const filteredData = reportType === 'bookings' && reportData.purchases
     ? { purchases: filterList(reportData.purchases), sessions: filterList(reportData.sessions) }
     : filterList(reportData);
 
@@ -366,7 +417,7 @@ export default function Reports() {
             <p className="mt-2 text-sm text-ink/50 font-medium">Analytics, activity logs and data exports.</p>
           </div>
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={handleExport}
               className="flex items-center gap-2 bg-white border border-slate-200 text-ink px-5 py-2.5 rounded-2xl text-xs font-bold hover:bg-slate-50 transition-all shadow-sm active:scale-95"
             >
@@ -383,7 +434,7 @@ export default function Reports() {
           <div className="grid gap-6 md:grid-cols-4 items-end">
             <div className="md:col-span-1">
               <label className="block text-[10px] font-black text-ink/40 uppercase tracking-widest mb-2.5 px-0.5">Data Source</label>
-              <select 
+              <select
                 className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-3 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/10 outline-none transition-all cursor-pointer"
                 value={reportType}
                 onChange={e => setReportType(e.target.value)}
@@ -396,7 +447,7 @@ export default function Reports() {
 
             <div>
               <label className="block text-[10px] font-black text-ink/40 uppercase tracking-widest mb-2.5 px-0.5">From Date</label>
-              <input 
+              <input
                 type="date"
                 className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-3 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/10 outline-none transition-all"
                 value={startDate}
@@ -406,7 +457,7 @@ export default function Reports() {
 
             <div>
               <label className="block text-[10px] font-black text-ink/40 uppercase tracking-widest mb-2.5 px-0.5">To Date</label>
-              <input 
+              <input
                 type="date"
                 className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-3 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/10 outline-none transition-all"
                 value={endDate}
@@ -415,7 +466,7 @@ export default function Reports() {
             </div>
 
             <div>
-              <button 
+              <button
                 onClick={fetchReport}
                 disabled={loading}
                 className="w-full bg-brand-blue text-white py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-brand-blue/15 disabled:opacity-50"
@@ -434,9 +485,9 @@ export default function Reports() {
           </div>
 
           <div className="mt-8 pt-8 border-t border-slate-100 grid gap-6 md:grid-cols-4 items-end">
-             <div className="md:col-span-1">
+            <div className="md:col-span-1">
               <label className="block text-[10px] font-black text-ink/40 uppercase tracking-widest mb-2.5 px-0.5">Location</label>
-              <select 
+              <select
                 className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-3 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/10 outline-none transition-all cursor-pointer"
                 value={locationId}
                 onChange={e => setLocationId(e.target.value)}
@@ -453,7 +504,7 @@ export default function Reports() {
                 <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-ink/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                <input 
+                <input
                   type="text"
                   placeholder="Filter by name, ID, or any value..."
                   className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-3 pl-11 pr-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/10 outline-none transition-all"
@@ -487,17 +538,17 @@ export default function Reports() {
         {/* Results Sections */}
         {reportType === 'bookings' && filteredData.purchases ? (
           <div className="flex flex-col gap-10">
-            <ReportSection 
-              title="Orders & Revenue (Single & Package Purchases)" 
-              data={filteredData.purchases} 
-              columns={COLUMNS.bookings} 
+            <ReportSection
+              title="Orders & Revenue (Single & Package Purchases)"
+              data={filteredData.purchases}
+              columns={COLUMNS.bookings}
               renderValue={renderValue}
               loading={loading}
             />
-            <ReportSection 
-              title="Membership Utilization (Usage Sessions)" 
-              data={filteredData.sessions} 
-              columns={COLUMNS.membership_sessions} 
+            <ReportSection
+              title="Membership Utilization (Usage Sessions)"
+              data={filteredData.sessions}
+              columns={COLUMNS.membership_sessions}
               renderValue={renderValue}
               loading={loading}
             />
@@ -542,7 +593,7 @@ export default function Reports() {
                 </tbody>
               </table>
             </div>
-            {filteredData.length > 0 && (
+            {(!reportData.purchases && filteredData.length > 0) && (
               <div className="px-8 py-5 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center">
                 <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest">
                   Showing {filteredData.length} records

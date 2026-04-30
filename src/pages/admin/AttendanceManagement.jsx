@@ -43,10 +43,10 @@ export default function AttendanceManagement() {
     const end = new Date();
     end.setDate(end.getDate() + 14);
 
-    const params = { 
-      start: start.toISOString(), 
+    const params = {
+      start: start.toISOString(),
       end: end.toISOString(),
-      all: true 
+      all: true
     };
 
     api.get('/sessions', { params })
@@ -64,22 +64,23 @@ export default function AttendanceManagement() {
     api.get(`/bookings?sessionId=${form.sessionId}`)
       .then((res) => {
         const bookings = res.data || [];
-        // Confirmed bookings only
-        const confirmedBookings = bookings.filter(b => b.status === 'confirmed');
-        
+        // Show both confirmed and pending bookings (to allow cashier to see them)
+        const relevantBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'pending');
+
         // Extract all participants (profile-linked or name-only)
         const list = [];
-        confirmedBookings.forEach(b => {
+        relevantBookings.forEach(b => {
           b.participants.forEach(p => {
-             list.push({
-               id: p.childId?._id || p._id, // Use childId or participant entry ID
-               childId: p.childId?._id || null,
-               name: p.name || p.childId?.name || 'Unknown',
-               age: p.age || p.childId?.age || '',
-               gender: p.gender || p.childId?.gender || '',
-               bookingId: b._id,
-               packageName: b.packageInfo?.name || b.planId?.name || ''
-             });
+            list.push({
+              id: p.childId?._id || p._id, // Use childId or participant entry ID
+              childId: p.childId?._id || null,
+              name: p.name || p.childId?.name || 'Unknown',
+              age: p.age || p.childId?.age || '',
+              gender: p.gender || p.childId?.gender || '',
+              bookingId: b._id,
+              status: b.status,
+              packageName: b.packageInfo?.name || b.planId?.name || ''
+            });
           });
         });
 
@@ -118,7 +119,7 @@ export default function AttendanceManagement() {
       }
       return;
     }
-    
+
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     if (e.target.name === 'sessionId') {
       setForm(prev => ({ ...prev, childId: '', participantName: '', bookingId: '' })); // Reset when session changes
@@ -129,7 +130,7 @@ export default function AttendanceManagement() {
     e.preventDefault();
     setMessage('');
     setError('');
-    
+
     try {
       await api.post('/attendance/checkin', { ...form, method: 'manual' });
       setMessage('Attendance record saved successfully.');
@@ -204,7 +205,7 @@ export default function AttendanceManagement() {
                   <option value="">{form.sessionId ? (attendees.length > 0 ? 'Select a name...' : 'No attendees found for this session') : 'Select session first'}</option>
                   {attendees.map((a) => (
                     <option key={a.id} value={a.childId || a.name}>
-                      {a.name} {a.age ? `(${a.age} yrs)` : ''} {a.packageName ? `[📦 ${a.packageName}]` : ''}
+                      {a.name} {a.age ? `(${a.age} yrs)` : ''} {a.packageName ? `[📦 ${a.packageName}]` : ''} {a.status === 'pending' ? '⚠️ UNPAID' : ''}
                     </option>
                   ))}
                 </select>
@@ -227,8 +228,8 @@ export default function AttendanceManagement() {
 
             {canCreate ? (
               <div className="flex justify-end pt-4 border-t border-slate-100">
-                <button 
-                  className="rounded-2xl bg-brand-blue px-12 py-4 text-sm font-black text-white shadow-xl shadow-brand-blue/20 transition-all hover:scale-105 active:scale-95 disabled:grayscale" 
+                <button
+                  className="rounded-2xl bg-brand-blue px-12 py-4 text-sm font-black text-white shadow-xl shadow-brand-blue/20 transition-all hover:scale-105 active:scale-95 disabled:grayscale"
                   type="submit"
                   disabled={!form.childId && !form.participantName}
                 >
@@ -261,46 +262,45 @@ export default function AttendanceManagement() {
                 </div>
               ))
             ) : records.map((record) => (
-              <div 
-                key={record._id} 
+              <div
+                key={record._id}
                 className="group relative flex items-center gap-6 rounded-3xl bg-white p-6 shadow-md transition-all hover:shadow-xl border border-transparent hover:border-brand-blue/10 animate-in fade-in slide-in-from-bottom-2"
               >
-                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-bold text-xl ${
-                  record.status === 'present' ? 'bg-emerald-100 text-emerald-600' : 
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-bold text-xl ${record.status === 'present' ? 'bg-emerald-100 text-emerald-600' :
                   record.status === 'late' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'
-                }`}>
+                  }`}>
                   {record.status[0].toUpperCase()}
                 </div>
-                
+
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1 text-left">
                     <p className="text-sm font-black text-ink">{record.childId?.name || record.participantName || 'Guest Participant'}</p>
                     <div className="flex items-center gap-2">
-                       {record.bookingId?.status === 'confirmed' && (
-                         <button
-                           onClick={async () => {
-                             try {
-                               await api.put(`/bookings/${record.bookingId._id}/status`, { status: 'attended' });
-                               loadAttendance();
-                             } catch(err) { alert(err.response?.data?.message || 'Failed to verify'); }
-                           }}
-                           className="text-[9px] font-black text-white bg-sky-500 px-2 py-0.5 rounded-full hover:bg-sky-600 transition-colors uppercase tracking-widest"
-                         >
-                           Verify Attendance
-                         </button>
-                       )}
-                       {record.bookingId?.status === 'attended' && (
-                         <span className="text-[9px] font-black text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full uppercase tracking-widest border border-sky-100">
-                           Verified
-                         </span>
-                       )}
-                       <span className="text-[10px] font-bold text-ink/20 uppercase tracking-widest text-right">
-                          {new Date(record.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                       </span>
+                      {record.bookingId?.status === 'confirmed' && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await api.put(`/bookings/${record.bookingId._id}/status`, { status: 'attended' });
+                              loadAttendance();
+                            } catch (err) { alert(err.response?.data?.message || 'Failed to verify'); }
+                          }}
+                          className="text-[9px] font-black text-white bg-sky-500 px-2 py-0.5 rounded-full hover:bg-sky-600 transition-colors uppercase tracking-widest"
+                        >
+                          Verify Attendance
+                        </button>
+                      )}
+                      {record.bookingId?.status === 'attended' && (
+                        <span className="text-[9px] font-black text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full uppercase tracking-widest border border-sky-100">
+                          Verified
+                        </span>
+                      )}
+                      <span className="text-[10px] font-bold text-ink/20 uppercase tracking-widest text-right">
+                        {new Date(record.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
                   </div>
                   <p className="text-xs font-bold text-ink/50 leading-relaxed text-left">
-                    {record.sessionId?.classId?.title || 'Class'} · {record.sessionId?.trainerId?.name || 'No Trainer'} 
+                    {record.sessionId?.classId?.title || 'Class'} · {record.sessionId?.trainerId?.name || 'No Trainer'}
                     {record.bookingId?.packageInfo?.name && ` [📦 ${record.bookingId.packageInfo.name}]`}
                   </p>
                   <p className="text-[10px] font-bold text-ink/30 mt-1">

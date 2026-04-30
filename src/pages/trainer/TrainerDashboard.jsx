@@ -96,7 +96,7 @@ export default function TrainerDashboard() {
         loadSessions(res.data.trainerId, res.data.name, res.data.email);
         loadAllBookings(res.data.trainerId);
         loadTrials();
-        
+
         // If trainerId is missing but role is trainer, we have a profile issue
         if (res.data.role === 'trainer' && !res.data.trainerId) {
           setProfileError(true);
@@ -121,9 +121,9 @@ export default function TrainerDashboard() {
       .filter(s => {
         const isLocationMatch = locationFilter === 'all' || (s.locationId?._id || s.locationId) === locationFilter;
         if (s.status === 'cancelled') {
-           return viewType === 'cancelled' && isLocationMatch;
+          return viewType === 'cancelled' && isLocationMatch;
         }
-        
+
         if (viewType === 'cancelled') return false; // Non-cancelled sessions shouldn't show in cancelled tab
 
         const sStart = new Date(s.startTime);
@@ -293,8 +293,8 @@ export default function TrainerDashboard() {
             <div className="flex-1 text-center md:text-left">
               <h3 className="text-sm font-black text-amber-800 uppercase tracking-widest mb-1">Profile Link Warning</h3>
               <p className="text-xs font-bold text-amber-700/70 leading-relaxed">
-                Your login account is not correctly linked to your professional Trainer Profile. 
-                While you can still see your sessions, some features like Roster management might be limited. 
+                Your login account is not correctly linked to your professional Trainer Profile.
+                While you can still see your sessions, some features like Roster management might be limited.
                 <span className="block mt-2 font-black">Please contact an administrator to link your account.</span>
               </p>
             </div>
@@ -516,52 +516,51 @@ export default function TrainerDashboard() {
                   </div>
                   <div className="max-h-[72vh] overflow-y-auto pr-4 custom-scrollbar">
                     {loadingRoster ? (
-                    <div className="flex flex-col items-center justify-center py-20 gap-4">
-                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-coral border-t-transparent" />
-                      <p className="text-xs font-bold text-ink/30 uppercase tracking-widest">Loading roster...</p>
-                    </div>
-                  ) : roster.length > 0 ? (
-                    <div className="space-y-6">
-                      {roster.map((booking) => (
-                        <div key={booking._id} className="p-6 rounded-[28px] bg-slate-50 border border-slate-100 shadow-sm relative overflow-hidden">
-                          <div className="absolute top-0 right-0 p-3">
-                            <span className="text-[8px] font-black text-ink/10 uppercase tracking-widest">#{booking.bookingNumber}</span>
-                          </div>
-
-                          <div className="flex items-center justify-between mb-4 border-b border-slate-200/50 pb-4">
-                            <div>
-                              <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest">Parent / Contact</p>
-                              <h4 className="text-sm font-black text-ink mt-0.5">{booking.userId?.name || booking.guestDetails?.name || 'Guest User'}</h4>
-                              <p className="text-[10px] font-bold text-ink/50 mt-1">{booking.userId?.phone || booking.guestDetails?.phone || booking.userId?.email || 'No contact provided'}</p>
-                            </div>
-                            <div className="text-right">
-                              <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${booking.status === 'confirmed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
-                                {booking.status}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="space-y-3">
-                            <p className="text-[9px] font-black text-coral uppercase tracking-widest">Participants ({booking.participants?.length})</p>
-                            {booking.participants?.map((p, idx) => (
-                              <div key={idx} className="flex items-center gap-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center text-xs font-black text-ink/20">
-                                  {p.name?.charAt(0) || p.childId?.name?.charAt(0) || '?'}
+                      <div className="flex flex-col items-center justify-center py-20 gap-4">
+                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-coral border-t-transparent" />
+                        <p className="text-xs font-bold text-ink/30 uppercase tracking-widest">Loading roster...</p>
+                      </div>
+                    ) : roster.length > 0 ? (
+                      <div className="space-y-6">
+                        {roster.map((booking) => (
+                          <div key={booking._id} className="p-6 rounded-[28px] bg-slate-50 border border-slate-100 shadow-sm relative overflow-hidden">
+                            <div className="flex items-center justify-between mb-4 border-b border-slate-200/50 pb-4">
+                              <div>
+                                <div className="flex items-center gap-3">
+                                  <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest leading-none">Parent / Contact</p>
+                                  <span className="text-[9px] font-black text-coral border border-coral/20 bg-coral/5 px-1.5 py-0.5 rounded-md leading-none">#{booking.bookingNumber}</span>
                                 </div>
-                                <div className="flex-1">
-                                  <p className="text-sm font-black text-ink">{p.name || p.childId?.name}</p>
-                                  <div className="flex gap-3 mt-0.5">
-                                    <span className="text-[10px] font-bold text-ink/30 uppercase">{p.age || p.childId?.age} Years</span>
-                                    <span className="text-[10px] font-bold text-ink/30 uppercase">{p.gender || p.childId?.gender}</span>
+                                <h4 className="text-sm font-black text-ink mt-1.5">{booking.userId?.name || booking.guestDetails?.name || 'Guest User'}</h4>
+                                <p className="text-[10px] font-bold text-ink/50 mt-1">{booking.userId?.phone || booking.guestDetails?.phone || booking.userId?.email || 'No contact provided'}</p>
+                              </div>
+                              <div className="text-right">
+                                <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${booking.status === 'confirmed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                                  {booking.status}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="space-y-3">
+                              <p className="text-[9px] font-black text-coral uppercase tracking-widest">Participants ({booking.participants?.length})</p>
+                              {booking.participants?.map((p, idx) => (
+                                <div key={idx} className="flex items-center gap-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center text-xs font-black text-ink/20">
+                                    {p.name?.charAt(0) || p.childId?.name?.charAt(0) || '?'}
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="text-sm font-black text-ink">{p.name || p.childId?.name}</p>
+                                    <div className="flex gap-3 mt-0.5">
+                                      <span className="text-[10px] font-bold text-ink/30 uppercase">{p.age || p.childId?.age} Years</span>
+                                      <span className="text-[10px] font-bold text-ink/30 uppercase">{p.gender || p.childId?.gender}</span>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
+                              ))}
+                            </div>
 
-                          <div className="mt-4 pt-4 border-t border-slate-200/50 flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                              <span className="text-[9px] font-black text-ink/20 uppercase tracking-[0.2em]">{booking.paymentMethod === 'online' ? 'Paid Online' : 'Pay at Center'}</span>
+                            <div className="mt-4 pt-4 border-t border-slate-200/50 flex justify-between items-center">
+                              <div className="flex items-center gap-3">
+                                <span className="text-[9px] font-black text-ink/20 uppercase tracking-[0.2em]">{booking.paymentMethod === 'online' ? 'Paid Online' : 'Pay at Center'}</span>
                                 {viewType === 'current' && booking.status === 'confirmed' && (
                                   <button
                                     onClick={() => handleApproveAttendance(booking._id)}
@@ -575,28 +574,28 @@ export default function TrainerDashboard() {
                                     <span>✔</span> Verified
                                   </span>
                                 )}
+                              </div>
+                              <span className="text-[10px] font-black text-ink/70">AED {booking.totalAmount}</span>
                             </div>
-                            <span className="text-[10px] font-black text-ink/70">AED {booking.totalAmount}</span>
                           </div>
+                        ))}
+                        <div className="pt-6">
+                          <button
+                            onClick={() => window.print()}
+                            className="w-full py-4 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl"
+                          >
+                            Print Full Roster Report
+                          </button>
                         </div>
-                      ))}
-                      <div className="pt-6">
-                        <button
-                          onClick={() => window.print()}
-                          className="w-full py-4 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl"
-                        >
-                          Print Full Roster Report
-                        </button>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="py-20 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                      <p className="text-xs font-bold text-ink/30 uppercase tracking-widest">No attendees yet</p>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="py-20 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <p className="text-xs font-bold text-ink/30 uppercase tracking-widest">No attendees yet</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
             </>
           )}
 
@@ -644,21 +643,19 @@ export default function TrainerDashboard() {
                     <div className="space-y-5">
                       {roster.map((booking) => (
                         <div key={booking._id} className="p-6 rounded-[28px] bg-white border border-slate-100 shadow-sm relative overflow-hidden">
-                          <div className="absolute top-0 right-0 p-3">
-                            <span className="text-[8px] font-black text-ink/10 uppercase tracking-widest">#{booking.bookingNumber}</span>
-                          </div>
-
                           <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-4">
                             <div>
-                              <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest">Parent / Contact</p>
-                              <h4 className="text-sm font-black text-ink mt-0.5">{booking.userId?.name || booking.guestDetails?.name || 'Guest User'}</h4>
+                              <div className="flex items-center gap-3">
+                                <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest leading-none">Parent / Contact</p>
+                                <span className="text-[9px] font-black text-coral border border-coral/20 bg-coral/5 px-1.5 py-0.5 rounded-md leading-none">#{booking.bookingNumber}</span>
+                              </div>
+                              <h4 className="text-sm font-black text-ink mt-1.5">{booking.userId?.name || booking.guestDetails?.name || 'Guest User'}</h4>
                               <p className="text-[10px] font-bold text-ink/50 mt-1">{booking.userId?.phone || booking.guestDetails?.phone || booking.userId?.email || 'No contact'}</p>
                             </div>
-                            <span className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${
-                              booking.status === 'attended' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                            <span className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${booking.status === 'attended' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
                               booking.status === 'confirmed' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
-                              'bg-amber-50 text-amber-600 border border-amber-100'
-                            }`}>
+                                'bg-amber-50 text-amber-600 border border-amber-100'
+                              }`}>
                               {booking.status === 'attended' ? '✔ Verified' : booking.status}
                             </span>
                           </div>
@@ -745,7 +742,7 @@ export default function TrainerDashboard() {
                       <div className="mb-8">
                         <div className="flex items-center gap-2 mb-3">
                           <span className="px-2 py-0.5 rounded-md bg-coral/10 text-coral text-[8px] font-black uppercase tracking-widest">Class</span>
-                          <span className="text-[10px] font-bold text-ink/20">#{booking.bookingNumber}</span>
+                          <span className="text-[10px] font-black text-ink/60 bg-white shadow-sm border border-slate-100 px-2 py-0.5 rounded-lg">#{booking.bookingNumber}</span>
                         </div>
                         <h4 className="text-xl font-black text-ink leading-tight">{booking.classId?.title}</h4>
                         <p className="text-[10px] font-black text-coral uppercase tracking-[0.2em] mt-2 flex items-center gap-2">
@@ -863,7 +860,7 @@ export default function TrainerDashboard() {
                 <h3 className="text-2xl font-black text-ink">Cancel Session</h3>
                 <button onClick={() => setCancellingSession(null)} className="text-3xl text-ink/20 hover:text-ink/60 transition-colors">×</button>
               </div>
-              
+
               <div className="mb-8">
                 <p className="text-xs font-bold text-ink/50 leading-relaxed">
                   Please provide a reason for cancelling the <span className="text-coral font-black">{cancellingSession.classId?.title}</span> session on <span className="font-black">{new Date(cancellingSession.startTime).toLocaleDateString()}</span>.

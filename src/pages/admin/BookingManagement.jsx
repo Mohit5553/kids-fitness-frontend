@@ -37,6 +37,9 @@ export default function BookingManagement() {
   const [viewingMembershipSchedule, setViewingMembershipSchedule] = useState(null);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
 
+  // Booking Details Modal
+  const [viewingBookingDetails, setViewingBookingDetails] = useState(null);
+
   const fetchUserProfile = async (userId) => {
     if (!userId) return;
     setLoadingProfile(true);
@@ -406,12 +409,7 @@ export default function BookingManagement() {
                     <h3 className="font-display text-xl font-bold text-ink leading-tight">
                       {booking.participants?.map((p, idx) => (
                         <span key={idx}>
-                          <button
-                            onClick={() => fetchChildProfile(p.childId?._id || p.childId)}
-                            className="text-brand-blue hover:underline decoration-brand-blue/30 underline-offset-2"
-                          >
-                            {p.name}
-                          </button>
+                          <span className="text-ink font-bold">{p.name}</span>
                           {` (${p.relation || 'N/A'})${idx < (booking.participants.length - 1) ? ', ' : ''}`}
                         </span>
                       )) || 'No Name'}
@@ -438,7 +436,7 @@ export default function BookingManagement() {
                     </p>
                     {!booking.participants?.some(p => p.relation === 'Self') && (
                       <p className="text-[10px] text-ink/40 font-bold uppercase tracking-widest">
-                        Parent: <button onClick={() => fetchUserProfile(booking.userId?._id || booking.userId)} className="text-brand-blue hover:underline decoration-brand-blue/30 underline-offset-2">{booking.userId?.name || 'Guest'}</button>
+                        Parent: <span className="text-brand-blue">{booking.userId?.name || 'Guest'}</span>
                       </p>
                     )}
                     {booking.locationId && (
@@ -469,14 +467,23 @@ export default function BookingManagement() {
                       </Link>
                     </div>
                   </div>
-                  {booking.sessionId?.startTime && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <span className="w-1 h-1 rounded-full bg-brand-blue/30"></span>
-                      <p className="text-[11px] font-bold text-ink/50">
-                        {new Date(booking.sessionId.startTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(booking.sessionId.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                  )}
+                  <div className="mt-4 flex items-center gap-3">
+                    <button
+                      onClick={() => setViewingBookingDetails(booking)}
+                      className="px-5 py-2.5 bg-slate-50 text-brand-blue text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-brand-blue hover:text-white transition-all border border-slate-100 shadow-sm flex items-center gap-2 group"
+                    >
+                      <span className="group-hover:scale-110 transition-transform">🔍</span> 
+                      <span>View Full Details</span>
+                    </button>
+                    {booking.sessionId?.startTime && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-50">
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-pulse"></span>
+                        <p className="text-[10px] font-bold text-ink/50 uppercase tracking-tight">
+                          {new Date(booking.sessionId.startTime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {new Date(booking.sessionId.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -625,6 +632,173 @@ export default function BookingManagement() {
         bookings={bookings}
       />
 
+      {/* Booking Details Modal */}
+      {viewingBookingDetails && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[40px] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="bg-indigo-600 p-8 text-white flex justify-between items-start shrink-0 relative overflow-hidden">
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-black bg-white/20 px-2 py-1 rounded-lg uppercase tracking-widest">Booking Record</span>
+                  {viewingBookingDetails.bookingNumber && (
+                    <span className="text-[10px] font-black bg-white text-indigo-600 px-2 py-1 rounded-lg uppercase tracking-widest">{viewingBookingDetails.bookingNumber}</span>
+                  )}
+                </div>
+                <h3 className="font-display text-3xl font-black text-white">Full Details</h3>
+                <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-1">ID: {viewingBookingDetails._id}</p>
+              </div>
+              <button onClick={() => setViewingBookingDetails(null)} className="relative z-10 rounded-full bg-white/10 p-2 hover:bg-white/20 transition-all">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+              {/* Decorative circle */}
+              <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50/50">
+              {/* Core Info */}
+              <div className="grid md:grid-cols-2 gap-8">
+                <section>
+                  <h4 className="text-[10px] font-black text-ink uppercase tracking-[0.2em] mb-4">Service Information</h4>
+                  <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                    <div>
+                      <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest mb-1">Type</p>
+                      <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${viewingBookingDetails.bookingType === 'package' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-500'}`}>
+                        {viewingBookingDetails.bookingType === 'package' ? '📦 Membership / Package' : '🎟️ Single Session'}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest mb-1">Service Name</p>
+                      <p className="text-sm font-black text-ink">{viewingBookingDetails.classId?.title || viewingBookingDetails.planId?.name || 'Package Purchase'}</p>
+                      {viewingBookingDetails.bookingType === 'package' && (
+                        <button
+                          onClick={() => fetchMembershipSchedule(viewingBookingDetails._id)}
+                          className="mt-2 text-[10px] font-black text-brand-blue uppercase tracking-widest hover:underline flex items-center gap-1.5"
+                        >
+                          <span>📅</span> View Schedule →
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest mb-1">Booking Date</p>
+                      <p className="text-sm font-black text-ink">{new Date(viewingBookingDetails.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    </div>
+                  </div>
+                </section>
+
+                <section>
+                  <h4 className="text-[10px] font-black text-ink uppercase tracking-[0.2em] mb-4">Payment & Finance</h4>
+                  <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Total Amount</p>
+                        <p className="text-lg font-black text-brand-blue">AED {viewingBookingDetails.totalAmount?.toFixed(2)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Status</p>
+                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${viewingBookingDetails.paymentStatus === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                          {viewingBookingDetails.paymentStatus}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-50">
+                      <div>
+                        <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Method</p>
+                        <p className="text-[11px] font-bold text-ink">{viewingBookingDetails.paymentMethod?.toUpperCase()}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Reference</p>
+                        <p className="text-[11px] font-bold text-ink truncate">{viewingBookingDetails.paymentReference || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              {/* Participants */}
+              <section>
+                <h4 className="text-[10px] font-black text-ink uppercase tracking-[0.2em] mb-4">Participants ({viewingBookingDetails.participants?.length})</h4>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {viewingBookingDetails.participants?.map((p, idx) => (
+                    <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-lg">👤</div>
+                      <div>
+                        <p className="text-sm font-black text-ink">{p.name}</p>
+                        <p className="text-[10px] font-bold text-ink/30 uppercase tracking-widest">{p.relation || 'N/A'} • {p.age} Years</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Advanced Tracking / Lifecycle */}
+              <section>
+                <h4 className="text-[10px] font-black text-ink uppercase tracking-[0.2em] mb-4">Activity Tracking</h4>
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm divide-y divide-slate-50">
+                  <div className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-[10px]">✨</div>
+                      <div>
+                        <p className="text-[11px] font-bold text-ink">Source</p>
+                        <p className="text-[10px] text-ink/40 font-medium">Where the booking originated</p>
+                      </div>
+                    </div>
+                    <p className="text-[11px] font-black text-indigo-600 uppercase">
+                      {viewingBookingDetails.processedByRole ? `Walking (${viewingBookingDetails.processedByRole})` : 'Website / Parent'}
+                    </p>
+                  </div>
+                  {viewingBookingDetails.lifecycle?.paidAt && (
+                    <div className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-[10px]">💵</div>
+                        <div>
+                          <p className="text-[11px] font-bold text-ink">Paid At</p>
+                          <p className="text-[10px] text-ink/40 font-medium">Payment verification timestamp</p>
+                        </div>
+                      </div>
+                      <p className="text-[11px] font-black text-emerald-600">{new Date(viewingBookingDetails.lifecycle.paidAt).toLocaleString()}</p>
+                    </div>
+                  )}
+                  {viewingBookingDetails.lifecycle?.attendedAt && (
+                    <div className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center text-[10px]">✅</div>
+                        <div>
+                          <p className="text-[11px] font-bold text-ink">Attended At</p>
+                          <p className="text-[10px] text-ink/40 font-medium">Session attendance verification</p>
+                        </div>
+                      </div>
+                      <p className="text-[11px] font-black text-sky-600">{new Date(viewingBookingDetails.lifecycle.attendedAt).toLocaleString()}</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Reason (Cancellation/Refund) */}
+              {(viewingBookingDetails.status === 'cancelled' || viewingBookingDetails.cancellationReason) && (
+                <section className="bg-red-50 p-6 rounded-3xl border border-red-100">
+                  <h4 className="text-[10px] font-black text-red-600 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                    <span>🚫</span> Cancellation Details
+                  </h4>
+                  <p className="text-sm font-bold text-red-800 italic">"{viewingBookingDetails.cancellationReason || 'No reason provided.'}"</p>
+                </section>
+              )}
+            </div>
+
+            <div className="p-8 border-t border-slate-100 bg-white flex justify-end gap-4 shrink-0">
+              <Link
+                to={`/invoice/booking/${viewingBookingDetails._id}`}
+                className="px-8 py-4 rounded-2xl bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all flex items-center gap-2"
+              >
+                <span>📜</span> Print Invoice
+              </Link>
+              <button onClick={() => setViewingBookingDetails(null)} className="px-10 py-4 rounded-2xl bg-slate-50 text-ink/40 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all">
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Rejection Modal */}
       {showRejectModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -705,7 +879,7 @@ export default function BookingManagement() {
       )}
 
       {/* CHILD PROFILE MODAL */}
-       {/* MEMBERSHIP SCHEDULE MODAL (Nested) */}
+      {/* MEMBERSHIP SCHEDULE MODAL (Nested) */}
       {viewingMembershipSchedule && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-[40px] w-full max-w-xl max-h-[80vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
@@ -723,41 +897,44 @@ export default function BookingManagement() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 space-y-4 bg-slate-50/50">
-               {viewingMembershipSchedule.generatedSessions?.length > 0 ? (
-                  viewingMembershipSchedule.generatedSessions.map((session, sidx) => (
-                    <div key={session._id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between gap-4">
-                       <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xs">
-                             {sidx + 1}
-                          </div>
-                          <div>
-                             <p className="text-sm font-black text-ink">
-                                {new Date(session.startTime).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-                             </p>
-                             <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10px] font-bold text-ink/30 uppercase tracking-widest">
-                                   {new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                                <span className="w-1 h-1 rounded-full bg-slate-200"></span>
-                                <span className="text-[10px] font-bold text-ink/30 uppercase tracking-widest">
-                                   Trainer: {session.trainerId?.name || 'TBA'}
-                                </span>
-                             </div>
-                          </div>
-                       </div>
-                       <span className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                          session.status === 'scheduled' ? 'bg-indigo-50 text-indigo-600' :
-                          session.status === 'attended' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
-                       }`}>
-                          {session.status}
-                       </span>
+              {viewingMembershipSchedule.generatedSessions?.length > 0 ? (
+                viewingMembershipSchedule.generatedSessions.map((session, sidx) => (
+                  <div key={session._id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xs">
+                        {sidx + 1}
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-ink">
+                          {new Date(session.startTime).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] font-bold text-ink/30 uppercase tracking-widest">
+                            {new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <span className="w-1 h-1 rounded-full bg-slate-200"></span>
+                          <span className="text-[10px] font-bold text-ink/30 uppercase tracking-widest">
+                            Trainer: {session.trainerId?.name || 'TBA'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  ))
-               ) : (
-                  <div className="py-12 text-center text-ink/20">
-                     <p className="text-sm font-bold">No sessions found for this membership.</p>
+                    <span className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${session.status === 'scheduled' ? 'bg-indigo-50 text-indigo-600' :
+                      session.status === 'present' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                        session.status === 'absent' ? 'bg-red-50 text-red-500 border border-red-100' :
+                          'bg-slate-100 text-slate-400'
+                      }`}>
+                      {session.status === 'present' ? '✓ Present' :
+                        session.status === 'absent' ? '✖ Absent' :
+                          session.status}
+                    </span>
                   </div>
-               )}
+                ))
+              ) : (
+                <div className="py-12 text-center text-ink/20">
+                  <p className="text-sm font-bold">No sessions found for this membership.</p>
+                </div>
+              )}
             </div>
 
             <div className="p-8 border-t border-slate-100 bg-white flex justify-end shrink-0">
@@ -846,17 +1023,17 @@ export default function BookingManagement() {
                             {new Date(b.sessionId?.startTime || b.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · {b.sessionId?.trainerId?.name || 'Assigned Trainer'}
                           </p>
                           {b.bookingType === 'package' && (
-                             <button 
-                                onClick={() => fetchMembershipSchedule(b._id)}
-                                className="mt-2 text-[10px] font-black text-brand-blue uppercase tracking-widest hover:underline flex items-center gap-1.5"
-                             >
-                                <span>📅</span> View Schedule →
-                             </button>
+                            <button
+                              onClick={() => fetchMembershipSchedule(b._id)}
+                              className="mt-2 text-[10px] font-black text-brand-blue uppercase tracking-widest hover:underline flex items-center gap-1.5"
+                            >
+                              <span>📅</span> View Schedule →
+                            </button>
                           )}
                         </div>
                       </div>
                       <span className={`shrink-0 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${b.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
-                          b.status === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-400'
+                        b.status === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-400'
                         }`}>
                         {b.status}
                       </span>
