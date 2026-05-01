@@ -13,7 +13,7 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
     const backendUrl = apiBaseUrl.replace(/\/api$/, '');
-    
+
     const newSocket = io(backendUrl, {
       withCredentials: true,
       transports: ['polling', 'websocket']
@@ -21,10 +21,10 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on('connect', () => {
       console.log('Socket connected:', newSocket.id);
-      
-      // Auto-join if already logged in as admin
+
+      // Auto-join if logged in as staff
       const user = getUser();
-      if (user && (user.role === 'admin' || user.role === 'superadmin')) {
+      if (user && ['admin', 'superadmin', 'trainer', 'cashier'].includes(user.role)) {
         newSocket.emit('join_admin');
       }
     });
@@ -41,7 +41,7 @@ export const SocketProvider = ({ children }) => {
               <span className="text-xs font-mono bg-slate-100 p-1 rounded mt-1">#{data.bookingNumber}</span>
             </div>
           ),
-          { 
+          {
             duration: 6000,
             position: 'top-right',
             style: {

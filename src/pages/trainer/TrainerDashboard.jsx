@@ -4,6 +4,7 @@ import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import { getUser, setAuth } from '../../utils/auth.js';
 import toast from 'react-hot-toast';
+import { useSocket } from '../../context/SocketContext.jsx';
 
 export default function TrainerDashboard() {
   const [activeTab, setActiveTab] = useState('schedule');
@@ -24,6 +25,29 @@ export default function TrainerDashboard() {
   const [now, setNow] = useState(new Date());
   const [sessionCategory, setSessionCategory] = useState('all'); // 'all', 'one-day', 'membership'
   const [showRosterModal, setShowRosterModal] = useState(false);
+  const { socket } = useSocket();
+
+  // Listen for real-time booking updates
+  useEffect(() => {
+    if (socket) {
+      const handleUpdate = (data) => {
+        console.log('Real-time update received:', data);
+        const user = getUser();
+        if (user) {
+          loadSessions(user.trainerId, user.name, user.email);
+          loadAllBookings(user.trainerId);
+        }
+      };
+
+      socket.on('booking_updated', handleUpdate);
+      socket.on('attendance_updated', handleUpdate);
+      
+      return () => {
+        socket.off('booking_updated', handleUpdate);
+        socket.off('attendance_updated', handleUpdate);
+      };
+    }
+  }, [socket]);
 
   // Live updates to the dashboard time every minute
   useEffect(() => {

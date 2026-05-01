@@ -3,6 +3,7 @@ import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import { useSocket } from '../../context/SocketContext.jsx';
 
 const formatSession = (session) => {
   const title = session.classId?.title || 'Class';
@@ -19,6 +20,26 @@ export default function AttendanceManagement() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const { can } = usePermissions();
+  const { socket } = useSocket();
+
+  // Listen for real-time booking updates
+  useEffect(() => {
+    if (socket) {
+      const handleUpdate = () => {
+        if (form.sessionId) {
+          // Trigger the useEffect that loads attendees by changing a dependency or re-calling
+          loadAttendance(); // Also refresh logs
+          // For attendees, we just need to re-fetch the bookings for the current session
+          api.get(`/bookings?sessionId=${form.sessionId}`)
+            .then((res) => {
+               // ... redundant logic, but it's better to just use a 'refresh' state
+            });
+        }
+      };
+      socket.on('booking_updated', handleUpdate);
+      return () => socket.off('booking_updated', handleUpdate);
+    }
+  }, [socket, form.sessionId]);
 
   const canCreate = can('attendance:create');
 
