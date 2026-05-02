@@ -100,6 +100,8 @@ export default function PaymentsManagement() {
   const [methodFilter, setMethod] = useState('all');
   const [typeFilter, setType]     = useState('all');
   const [expandedId, setExpandedId] = useState(null);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const { can } = usePermissions();
 
   const canExport = can('payments:view'); // Assuming if they can view, they can export, or we can use another perm.
@@ -111,21 +113,6 @@ export default function PaymentsManagement() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
-
-  /* ── stats ── */
-  const stats = useMemo(() => {
-    const paid = payments.filter(p => p.status === 'paid');
-    const today = paid.filter(p => isToday(p.createdAt));
-    const month = paid.filter(p => isThisMonth(p.createdAt));
-    return {
-      total: paid.length,
-      totalRevenue: paid.reduce((s, p) => s + (p.amount || 0), 0),
-      todayRevenue: today.reduce((s, p) => s + (p.amount || 0), 0),
-      monthRevenue: month.reduce((s, p) => s + (p.amount || 0), 0),
-      pending: payments.filter(p => p.status === 'pending').length,
-      failed:  payments.filter(p => p.status === 'failed').length,
-    };
-  }, [payments]);
 
   /* ── filter ── */
   const filtered = useMemo(() => {
@@ -153,6 +140,14 @@ export default function PaymentsManagement() {
         if (typeFilter === 'plan' && !p.planId) return false;
         if (typeFilter === 'membership' && !p.membershipId) return false;
       }
+
+      if (fromDate && new Date(p.createdAt) < new Date(fromDate)) return false;
+      if (toDate) {
+        const end = new Date(toDate);
+        end.setHours(23, 59, 59, 999);
+        if (new Date(p.createdAt) > end) return false;
+      }
+
       if (q) {
         const name  = p.userId?.name?.toLowerCase() || p.bookingId?.guestDetails?.name?.toLowerCase() || '';
         const email = p.userId?.email?.toLowerCase() || p.bookingId?.guestDetails?.email?.toLowerCase() || '';
@@ -169,7 +164,22 @@ export default function PaymentsManagement() {
       }
       return true;
     });
-  }, [payments, search, statusFilter, methodFilter, typeFilter]);
+  }, [payments, search, statusFilter, methodFilter, typeFilter, fromDate, toDate]);
+
+  /* ── stats ── */
+  const stats = useMemo(() => {
+    const paid = filtered.filter(p => p.status === 'paid');
+    const today = paid.filter(p => isToday(p.createdAt));
+    const month = paid.filter(p => isThisMonth(p.createdAt));
+    return {
+      total: paid.length,
+      totalRevenue: paid.reduce((s, p) => s + (p.amount || 0), 0),
+      todayRevenue: today.reduce((s, p) => s + (p.amount || 0), 0),
+      monthRevenue: month.reduce((s, p) => s + (p.amount || 0), 0),
+      pending: filtered.filter(p => p.status === 'pending').length,
+      failed:  filtered.filter(p => p.status === 'failed').length,
+    };
+  }, [filtered]);
 
   /* ── group by date ── */
   const grouped = useMemo(() => {
@@ -281,6 +291,34 @@ export default function PaymentsManagement() {
             <option value="plan">Paid Plans</option>
             <option value="membership">Memberships</option>
           </select>
+
+          {/* Date Range */}
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={fromDate}
+              onChange={e => setFromDate(e.target.value)}
+              className="rounded-xl border border-brand-black/10 bg-white px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue"
+            />
+            <span className="text-brand-black/20 text-xs font-bold uppercase">to</span>
+            <input
+              type="date"
+              value={toDate}
+              onChange={e => setToDate(e.target.value)}
+              className="rounded-xl border border-brand-black/10 bg-white px-3 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-blue/30 focus:border-brand-blue"
+            />
+            {(fromDate || toDate) && (
+              <button 
+                onClick={() => { setFromDate(''); setToDate(''); }}
+                className="p-2.5 text-brand-black/40 hover:text-brand-blue transition-colors"
+                title="Clear Dates"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ── Count ── */}
@@ -387,7 +425,7 @@ export default function PaymentsManagement() {
                                     Plan: {payment.planId.name}
                                   </span>
                                 )}
-                                {payment.bookingId && (
+                                {payment.bookingId && payment.bookingId.bookingType !== 'package' && (
                                   <>
                                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
                                       Class: {payment.bookingId.classId?.title || 'Enrollment'}
@@ -509,7 +547,7 @@ export default function PaymentsManagement() {
                                          href={`/invoice/booking/${payment.bookingId._id}`}
                                          className="text-[10px] font-black uppercase text-brand-blue hover:underline"
                                        >
-                                         Generate / View Receipt →
+                                          Generate / View Receipt →
                                        </a>
                                      )}
                                   </div>

@@ -17,6 +17,7 @@ const REPORT_TYPES = [
   { id: 'membership_consumption', label: 'Membership Consumption Report' },
   { id: 'promotions_usage', label: 'Promotion Usage Report' },
   { id: 'taxes', label: 'Tax Collection Report' },
+  { id: 'sales_report', label: 'Sales Summary (Monthly/Daily)' },
 ];
 
 export default function Reports() {
@@ -313,6 +314,12 @@ export default function Reports() {
       { key: 'expiryDate', label: 'Valid Until' },
       { key: 'status', label: 'Status' },
       { key: 'locationName', label: 'Branch' },
+    ],
+    sales_report: [
+      { key: 'type', label: 'Report Level' },
+      { key: 'dateDisplay', label: 'Period' },
+      { key: 'transactions', label: 'Txn Count' },
+      { key: 'amount', label: 'Total Revenue (AED)' },
     ]
   };
 
@@ -387,6 +394,18 @@ export default function Reports() {
           </div>
           <span className="text-[9px] font-black text-ink/40">{percentage}%</span>
         </div>
+      );
+    }
+
+    if (key === 'amount' || key === 'totalRevenue' || key === 'baseAmount' || key === 'taxCollected' || key === 'totalPaid') {
+      return <span className="font-black text-brand-blue">AED {Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>;
+    }
+
+    if (key === 'type' && (value === 'Monthly' || value === 'Daily')) {
+      return (
+        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${value === 'Monthly' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+          {value}
+        </span>
       );
     }
 
