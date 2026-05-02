@@ -110,6 +110,12 @@ export default function BookingManagement() {
     api.get('/locations?all=true').then(res => setLocations(res.data || [])).catch(() => { });
   };
 
+  const silentLoad = () => {
+    api.get('/bookings').then((res) => {
+      setBookings(res.data || []);
+    }).catch(() => { });
+  };
+
   useEffect(() => {
     load();
   }, []);
@@ -134,7 +140,12 @@ export default function BookingManagement() {
     }
 
     if (dateFilter) {
-      result = result.filter(b => b.sessionId?.startTime?.startsWith(dateFilter));
+      result = result.filter(b => {
+        const scheduleDate = b.sessionId?.startTime || b.date;
+        const bookingDate = b.createdAt;
+        return (scheduleDate && scheduleDate.startsWith(dateFilter)) || 
+               (bookingDate && bookingDate.startsWith(dateFilter));
+      });
     }
 
     if (locationFilter) {
@@ -166,17 +177,23 @@ export default function BookingManagement() {
   };
 
   const updateStatus = async (id, status) => {
-    await api.put(`/bookings/${id}/status`, { status });
-    load();
+    try {
+      await api.put(`/bookings/${id}/status`, { status });
+      silentLoad();
+      toast.success('Status updated');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Update failed');
+    }
   };
 
   const handleCancelBooking = async (id) => {
     if (!window.confirm('Are you sure you want to cancel this booking? This action is non-destructive.')) return;
     try {
       await api.delete(`/bookings/${id}`);
-      load();
+      silentLoad();
+      toast.success('Booking cancelled');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to cancel booking');
+      toast.error(err.response?.data?.message || 'Failed to cancel booking');
     }
   };
 
@@ -188,7 +205,7 @@ export default function BookingManagement() {
   };
 
   const performConfirmCenterPayment = async () => {
-    setLoading(true);
+    setIsRefreshing(true);
     try {
       await api.put(`/bookings/${confirmingBookingId}/status`, {
         status: 'confirmed',
@@ -196,10 +213,12 @@ export default function BookingManagement() {
         reference: paymentRef
       });
       setShowConfirmModal(false);
-      load();
+      silentLoad();
+      toast.success('Payment confirmed');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to confirm payment');
-      setLoading(false);
+      toast.error(err.response?.data?.message || 'Failed to confirm payment');
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -215,9 +234,10 @@ export default function BookingManagement() {
 
     try {
       await api.put(`/bookings/${id}/refund-resolve`, { status });
-      load();
+      silentLoad();
+      toast.success('Refund request resolved');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to resolve refund');
+      toast.error(err.response?.data?.message || 'Failed to resolve refund');
     }
   };
 
@@ -262,15 +282,30 @@ export default function BookingManagement() {
 
   const formatPaymentMethod = (method) => {
     if (!method) return 'N/A';
+    let label = '';
     if (method.startsWith('center_')) {
       const actualMethod = method.split('_')[1];
-      if (actualMethod === 'cash') return 'Pay at Cash';
-      return `Pay at Center: ${actualMethod.charAt(0).toUpperCase() + actualMethod.slice(1)}`;
+      label = actualMethod.charAt(0).toUpperCase() + actualMethod.slice(1);
+    } else if (method === 'center') {
+      label = 'Pay at Center';
+    } else if (method === 'online') {
+      label = 'Online';
+    } else if (method === 'online_bank') {
+      label = 'Bank Transfer';
+    } else {
+      label = method.charAt(0).toUpperCase() + method.slice(1);
     }
-    if (method === 'center') return 'Pay at Center';
-    if (method === 'online') return 'Online';
-    if (method === 'online_bank') return 'Online Bank Transfer';
-    return method.charAt(0).toUpperCase() + method.slice(1);
+    return `${label} Payment`;
+  };
+
+  const getPaymentMethodStyles = (method) => {
+    if (!method) return 'bg-slate-50 text-slate-400 border-slate-100';
+    const m = method.toLowerCase();
+    if (m.includes('cash')) return 'bg-amber-50 text-amber-700 border-amber-200';
+    if (m.includes('card')) return 'bg-sky-50 text-sky-700 border-sky-200';
+    if (m.includes('online')) return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+    if (m.includes('bank')) return 'bg-violet-50 text-violet-700 border-violet-200';
+    return 'bg-brand-blue/5 text-brand-blue border-brand-blue/10';
   };
 
   return (
@@ -421,9 +456,17 @@ export default function BookingManagement() {
                     ) : (
                       <span className="text-[10px] font-black text-ink/20 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">#{booking._id.slice(-6)}</span>
                     )}
-                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-full tracking-widest">
-                      📅 {new Date(booking.sessionId?.startTime || booking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-full tracking-widest flex items-center gap-1.5">
+                      <span className="opacity-50">📅 Schedule:</span>
+                      {new Date(booking.sessionId?.startTime || booking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </span>
+                    <button 
+                      onClick={() => setDateFilter(booking.createdAt.split('T')[0])}
+                      className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full tracking-widest flex items-center gap-1.5 hover:bg-indigo-100 transition-colors"
+                    >
+                      <span className="opacity-50">📝 Booked:</span>
+                      {new Date(booking.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </button>
                     {booking.bookingType === 'package' && (
                       <span className="text-[10px] font-black text-white bg-indigo-600 px-2.5 py-0.5 rounded-full tracking-widest animate-pulse">
                         📦 Package Purchase
@@ -444,20 +487,33 @@ export default function BookingManagement() {
                         📍 {typeof booking.locationId === 'object' ? booking.locationId.name : locations.find(l => l._id === booking.locationId)?.name || 'Central'}
                       </p>
                     )}
-                    <p className="text-[10px] text-brand-blue font-bold uppercase tracking-widest">
-                      💳 {formatPaymentMethod(booking.paymentMethod)}
-                    </p>
-                    {booking.processedByRole ? (
-                      <p className="text-[10px] text-brand-blue/50 font-bold uppercase tracking-widest flex items-center gap-1">
-                        <span className="w-1 h-1 rounded-full bg-brand-blue/30"></span>
-                        Source: <span className="text-brand-blue">Walking</span> ({booking.processedBy?.name || booking.processedByRole})
-                      </p>
-                    ) : (
-                      <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest flex items-center gap-1">
-                        <span className="w-1 h-1 rounded-full bg-indigo-200"></span>
-                        Source: Website / Parent
-                      </p>
-                    )}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                      {booking.paymentStatus === 'completed' && booking.processedBy && (
+                        <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest flex items-center gap-1.5 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-100 shadow-sm">
+                          <span>👤 Received by:</span>
+                          <span className="text-ink font-black">{booking.processedBy.name || booking.processedBy}</span>
+                          <span className="opacity-40 text-[8px]">({booking.processedByRole || 'Staff'})</span>
+                          <span className="ml-1 px-1.5 py-0.5 bg-emerald-100/50 rounded-md text-emerald-800 font-black border border-emerald-200/50">
+                            ({formatPaymentMethod(booking.paymentMethod).replace(' Payment', '')})
+                          </span>
+                        </p>
+                      )}
+                      {(!booking.processedBy || booking.paymentStatus !== 'completed') && (
+                        <p className={`text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 px-3 py-1 rounded-lg border shadow-sm ${getPaymentMethodStyles(booking.paymentMethod)}`}>
+                          <span className="text-xs">💳</span> {formatPaymentMethod(booking.paymentMethod)}
+                        </p>
+                      )}
+                      {!booking.processedBy && booking.paymentStatus === 'completed' && (
+                        <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest flex items-center gap-1.5 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
+                          <span>🌐 Source:</span> Website / Parent
+                        </p>
+                      )}
+                      {booking.processedByRole && booking.paymentStatus === 'pending' && (
+                        <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest flex items-center gap-1.5 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">
+                          <span>🚶 Walking:</span> {booking.processedBy.name || 'Staff'} ({booking.processedByRole})
+                        </p>
+                      )}
+                    </div>
                     <div className="mt-3 flex items-center gap-4">
                       <Link
                         to={`/invoice/booking/${booking._id}`}
@@ -679,7 +735,11 @@ export default function BookingManagement() {
                       )}
                     </div>
                     <div>
-                      <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest mb-1">Booking Date</p>
+                      <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest mb-1">Booking Date (Transaction)</p>
+                      <p className="text-sm font-black text-ink">{new Date(viewingBookingDetails.createdAt).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest mb-1">Service Start / Schedule Date</p>
                       <p className="text-sm font-black text-ink">{new Date(viewingBookingDetails.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                     </div>
                   </div>
@@ -710,6 +770,12 @@ export default function BookingManagement() {
                         <p className="text-[11px] font-bold text-ink truncate">{viewingBookingDetails.paymentReference || 'N/A'}</p>
                       </div>
                     </div>
+                    {viewingBookingDetails.processedBy && (
+                      <div className="pt-2 border-t border-slate-50">
+                        <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Received / Processed By</p>
+                        <p className="text-[11px] font-bold text-ink">{viewingBookingDetails.processedBy.name || viewingBookingDetails.processedBy} ({viewingBookingDetails.processedByRole || 'Staff'})</p>
+                      </div>
+                    )}
                   </div>
                 </section>
               </div>

@@ -34,7 +34,7 @@ const numberToWords = (num) => {
 };
 
 export default function InvoiceView() {
-   const { bookingId } = useParams();
+   const { id, bookingId } = useParams();
    const navigate = useNavigate();
    const [invoice, setInvoice] = useState(null);
    const [loading, setLoading] = useState(true);
@@ -43,7 +43,8 @@ export default function InvoiceView() {
    useEffect(() => {
       const fetchInvoice = async () => {
          try {
-            const res = await api.get(`/invoices/booking/${bookingId}`);
+            const url = bookingId ? `/invoices/booking/${bookingId}` : `/invoices/${id}`;
+            const res = await api.get(url);
             setInvoice(res.data);
          } catch (err) {
             console.error('Invoice fetch error:', err);
@@ -53,7 +54,7 @@ export default function InvoiceView() {
          }
       };
       fetchInvoice();
-   }, [bookingId]);
+   }, [id, bookingId]);
 
    if (loading) return <div className="min-h-screen flex items-center justify-center font-black text-brand-blue uppercase tracking-widest animate-pulse font-display">Generating Official Receipt...</div>;
    
@@ -178,6 +179,15 @@ export default function InvoiceView() {
                             invoice.status === 'cancelled' ? 'Cancelled / Refunded' : 
                             'Payment Due'}
                         </div>
+                        {invoice.bookingId?.paymentMethod && (
+                            <div className="px-5 py-2 rounded-full bg-brand-blue/5 text-brand-blue text-[10px] font-black uppercase tracking-[0.2em] shadow-sm flex items-center gap-2 border border-brand-blue/10">
+                               <span>{
+                                  invoice.bookingId.paymentMethod.includes('cash') ? '💵' : 
+                                  invoice.bookingId.paymentMethod.includes('card') ? '💳' : '🌐'
+                               }</span> 
+                               {invoice.bookingId.paymentMethod.replace('center_', '').toUpperCase()}
+                            </div>
+                         )}
                      </div>
 
                      {/* Header Redesign */}
@@ -340,6 +350,16 @@ export default function InvoiceView() {
                            </div>
                            <span className="text-sm font-black text-ink/60 tracking-tight">AED {taxAmount.toFixed(2)}</span>
                         </div>
+
+                        {/* Payment Method - Bottom Row */}
+                        {invoice.bookingId?.paymentMethod && (
+                           <div className="flex items-center justify-between px-8 py-3 bg-white border-b border-slate-100">
+                              <span className="text-[9px] font-black text-ink/20 uppercase tracking-[0.3em]">Payment Mode</span>
+                              <span className="text-xs font-black text-ink uppercase tracking-widest italic opacity-60">
+                                 {invoice.bookingId.paymentMethod.replace('center_', '')}
+                              </span>
+                           </div>
+                        )}
 
                         {/* 5. Total Amount — prominent */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-8 py-6 bg-brand-blue">
