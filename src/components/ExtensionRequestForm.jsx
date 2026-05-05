@@ -2,7 +2,7 @@ import { useState } from 'react';
 import api from '../api/api.js';
 import toast from 'react-hot-toast';
 
-export default function ExtensionRequestForm({ membershipId, sessionId, endDate, onClose, onSuccess, type = 'reschedule' }) {
+export default function ExtensionRequestForm({ membershipId, sessionId, endDate, onClose, onSuccess, type = 'reschedule', timeSlots = [] }) {
   const [reason, setReason] = useState('');
   const [newDate, setNewDate] = useState('');
   const [newSlot, setNewSlot] = useState('');
@@ -136,14 +136,28 @@ export default function ExtensionRequestForm({ membershipId, sessionId, endDate,
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest text-ink/30 mb-2 ml-1">Suggested Time Slot</label>
-                  <input
-                    type="text"
-                    required
-                    value={newSlot}
-                    onChange={(e) => setNewSlot(e.target.value)}
-                    className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/10 outline-none transition-all"
-                    placeholder="e.g. 10:00 AM"
-                  />
+                  {timeSlots && timeSlots.length > 0 ? (
+                    <select
+                      required
+                      value={newSlot}
+                      onChange={(e) => setNewSlot(e.target.value)}
+                      className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/10 outline-none transition-all"
+                    >
+                      <option value="">Select a slot...</option>
+                      {timeSlots.map((slot, idx) => (
+                        <option key={idx} value={slot}>{slot}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      required
+                      value={newSlot}
+                      onChange={(e) => setNewSlot(e.target.value)}
+                      className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 p-4 text-sm font-bold text-ink focus:ring-4 focus:ring-brand-blue/10 outline-none transition-all"
+                      placeholder="e.g. 10:00 AM"
+                    />
+                  )}
                 </div>
               </>
             )}

@@ -18,6 +18,7 @@ const REPORT_TYPES = [
   { id: 'promotions_usage', label: 'Promotion Usage Report' },
   { id: 'taxes', label: 'Tax Collection Report' },
   { id: 'sales_report', label: 'Sales Summary (Monthly/Daily)' },
+  { id: 'detailed_sales', label: 'Detailed Sales Report (Itemized)' },
 ];
 
 export default function Reports() {
@@ -320,13 +321,30 @@ export default function Reports() {
       { key: 'dateDisplay', label: 'Period' },
       { key: 'transactions', label: 'Txn Count' },
       { key: 'amount', label: 'Total Revenue (AED)' },
+    ],
+    detailed_sales: [
+      { key: 'location', label: 'Location' },
+      { key: 'invoiceNumber', label: 'Inv #' },
+      { key: 'bookingNumber', label: 'Booking #' },
+      { key: 'invoiceDate', label: 'Date' },
+      { key: 'customerName', label: 'Customer' },
+      { key: 'customerPhone', label: 'Mobile' },
+      { key: 'customerEmail', label: 'Email' },
+      { key: 'item', label: 'Item' },
+      { key: 'unitPrice', label: 'Price' },
+      { key: 'quantity', label: 'QTY' },
+      { key: 'lineVat', label: 'VAT' },
+      { key: 'lineTotal', label: 'Line Total' },
+      { key: 'discount', label: 'Discount' },
+      { key: 'discountType', label: 'Disc Type' },
+      { key: 'paymentMode', label: 'Payment Mode' },
     ]
   };
 
   const renderValue = (key, value) => {
     if (value === null || value === undefined) return <span className="text-ink/20">—</span>;
 
-    if (key === 'createdAt' || key === 'date' || key === 'paymentDate' || key === 'checkedInAt') {
+    if (key === 'createdAt' || key === 'date' || key === 'paymentDate' || key === 'checkedInAt' || key === 'invoiceDate') {
       try {
         const d = new Date(value);
         if (isNaN(d.getTime())) return String(value);
@@ -397,7 +415,7 @@ export default function Reports() {
       );
     }
 
-    if (key === 'amount' || key === 'totalRevenue' || key === 'baseAmount' || key === 'taxCollected' || key === 'totalPaid') {
+    if (key === 'amount' || key === 'totalRevenue' || key === 'baseAmount' || key === 'taxCollected' || key === 'totalPaid' || key === 'unitPrice' || key === 'lineTotal' || key === 'lineVat' || key === 'discount') {
       return <span className="font-black text-brand-blue">AED {Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>;
     }
 

@@ -20,6 +20,25 @@ export default function MyBookings() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [detailBooking, setDetailBooking] = useState(null);
+  const [schedule, setSchedule] = useState([]);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
+
+  const openDetail = async (booking) => {
+    setDetailBooking(booking);
+    setSchedule([]);
+    if (booking.bookingType === 'package') {
+      setLoadingSchedule(true);
+      try {
+        const res = await api.get(`/bookings/${booking._id}/schedule`);
+        setSchedule(res.data);
+      } catch (err) {
+        console.error('Failed to load schedule', err);
+      } finally {
+        setLoadingSchedule(false);
+      }
+    }
+  };
 
   const load = () => {
     setLoading(true);
@@ -271,6 +290,12 @@ export default function MyBookings() {
                       >
                         <span>📜</span> View Invoice
                       </Link>
+                      <button
+                        onClick={() => openDetail(booking)}
+                        className="text-[9px] font-black text-coral/40 uppercase tracking-widest hover:text-coral transition-colors flex items-center gap-1.5"
+                      >
+                        <span>🔍</span> View Detail
+                      </button>
                     </div>
                   </div>
 
@@ -447,6 +472,150 @@ export default function MyBookings() {
           </div>
         </div>
       ) : null}
+      {detailBooking ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={() => setDetailBooking(null)}>
+          <div className="w-full max-w-2xl overflow-hidden rounded-[2rem] bg-white shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="bg-brand-blue p-8 text-white relative">
+              <div className="relative z-10 flex items-center justify-between">
+                <div>
+                  <h3 className="font-display text-2xl font-black">Booking Details</h3>
+                  <p className="mt-1 text-sm text-white/80 font-medium">#{detailBooking.bookingNumber || detailBooking._id.slice(-8).toUpperCase()}</p>
+                </div>
+                <button onClick={() => setDetailBooking(null)} className="h-10 w-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition">
+                  <span className="text-xl">✕</span>
+                </button>
+              </div>
+              <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+            </div>
+
+            <div className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <div className="grid gap-8">
+                {/* Status & Timing */}
+                <div className="flex flex-wrap items-center justify-between gap-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-1">Status</p>
+                    <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider shadow-sm border ${
+                      detailBooking.status === 'confirmed' ? 'bg-moss/10 text-moss border-transparent' : 'bg-red-50 text-red-600 border-red-100'
+                    }`}>
+                      {detailBooking.status}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-1">Session Timing</p>
+                    <p className="text-sm font-bold text-ink">
+                      {new Date(detailBooking.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(detailBooking.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Course/Plan Info */}
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-ink/30 mb-4 px-1">Order Information</h4>
+                  <div className="flex items-center gap-4 p-4 rounded-2xl border border-slate-100">
+                    <div className="h-12 w-12 rounded-xl bg-coral/10 flex items-center justify-center text-xl">
+                      {detailBooking.bookingType === 'package' ? '📦' : '🎟️'}
+                    </div>
+                    <div>
+                      <p className="font-bold text-ink">{detailBooking.classId?.title || detailBooking.planId?.name}</p>
+                      <p className="text-xs text-ink/50">{detailBooking.bookingType === 'package' ? 'Membership Package' : 'Single Session'}</p>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <p className="font-black text-brand-blue">AED {detailBooking.totalAmount}</p>
+                      <p className="text-[10px] text-ink/30 uppercase font-bold">{detailBooking.paymentMethod?.replace('center_', '') || 'Card'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Participants */}
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-ink/30 mb-4 px-1">Participants ({detailBooking.participants?.length || 0})</h4>
+                  <div className="grid gap-3">
+                    {detailBooking.participants?.map((p, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-100 shadow-sm transition hover:shadow-md">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-sm">
+                            {p.gender === 'female' ? '👧' : '👦'}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-ink">{p.name}</p>
+                            <p className="text-[10px] text-ink/50 uppercase font-black">{p.relation || 'Child'} • {p.age} Years • {p.gender}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Membership Schedule */}
+                {detailBooking.bookingType === 'package' && (
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-ink/30 mb-4 px-1">Class Schedule</h4>
+                    {loadingSchedule ? (
+                      <div className="space-y-2">
+                        {[1, 2, 3].map(i => (
+                          <div key={i} className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 animate-pulse">
+                            <div className="h-3 w-32 bg-slate-100 rounded" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : schedule.length > 0 ? (
+                      <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                        {schedule.map((s, idx) => (
+                          <div key={s._id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                            <div className="flex items-center gap-3">
+                              <span className="text-[10px] font-black text-ink/20">{idx + 1}</span>
+                              <div>
+                                <p className="text-xs font-bold text-ink">
+                                  {new Date(s.startTime).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                </p>
+                                <p className="text-[10px] text-ink/50 uppercase font-bold">
+                                  {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {s.trainerId?.name || 'Coach'}
+                                </p>
+                              </div>
+                            </div>
+                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${new Date(s.startTime) < new Date() ? 'bg-slate-200 text-slate-500' : 'bg-moss/10 text-moss'}`}>
+                              {new Date(s.startTime) < new Date() ? 'Completed' : 'Upcoming'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-ink/30 italic px-1">No sessions generated yet.</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Branch Info */}
+                {detailBooking.locationId && (
+                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100">
+                    <span className="text-xl">📍</span>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Branch Location</p>
+                      <p className="text-sm font-bold text-indigo-900">{detailBooking.locationId.name || 'JTS Fitness Center'}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <Link
+                to={`/invoice/booking/${detailBooking._id}`}
+                className="rounded-xl px-6 py-2.5 text-xs font-black uppercase tracking-widest text-brand-blue hover:bg-brand-blue/5 transition"
+              >
+                View Invoice
+              </Link>
+              <button
+                onClick={() => setDetailBooking(null)}
+                className="rounded-xl bg-brand-blue px-8 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-brand-blue/20 hover:scale-105 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <Footer />
     </div>
   );
