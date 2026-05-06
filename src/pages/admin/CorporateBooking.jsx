@@ -10,6 +10,7 @@ export default function CorporateBooking() {
   const [selectedSessions, setSelectedSessions] = useState([]);
   const [participants, setParticipants] = useState([{ name: '', age: '', gender: 'male' }]);
   const [corporateName, setCorporateName] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
   const [loading, setLoading] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,7 +67,7 @@ export default function CorporateBooking() {
         corporateName,
         participants,
         sessions: selectedSessions,
-        paymentMethod: 'center'
+        paymentMethod: `center_${paymentMethod}`
       });
       navigate('/admin/bookings');
     } catch (err) {
@@ -203,6 +204,24 @@ export default function CorporateBooking() {
                 <div className="flex justify-between items-center text-white/40"><span>Staff</span><span className="text-lg text-white">{participants.length}</span></div>
                 <div className="flex justify-between items-center text-white/40"><span>Price</span><span className="text-lg text-white">AED {pricePerSlot?.toFixed(2)}</span></div>
               </div>
+              <div className="mb-10">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-4">Payment Method</p>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setPaymentMethod('cash')}
+                    className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all border-2 ${paymentMethod === 'cash' ? 'bg-brand-blue border-brand-blue' : 'bg-white/5 border-white/10 text-white/40 hover:border-white/20'}`}
+                  >
+                    💵 Cash
+                  </button>
+                  <button 
+                    onClick={() => setPaymentMethod('card')}
+                    className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all border-2 ${paymentMethod === 'card' ? 'bg-brand-blue border-brand-blue' : 'bg-white/5 border-white/10 text-white/40 hover:border-white/20'}`}
+                  >
+                    💳 Card
+                  </button>
+                </div>
+              </div>
+
               <div className="mb-12">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-blue mb-2">Grand Total</p>
                 <span className="text-4xl font-black">AED {totalPrice.toFixed(2)}</span>

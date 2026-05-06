@@ -52,15 +52,35 @@ export default function Reports() {
       let data = res.data || [];
 
       // Process bookings to extract capacity and timing
-      if (reportType === 'bookings' || reportType === 'payments') {
-        const process = (list) => (list || []).map(item => ({
-          ...item,
-          capacity: item.classId?.capacity || 'N/A',
-          combinedDiscount: (Number(item.discountAmount) || 0) + (Number(item.couponAmount) || 0),
-          slotTiming: item.sessionId ? (
-            `${new Date(item.sessionId.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} - ${item.sessionId.endTime ? new Date(item.sessionId.endTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}`
-          ) : 'N/A'
-        }));
+      if (reportType === 'bookings' || reportType === 'payments' || reportType === 'detailed_sales') {
+        const process = (list) => (list || []).map(item => {
+          const rawMethod = item.paymentMethod || item.paymentMode || 'N/A';
+          let mode = rawMethod;
+          let type = 'N/A';
+
+          if (rawMethod.toLowerCase().startsWith('center_') || rawMethod.toLowerCase() === 'center') {
+            mode = 'CENTER';
+            type = rawMethod.toLowerCase() === 'center' ? 'UNSPECIFIED' : rawMethod.replace('center_', '').toUpperCase();
+          } else if (rawMethod.toLowerCase() === 'online') {
+            mode = 'WEBSITE';
+            type = 'CARD/GATEWAY';
+          } else {
+            mode = rawMethod.toUpperCase();
+            type = 'N/A';
+          }
+
+          return {
+            ...item,
+            paymentMethod: mode,
+            paymentMode: mode,
+            paymentType: type,
+            capacity: item.classId?.capacity || 'N/A',
+            combinedDiscount: (Number(item.discountAmount) || 0) + (Number(item.couponAmount) || 0),
+            slotTiming: item.sessionId ? (
+              `${new Date(item.sessionId.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} - ${item.sessionId.endTime ? new Date(item.sessionId.endTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}`
+            ) : 'N/A'
+          };
+        });
 
         if (reportType === 'bookings' && data.purchases) {
           data = {
@@ -191,7 +211,8 @@ export default function Reports() {
       { key: 'date', label: 'Date' },
       { key: 'totalAmount', label: 'Amount' },
       { key: 'status', label: 'Status' },
-      { key: 'paymentMethod', label: 'Method' },
+      { key: 'paymentMethod', label: 'Payment Mode' },
+      { key: 'paymentType', label: 'Payment Type' },
       { key: 'transactionId', label: 'Txn ID' },
       { key: 'paymentStatus', label: 'Payment' },
       { key: 'promotionId', label: 'Promotion' },
@@ -249,7 +270,8 @@ export default function Reports() {
     payments: [
       { key: 'userId', label: 'User' },
       { key: 'amount', label: 'Amount' },
-      { key: 'paymentMethod', label: 'Method' },
+      { key: 'paymentMethod', label: 'Payment Mode' },
+      { key: 'paymentType', label: 'Payment Type' },
       { key: 'status', label: 'Status' },
       { key: 'promotionId', label: 'Promotion' },
       { key: 'combinedDiscount', label: 'Discount' },
@@ -338,6 +360,7 @@ export default function Reports() {
       { key: 'discount', label: 'Discount' },
       { key: 'discountType', label: 'Disc Type' },
       { key: 'paymentMode', label: 'Payment Mode' },
+      { key: 'paymentType', label: 'Payment Type' },
     ]
   };
 
@@ -397,7 +420,10 @@ export default function Reports() {
         refunded: 'text-rose-600 bg-rose-50 border border-rose-100',
         active: 'text-emerald-600 bg-emerald-50 border border-emerald-100',
         frozen: 'text-amber-600 bg-amber-50 border border-amber-100',
-        expired: 'text-ink/30 bg-slate-100 border border-slate-200/50'
+        expired: 'text-ink/30 bg-slate-100 border border-slate-200/50',
+        upcoming: 'text-indigo-600 bg-indigo-50 border border-indigo-100',
+        past: 'text-amber-600 bg-amber-50 border border-amber-100',
+        present: 'text-emerald-600 bg-emerald-50 border border-emerald-100'
       };
       const statusValue = String(value).toLowerCase();
       return <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${colors[statusValue] || 'bg-slate-50'}`}>{value}</span>;
@@ -425,6 +451,17 @@ export default function Reports() {
           {value}
         </span>
       );
+    }
+
+    if (key === 'paymentMethod' || key === 'paymentMode' || key === 'method') {
+      if (!value) return <span className="text-ink/20">—</span>;
+      const str = String(value).toUpperCase();
+      return <span className="text-[10px] font-black text-ink/40 tracking-tight">{str}</span>;
+    }
+
+    if (key === 'paymentType') {
+      if (!value || value === 'N/A') return <span className="text-ink/20">—</span>;
+      return <span className="text-[10px] font-black text-coral uppercase tracking-tight">{value}</span>;
     }
 
     return String(value);
