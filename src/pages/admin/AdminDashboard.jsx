@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import Navbar from '../../components/Navbar.jsx';
 import AdminHeader from '../../components/AdminHeader.jsx';
 import Footer from '../../components/Footer.jsx';
@@ -38,15 +39,65 @@ export default function AdminDashboard() {
     upcomingSessions: 0,
     bookings: { pending: 0 }
   });
+  const [notifications, setNotifications] = useState({
+    bookings: 0,
+    trials: 0,
+    leads: 0,
+    extensions: 0,
+    payments: 0
+  });
   const [loading, setLoading] = useState(true);
 
   const { can, isAdminOrSuper, user } = usePermissions();
   const permissions = user?.permissions || [];
 
   useEffect(() => {
+    // Socket.io initialization
+    const socketUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace('/api', '');
+    const socket = io(socketUrl, { transports: ['polling', 'websocket'] });
+
+    socket.on('connect', () => {
+      socket.emit('join_admin');
+    });
+
+    const handleNotification = (category, data) => {
+      const selectedBranchId = localStorage.getItem('selectedBranch');
+      
+      // Filter by location
+      const isSuper = user?.role === 'superadmin';
+      const isSameLocation = 
+        !data.locationId || // Global notification
+        isSuper || // Superadmin sees all
+        (user?.locationId && data.locationId.toString() === user.locationId.toString()) || // Admin's own location
+        (selectedBranchId && data.locationId.toString() === selectedBranchId.toString()); // Currently viewed branch
+
+      if (isSameLocation) {
+        setNotifications(prev => ({ ...prev, [category]: prev[category] + 1 }));
+      }
+    };
+
+    socket.on('new_booking', (data) => handleNotification('bookings', data));
+    socket.on('new_trial', (data) => handleNotification('trials', data));
+    socket.on('new_lead', (data) => handleNotification('leads', data));
+    socket.on('new_extension', (data) => handleNotification('extensions', data));
+    socket.on('new_payment', (data) => handleNotification('payments', data));
+
+    return () => socket.disconnect();
+  }, []);
+
+  useEffect(() => {
     api.get('/reports/summary')
       .then(res => {
         setStats(res.data);
+        if (res.data.pendingCounts) {
+          setNotifications({
+            bookings: res.data.pendingCounts.bookings || 0,
+            trials: res.data.pendingCounts.trials || 0,
+            leads: res.data.pendingCounts.leads || 0,
+            extensions: res.data.pendingCounts.extensions || 0,
+            payments: res.data.pendingCounts.payments || 0
+          });
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -60,6 +111,15 @@ export default function AdminDashboard() {
 
   const filteredActions = adminActions.filter(action => isAdminOrSuper || permissions.includes(action.perm));
   const filteredStats = adminStats.filter(stat => isAdminOrSuper || permissions.includes(stat.perm));
+
+  const getNotificationCount = (title) => {
+    if (title === 'Bookings') return notifications.bookings;
+    if (title === 'Trial requests') return notifications.trials;
+    if (title === 'General Inquiries') return notifications.leads;
+    if (title === 'Extension requests') return notifications.extensions;
+    if (title === 'Payments') return notifications.payments;
+    return 0;
+  };
 
   return (
     <div>
@@ -83,13 +143,39 @@ export default function AdminDashboard() {
         </section>
 
         <section className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {filteredActions.map((action) => (
-            <Link key={action.to} to={action.to} className="soft-card rounded-3xl p-6 transition hover:-translate-y-1">
-              <h3 className="font-display text-lg">{action.title}</h3>
-              <p className="mt-2 text-sm text-ink/70">{action.desc}</p>
-              <span className="mt-4 inline-flex text-sm font-semibold text-coral">Open </span>
-            </Link>
-          ))}
+          {filteredActions.map((action) => {
+            const count = getNotificationCount(action.title);
+            return (
+              <Link 
+                key={action.to} 
+                to={action.to} 
+                className="soft-card relative rounded-3xl p-6 transition hover:-translate-y-1"
+                onClick={() => {
+                  const categoryMap = {
+                    'Bookings': 'bookings',
+                    'Trial requests': 'trials',
+                    'General Inquiries': 'leads',
+                    'Extension requests': 'extensions',
+                    'Payments': 'payments'
+                  };
+                  const cat = categoryMap[action.title];
+                  if (cat) {
+                    setNotifications(p => ({ ...p, [cat]: 0 }));
+                    api.put(`/users/last-viewed/${cat}`).catch(() => {});
+                  }
+                }}
+              >
+                {count > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-lg animate-bounce">
+                    {count}
+                  </span>
+                )}
+                <h3 className="font-display text-lg">{action.title}</h3>
+                <p className="mt-2 text-sm text-ink/70">{action.desc}</p>
+                <span className="mt-4 inline-flex text-sm font-semibold text-coral">Open </span>
+              </Link>
+            );
+          })}
         </section>
       </main>
       <Footer />

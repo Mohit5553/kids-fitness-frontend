@@ -98,6 +98,7 @@ export default function BookingManagement() {
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
+  const [rescueMissed, setRescueMissed] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -201,6 +202,7 @@ export default function BookingManagement() {
     setConfirmingBookingId(bookingId);
     setSelectedMethod('cash');
     setPaymentRef('');
+    setRescueMissed(false);
     setShowConfirmModal(true);
   };
 
@@ -210,7 +212,8 @@ export default function BookingManagement() {
       await api.put(`/bookings/${confirmingBookingId}/status`, {
         status: 'confirmed',
         paymentMethod: selectedMethod,
-        reference: paymentRef
+        reference: paymentRef,
+        rescueMissed
       });
       setShowConfirmModal(false);
       silentLoad();
@@ -686,6 +689,8 @@ export default function BookingManagement() {
         setReference={setPaymentRef}
         confirmingBookingId={confirmingBookingId}
         bookings={bookings}
+        rescueMissed={rescueMissed}
+        setRescueMissed={setRescueMissed}
       />
 
       {/* Booking Details Modal */}
@@ -1146,7 +1151,7 @@ const StatCard = ({ label, value, icon, color, loading }) => {
 };
 
 // Payment Confirmation Modal Component
-const PaymentModal = ({ show, onClose, onConfirm, method, setMethod, reference, setReference, confirmingBookingId, bookings }) => {
+const PaymentModal = ({ show, onClose, onConfirm, method, setMethod, reference, setReference, confirmingBookingId, bookings, rescueMissed, setRescueMissed }) => {
   if (!show) return null;
 
   const methods = [
@@ -1200,6 +1205,28 @@ const PaymentModal = ({ show, onClose, onConfirm, method, setMethod, reference, 
             onChange={(e) => setReference(e.target.value)}
           />
         </div>
+
+        {bookings.find(b => b._id === confirmingBookingId)?.bookingType === 'package' && (
+          <div className="mb-8 p-4 bg-emerald-50 rounded-[24px] border border-emerald-100 animate-in slide-in-from-bottom-2 duration-300">
+            <label className="flex items-center justify-between cursor-pointer group">
+              <div className="pr-4">
+                <p className="text-xs font-black text-emerald-800 uppercase tracking-tight">Rescue Missed Classes</p>
+                <p className="text-[10px] text-emerald-600/70 font-medium leading-relaxed mt-1">
+                  Reschedule sessions missed while payment was pending to future dates.
+                </p>
+              </div>
+              <div className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={rescueMissed}
+                  onChange={(e) => setRescueMissed(e.target.checked)}
+                />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+              </div>
+            </label>
+          </div>
+        )}
 
         <div className="flex flex-col gap-3">
           <button

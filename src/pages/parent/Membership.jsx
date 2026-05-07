@@ -125,7 +125,7 @@ function TimeView({ sessions }) {
                           {s.attendanceStatus === 'trainer-cancelled' ? 'Protected' : s.attendanceStatus}
                         </span>
                         {s.attendanceStatus === 'trainer-cancelled' && (
-                           <span className="text-[7px] font-black text-emerald-600 uppercase bg-emerald-50 px-1.5 py-0.5 rounded shadow-sm">Trainer Cancelled</span>
+                          <span className="text-[7px] font-black text-emerald-600 uppercase bg-emerald-50 px-1.5 py-0.5 rounded shadow-sm">Trainer Cancelled</span>
                         )}
                       </div>
                     </div>
@@ -233,19 +233,19 @@ export default function Membership() {
 
     // GENDER VALIDATION
     if (selectedPlan.gender && selectedPlan.gender !== 'mixed') {
-       let pGender = '';
-       if (!selectedChildId) {
-          pGender = user?.gender;
-       } else {
-          const child = children.find(c => c._id === selectedChildId);
-          pGender = child?.gender;
-       }
+      let pGender = '';
+      if (!selectedChildId) {
+        pGender = user?.gender;
+      } else {
+        const child = children.find(c => c._id === selectedChildId);
+        pGender = child?.gender;
+      }
 
-       if (pGender && pGender !== 'other' && pGender !== selectedPlan.gender) {
-          setError(`Gender Mismatch: This membership is restricted to ${selectedPlan.gender}s only.`);
-          setLoading(false);
-          return;
-       }
+      if (pGender && pGender !== 'other' && pGender !== selectedPlan.gender) {
+        setError(`Gender Mismatch: This membership is restricted to ${selectedPlan.gender}s only.`);
+        setLoading(false);
+        return;
+      }
     }
 
     if (!selectedChildId && children.length > 0) {
@@ -445,44 +445,59 @@ export default function Membership() {
                               /* Unlimited / Time plan */
                               <div className="flex flex-col gap-2">
                                 <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${m.planId?.type === 'time-based' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}>
-                                   {m.planId?.type === 'time-based' ? '⌛ Time Access' : '∞ Unlimited'}
+                                  {m.planId?.type === 'time-based' ? '⌛ Time Access' : '∞ Unlimited'}
                                 </span>
                                 {m.planId?.dailyBookingLimit > 0 && (
-                                   <p className="text-[8px] font-bold text-ink/20 uppercase tracking-widest">Limit: {m.planId.dailyBookingLimit}/day</p>
+                                  <p className="text-[8px] font-bold text-ink/20 uppercase tracking-widest">Limit: {m.planId.dailyBookingLimit}/day</p>
                                 )}
                               </div>
                             ) : m.planId?.type === 'credit-based' ? (
-                               /* Credit-based plan */
-                               <div className="space-y-2">
-                                 <div className="flex justify-between items-center pr-12">
-                                   <span className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Credits</span>
-                                   <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">
-                                     {m.creditsRemaining}/{ (m.planId.creditsIncluded || 0) * (m.membershipUnits || 1) }
-                                   </span>
-                                 </div>
-                                 <div className="w-full max-w-[200px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                   <div
-                                     className="h-full bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full transition-all duration-700 shadow-sm"
-                                     style={{ width: `${((m.planId.creditsIncluded || 0) * (m.membershipUnits || 1)) > 0 ? (m.creditsRemaining / ((m.planId.creditsIncluded || 0) * (m.membershipUnits || 1))) * 100 : 0}%` }}
-                                   />
-                                 </div>
-                               </div>
+                              /* Credit-based plan */
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-center pr-12">
+                                  <span className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Credits</span>
+                                  <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">
+                                    {m.creditsRemaining}/{(m.planId.creditsIncluded || 0) * (m.membershipUnits || 1)}
+                                  </span>
+                                </div>
+                                <div className="w-full max-w-[200px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full transition-all duration-700 shadow-sm"
+                                    style={{ width: `${((m.planId.creditsIncluded || 0) * (m.membershipUnits || 1)) > 0 ? (m.creditsRemaining / ((m.planId.creditsIncluded || 0) * (m.membershipUnits || 1))) * 100 : 0}%` }}
+                                  />
+                                </div>
+                              </div>
                             ) : (
-                               /* Standard Session-based plan */
-                               <>
-                                 <div className="flex justify-between items-center pr-12">
-                                   <span className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Usage</span>
-                                   <span className="text-[9px] font-black text-brand-blue uppercase tracking-widest">
-                                     {remaining}/{totalSessions}
-                                   </span>
-                                 </div>
-                                 <div className="w-full max-w-[200px] h-1.5 bg-slate-100 rounded-full overflow-hidden" title="Sessions Remaining">
-                                   <div
-                                     className="h-full bg-gradient-to-r from-brand-blue to-teal-400 rounded-full transition-all duration-700 shadow-sm"
-                                     style={{ width: `${totalSessions > 0 ? (remaining / totalSessions) * 100 : 0}%` }}
-                                   />
-                                 </div>
-                               </>
+                              /* Standard Session-based plan */
+                              <>
+                                <div className="flex justify-between items-center pr-12">
+                                  <span className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Usage</span>
+                                  <span className="text-[9px] font-black text-brand-blue uppercase tracking-widest">
+                                    {remaining}/{totalSessions}
+                                  </span>
+                                </div>
+                                <div className="w-full max-w-[200px] h-1.5 bg-slate-100 rounded-full overflow-hidden flex" title={`Attended: ${m.attendedCount}, Missed: ${m.absentCount}, Remaining: ${remaining}`}>
+                                  {/* Attended Part (Green) */}
+                                  {m.attendedCount > 0 && (
+                                    <div
+                                      className="h-full bg-emerald-500 transition-all duration-700"
+                                      style={{ width: `${(m.attendedCount / totalSessions) * 100}%` }}
+                                    />
+                                  )}
+                                  {/* Missed Part (Red) */}
+                                  {m.absentCount > 0 && (
+                                    <div
+                                      className="h-full bg-red-500 transition-all duration-700"
+                                      style={{ width: `${(m.absentCount / totalSessions) * 100}%` }}
+                                    />
+                                  )}
+                                  {/* Remaining Part (Blue) */}
+                                  <div
+                                    className={`h-full transition-all duration-700 ${used === 0 ? 'bg-brand-blue' : 'bg-brand-blue/20'}`}
+                                    style={{ width: `${(remaining / totalSessions) * 100}%` }}
+                                  />
+                                </div>
+                              </>
                             )}
                           </div>
                         </div>
@@ -490,9 +505,9 @@ export default function Membership() {
                         {/* Status Column */}
                         <div className="text-center">
                           <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest ${m.status === 'active' ? 'bg-emerald-50 text-emerald-500 shadow-sm shadow-emerald-500/10 border border-emerald-100' :
-                               m.status === 'frozen' ? 'bg-indigo-50 text-indigo-500 border border-indigo-200 animate-pulse' :
-                               m.status === 'expired' ? 'bg-rose-50 text-rose-500 border border-rose-100' :
-                                 'bg-slate-50 text-slate-400 border border-slate-100'}`}>
+                            m.status === 'frozen' ? 'bg-indigo-50 text-indigo-500 border border-indigo-200 animate-pulse' :
+                              m.status === 'expired' ? 'bg-rose-50 text-rose-500 border border-rose-100' :
+                                'bg-slate-50 text-slate-400 border border-slate-100'}`}>
                             {m.status || 'Active'}
                           </span>
                         </div>
@@ -534,38 +549,38 @@ export default function Membership() {
                           >
                             View Schedule
                           </button>
-                           {m.status === 'active' && m.planId?.allowFreezing && (
-                              <button
-                                onClick={() => handleToggleFreeze(m._id)}
-                                className="w-full max-w-[120px] px-4 py-2 border border-slate-100 text-ink/30 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 hover:text-indigo-400 transition-all flex items-center justify-center gap-2"
-                              >
-                                <span>⏸</span> Pause
-                              </button>
-                           )}
-                           {m.status === 'frozen' && (
-                              <button
-                                onClick={() => handleToggleFreeze(m._id)}
-                                className="w-full max-w-[120px] px-4 py-2 bg-indigo-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-all hover:-translate-y-0.5"
-                              >
-                                Resume
-                               </button>
-                            )}
-                            {m.status === 'active' && (
-                               <button
-                                 onClick={() => setShowExtensionRequest({ membershipId: m._id, endDate: m.endDate, type: 'extend' })}
-                                 className="w-full max-w-[120px] px-4 py-2 border border-slate-100 text-ink/30 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 hover:text-emerald-500 transition-all flex items-center justify-center gap-2"
-                               >
-                                 <span>⏳</span> Extend
-                               </button>
-                            )}
-                           {m.bookingId && (
-                              <button
-                                onClick={() => navigate(`/invoice/booking/${m.bookingId._id || m.bookingId}`)}
-                                className="w-full max-w-[120px] px-4 py-2 border border-slate-100 text-ink/30 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 hover:text-brand-blue transition-all flex items-center justify-center gap-2"
-                              >
-                                <span>📄</span> Invoice
-                              </button>
-                           )}
+                          {m.status === 'active' && m.planId?.allowFreezing && (
+                            <button
+                              onClick={() => handleToggleFreeze(m._id)}
+                              className="w-full max-w-[120px] px-4 py-2 border border-slate-100 text-ink/30 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 hover:text-indigo-400 transition-all flex items-center justify-center gap-2"
+                            >
+                              <span>⏸</span> Pause
+                            </button>
+                          )}
+                          {m.status === 'frozen' && (
+                            <button
+                              onClick={() => handleToggleFreeze(m._id)}
+                              className="w-full max-w-[120px] px-4 py-2 bg-indigo-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-all hover:-translate-y-0.5"
+                            >
+                              Resume
+                            </button>
+                          )}
+                          {m.status === 'active' && (
+                            <button
+                              onClick={() => setShowExtensionRequest({ membershipId: m._id, endDate: m.endDate, type: 'extend' })}
+                              className="w-full max-w-[120px] px-4 py-2 border border-slate-100 text-ink/30 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 hover:text-emerald-500 transition-all flex items-center justify-center gap-2"
+                            >
+                              <span>⏳</span> Extend
+                            </button>
+                          )}
+                          {m.bookingId && (
+                            <button
+                              onClick={() => navigate(`/invoice/booking/${m.bookingId._id || m.bookingId}`)}
+                              className="w-full max-w-[120px] px-4 py-2 border border-slate-100 text-ink/30 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 hover:text-brand-blue transition-all flex items-center justify-center gap-2"
+                            >
+                              <span>📄</span> Invoice
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -591,8 +606,8 @@ export default function Membership() {
                               key={i}
                               onClick={() => setCurrentPage(i + 1)}
                               className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${currentPage === i + 1
-                                  ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20'
-                                  : 'bg-white border border-slate-100 text-ink/40 hover:bg-slate-50'
+                                ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20'
+                                : 'bg-white border border-slate-100 text-ink/40 hover:bg-slate-50'
                                 }`}
                             >
                               {i + 1}
@@ -629,15 +644,15 @@ export default function Membership() {
             {loading ? (
               Array(3).fill(0).map((_, i) => (
                 <div key={i} className="soft-card h-[600px] rounded-[3rem] p-8 animate-pulse bg-white/50 border border-slate-50 flex flex-col">
-                   <div className="h-4 bg-slate-100 rounded-lg w-1/4 mb-2" />
-                   <div className="h-10 bg-slate-100 rounded-2xl w-3/4 mb-8" />
-                   <div className="h-20 bg-slate-100 rounded-3xl w-full mb-8" />
-                   <div className="space-y-4 flex-1">
-                     <div className="h-4 bg-slate-100 rounded-lg w-5/6" />
-                     <div className="h-4 bg-slate-100 rounded-lg w-4/6" />
-                     <div className="h-4 bg-slate-100 rounded-lg w-5/6" />
-                   </div>
-                   <div className="h-16 bg-slate-100 rounded-[2rem] w-full mt-10" />
+                  <div className="h-4 bg-slate-100 rounded-lg w-1/4 mb-2" />
+                  <div className="h-10 bg-slate-100 rounded-2xl w-3/4 mb-8" />
+                  <div className="h-20 bg-slate-100 rounded-3xl w-full mb-8" />
+                  <div className="space-y-4 flex-1">
+                    <div className="h-4 bg-slate-100 rounded-lg w-5/6" />
+                    <div className="h-4 bg-slate-100 rounded-lg w-4/6" />
+                    <div className="h-4 bg-slate-100 rounded-lg w-5/6" />
+                  </div>
+                  <div className="h-16 bg-slate-100 rounded-[2rem] w-full mt-10" />
                 </div>
               ))
             ) : plans.map((plan) => (
@@ -738,123 +753,123 @@ export default function Membership() {
                 <div className="space-y-6">
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 ml-2">2. Scheduling Preference</label>
                   <div className="grid grid-cols-2 gap-4">
-                     <div className="space-y-2">
-                        <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest ml-1">Preferred Days</p>
-                        <select 
-                           multiple
-                           value={preferredDays}
-                           onChange={(e) => setPreferredDays(Array.from(e.target.selectedOptions, option => option.value))}
-                           className="w-full p-4 bg-slate-50 rounded-2xl border-none text-xs font-bold outline-none ring-brand-blue/5 focus:ring-4"
-                        >
-                           {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                     </div>
-                     <div className="space-y-2">
-                        <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest ml-1">Start Time</p>
-                        <select 
-                           value={preferredSlots[0]}
-                           onChange={(e) => setPreferredSlots([e.target.value])}
-                           className="w-full p-4 bg-slate-50 rounded-2xl border-none text-xs font-bold outline-none ring-brand-blue/5 focus:ring-4"
-                        >
-                           {['09:00','10:00','11:00','14:00','15:00','16:00','17:00','18:00'].map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                     </div>
+                    <div className="space-y-2">
+                      <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest ml-1">Preferred Days</p>
+                      <select
+                        multiple
+                        value={preferredDays}
+                        onChange={(e) => setPreferredDays(Array.from(e.target.selectedOptions, option => option.value))}
+                        className="w-full p-4 bg-slate-50 rounded-2xl border-none text-xs font-bold outline-none ring-brand-blue/5 focus:ring-4"
+                      >
+                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest ml-1">Start Time</p>
+                      <select
+                        value={preferredSlots[0]}
+                        onChange={(e) => setPreferredSlots([e.target.value])}
+                        className="w-full p-4 bg-slate-50 rounded-2xl border-none text-xs font-bold outline-none ring-brand-blue/5 focus:ring-4"
+                      >
+                        {['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00', '18:00'].map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
                 {/* 3. BOGO Check */}
                 <div className="p-6 bg-brand-blue/5 rounded-[2rem] border border-brand-blue/10 space-y-4">
-                   <div className="flex items-center justify-between">
-                      <div>
-                         <p className="text-[10px] font-black text-brand-blue uppercase tracking-widest">Special Enrollment Offer</p>
-                         <p className="text-xs font-black text-ink/60 mt-1">Claim BOGO Benefits?</p>
-                      </div>
-                      <button 
-                         type="button"
-                         onClick={() => {
-                            setClaimBogo(!claimBogo);
-                            if (!claimBogo && !bogoChildId) setBogoChildId(selectedChildId);
-                         }}
-                         className={`w-12 h-6 rounded-full transition-all relative ${claimBogo ? 'bg-emerald-500' : 'bg-slate-200'}`}
-                      >
-                         <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${claimBogo ? 'left-7' : 'left-1'}`} />
-                      </button>
-                   </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black text-brand-blue uppercase tracking-widest">Special Enrollment Offer</p>
+                      <p className="text-xs font-black text-ink/60 mt-1">Claim BOGO Benefits?</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClaimBogo(!claimBogo);
+                        if (!claimBogo && !bogoChildId) setBogoChildId(selectedChildId);
+                      }}
+                      className={`w-12 h-6 rounded-full transition-all relative ${claimBogo ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${claimBogo ? 'left-7' : 'left-1'}`} />
+                    </button>
+                  </div>
 
-                   {claimBogo && (
-                      <div className="pt-4 border-t border-brand-blue/10 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                         <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest ml-1">Recipient for Free Item:</p>
-                         <div className="grid grid-cols-2 gap-3">
-                            {children.map(c => (
-                               <button
-                                  key={c._id}
-                                  type="button"
-                                  onClick={() => setBogoChildId(c._id)}
-                                  className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-2 ${bogoChildId === c._id ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-white hover:border-slate-200'}`}
-                               >
-                                  <span className="text-sm">👧</span>
-                                  <div className="text-left">
-                                     <p className="text-[10px] font-black text-ink leading-none">{c.name}</p>
-                                     <p className="text-[8px] font-bold text-ink/30 uppercase mt-1">{c.age} yrs</p>
-                                  </div>
-                               </button>
-                            ))}
-                            <button
-                               type="button"
-                               onClick={() => setBogoChildId('')}
-                               className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-2 ${bogoChildId === '' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-white hover:border-slate-200'}`}
-                            >
-                               <span className="text-sm">👤</span>
-                               <p className="text-[10px] font-black text-ink">Individual</p>
-                            </button>
-                         </div>
+                  {claimBogo && (
+                    <div className="pt-4 border-t border-brand-blue/10 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                      <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest ml-1">Recipient for Free Item:</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {children.map(c => (
+                          <button
+                            key={c._id}
+                            type="button"
+                            onClick={() => setBogoChildId(c._id)}
+                            className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-2 ${bogoChildId === c._id ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-white hover:border-slate-200'}`}
+                          >
+                            <span className="text-sm">👧</span>
+                            <div className="text-left">
+                              <p className="text-[10px] font-black text-ink leading-none">{c.name}</p>
+                              <p className="text-[8px] font-bold text-ink/30 uppercase mt-1">{c.age} yrs</p>
+                            </div>
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => setBogoChildId('')}
+                          className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-2 ${bogoChildId === '' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-white hover:border-slate-200'}`}
+                        >
+                          <span className="text-sm">👤</span>
+                          <p className="text-[10px] font-black text-ink">Individual</p>
+                        </button>
                       </div>
-                   )}
+                    </div>
+                  )}
                 </div>
 
                 {/* 4. Voucher Redemption */}
                 <div className="space-y-6">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 ml-2">4. Redeem Voucher</label>
-                    <div className="flex gap-2">
-                        <input 
-                            type="text"
-                            className="flex-1 bg-slate-50 border-none rounded-2xl py-4 px-6 text-xs font-bold outline-none focus:ring-2 focus:ring-brand-blue/20 transition-all uppercase placeholder:normal-case"
-                            placeholder="Voucher Code (CPN-XXXX)"
-                            value={couponCode}
-                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                            disabled={couponAmount > 0 || isValidatingCoupon}
-                        />
-                        {couponAmount > 0 ? (
-                            <button 
-                                type="button"
-                                onClick={() => { setCouponAmount(0); setCouponCode(''); }}
-                                className="bg-rose-50 text-rose-500 px-6 py-4 rounded-2xl text-[10px] font-black uppercase"
-                            >Remove</button>
-                        ) : (
-                            <button 
-                                type="button"
-                                onClick={async () => {
-                                    setIsValidatingCoupon(true);
-                                    try {
-                                        const res = await api.post('/coupons/validate', { code: couponCode });
-                                        setCouponAmount(res.data.data.amount);
-                                    } catch (err) {
-                                        setError(err.response?.data?.message || 'Invalid coupon');
-                                    } finally {
-                                        setIsValidatingCoupon(false);
-                                    }
-                                }}
-                                disabled={!couponCode || isValidatingCoupon}
-                                className="bg-brand-blue text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase disabled:opacity-50 shadow-lg"
-                            >Validate</button>
-                        )}
-                    </div>
-                    {couponAmount > 0 && (
-                        <p className="mt-1 text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
-                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                             AED {couponAmount} applied to this transaction!
-                        </p>
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 ml-2">4. Redeem Voucher</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      className="flex-1 bg-slate-50 border-none rounded-2xl py-4 px-6 text-xs font-bold outline-none focus:ring-2 focus:ring-brand-blue/20 transition-all uppercase placeholder:normal-case"
+                      placeholder="Voucher Code (CPN-XXXX)"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      disabled={couponAmount > 0 || isValidatingCoupon}
+                    />
+                    {couponAmount > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => { setCouponAmount(0); setCouponCode(''); }}
+                        className="bg-rose-50 text-rose-500 px-6 py-4 rounded-2xl text-[10px] font-black uppercase"
+                      >Remove</button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setIsValidatingCoupon(true);
+                          try {
+                            const res = await api.post('/coupons/validate', { code: couponCode });
+                            setCouponAmount(res.data.data.amount);
+                          } catch (err) {
+                            setError(err.response?.data?.message || 'Invalid coupon');
+                          } finally {
+                            setIsValidatingCoupon(false);
+                          }
+                        }}
+                        disabled={!couponCode || isValidatingCoupon}
+                        className="bg-brand-blue text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase disabled:opacity-50 shadow-lg"
+                      >Validate</button>
                     )}
+                  </div>
+                  {couponAmount > 0 && (
+                    <p className="mt-1 text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      AED {couponAmount} applied to this transaction!
+                    </p>
+                  )}
                 </div>
 
                 {/* 5. Payment */}
@@ -895,15 +910,15 @@ export default function Membership() {
                 </div>
 
                 <div className="pt-4">
-                   <button
-                     type="submit"
-                     disabled={loading}
-                     className="w-full bg-brand-blue text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl shadow-brand-blue/20 hover:shadow-brand-blue/40 transition-all hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-50"
-                   >
-                     {loading ? 'Processing...' : `Pay AED ${Math.max(0, (selectedPlan?.price || 0) - couponAmount)}`}
-                     {!loading && <span>➜</span>}
-                   </button>
-                   <p className="mt-4 text-center text-[8px] font-black text-ink/20 uppercase tracking-[0.2em]">Secure 256-bit SSL Encrypted Transaction</p>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-brand-blue text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl shadow-brand-blue/20 hover:shadow-brand-blue/40 transition-all hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-50"
+                  >
+                    {loading ? 'Processing...' : `Pay AED ${Math.max(0, (selectedPlan?.price || 0) - couponAmount)}`}
+                    {!loading && <span>➜</span>}
+                  </button>
+                  <p className="mt-4 text-center text-[8px] font-black text-ink/20 uppercase tracking-[0.2em]">Secure 256-bit SSL Encrypted Transaction</p>
                 </div>
               </form>
             </div>
@@ -952,15 +967,28 @@ export default function Membership() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${s.attendanceStatus === 'present' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' :
-                            s.attendanceStatus === 'absent' ? 'bg-rose-50 text-rose-500 border-rose-100' :
+                        {(() => {
+                          const isPast = new Date(s.startTime) < new Date();
+                          const displayStatus = (s.attendanceStatus === 'pending' && isPast) ? 'absent' : s.attendanceStatus;
+                          
+                          return (
+                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                              displayStatus === 'present' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' :
+                              displayStatus === 'absent' ? 'bg-rose-50 text-rose-500 border-rose-100' :
                               'bg-brand-blue/5 text-brand-blue border-brand-blue/10'
-                          }`}>
-                          {s.attendanceStatus}
-                        </span>
-                        {s.attendanceStatus === 'pending' && (
+                            }`}>
+                              {displayStatus}
+                            </span>
+                          );
+                        })()}
+                        {(s.attendanceStatus === 'pending' || (s.attendanceStatus === 'absent' && new Date(s.startTime) < new Date())) && (showScheduleMembership.rescheduleCount < showScheduleMembership.maxReschedules) && (
                           <button
-                            onClick={() => setShowExtensionRequest({ membershipId: showScheduleMembership._id, sessionId: s._id, type: 'reschedule' })}
+                            onClick={() => setShowExtensionRequest({ 
+                              membershipId: showScheduleMembership._id, 
+                              sessionId: s._id, 
+                              type: 'reschedule',
+                              timeSlots: showScheduleMembership.planId?.timeSlots || []
+                            })}
                             className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-ink/40 hover:text-brand-blue text-[8px] font-black uppercase tracking-widest rounded-lg transition-all border border-slate-100"
                           >
                             Reschedule

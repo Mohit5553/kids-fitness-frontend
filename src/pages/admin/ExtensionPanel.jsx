@@ -62,9 +62,27 @@ export default function ExtensionPanel() {
                   <h3 className="font-display text-2xl font-black text-ink mb-1">
                     {req.userId?.name || 'Customer'}
                   </h3>
-                  <p className="text-sm font-bold text-ink/50 mb-4">
-                     Membership: {req.membershipId?.planId?.name || 'Active Plan'} · {new Date(req.createdAt).toLocaleDateString()}
+                  <p className="text-xs font-bold text-ink/40 mb-4 uppercase tracking-widest">
+                     {req.membershipId?.planId?.name || 'Active Plan'} · Requested on {new Date(req.createdAt).toLocaleDateString()}
                   </p>
+
+                  {/* Specific Session Details for Reschedule */}
+                  {req.type === 'reschedule' && req.targetSessionId && (
+                    <div className="mb-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-xl shrink-0">
+                        🗓️
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-ink/20 leading-none mb-1">Original Session</p>
+                        <p className="text-sm font-black text-ink leading-tight">
+                           {req.targetSessionId.classId?.title || req.targetSessionId.classId?.name || 'Session'}
+                        </p>
+                        <p className="text-[10px] font-bold text-brand-blue uppercase mt-1">
+                           {new Date(req.targetSessionId.startTime).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <p className="text-sm font-medium text-ink/70 bg-slate-50 p-4 rounded-2xl italic border-l-4 border-slate-200">
                     "{req.reason || 'No reason provided.'}"
                   </p>
