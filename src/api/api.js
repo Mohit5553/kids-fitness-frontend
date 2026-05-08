@@ -21,6 +21,9 @@ api.interceptors.request.use((config) => {
     config.headers['x-location-id'] = selectedBranchId;
   }
   
+  const systemMode = localStorage.getItem('systemMode') || 'live';
+  config.headers['x-system-mode'] = systemMode;
+  
   return config;
 });
 

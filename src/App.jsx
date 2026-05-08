@@ -62,6 +62,7 @@ import LeadsManagement from './pages/admin/LeadsManagement.jsx';
 import CorporateBooking from './pages/admin/CorporateBooking.jsx';
 import SystemSettings from './pages/admin/SystemSettings.jsx';
 import ExtensionPanel from './pages/admin/ExtensionPanel.jsx';
+import UATManagement from './pages/admin/UATManagement.jsx';
 import TrainerDashboard from './pages/trainer/TrainerDashboard.jsx';
 
 export default function App() {
@@ -185,6 +186,7 @@ export default function App() {
             </Route>
 
             <Route path="/:roleSlug/extensions" element={<ExtensionPanel />} />
+            <Route path="/:roleSlug/uat" element={<UATManagement />} />
           </Route>
         </Routes>
       </BranchProvider>

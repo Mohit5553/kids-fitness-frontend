@@ -55,25 +55,29 @@ export default function Reports() {
       if (reportType === 'bookings' || reportType === 'payments' || reportType === 'detailed_sales') {
         const process = (list) => (list || []).map(item => {
           const rawMethod = item.paymentMethod || item.paymentMode || 'N/A';
-          let mode = rawMethod;
-          let type = 'N/A';
+          let source = 'N/A';
+          let mode = 'N/A';
 
-          if (rawMethod.toLowerCase().startsWith('center_') || rawMethod.toLowerCase() === 'center') {
-            mode = 'CENTER';
-            type = rawMethod.toLowerCase() === 'center' ? 'UNSPECIFIED' : rawMethod.replace('center_', '').toUpperCase();
-          } else if (rawMethod.toLowerCase() === 'online') {
-            mode = 'WEBSITE';
-            type = 'CARD/GATEWAY';
+          if (rawMethod.toLowerCase().includes('online') || rawMethod.toLowerCase().includes('website')) {
+            source = 'WEBSITE';
+            mode = 'ONLINE';
           } else {
-            mode = rawMethod.toUpperCase();
-            type = 'N/A';
+            source = 'CENTER';
+            // Clean up the mode string (remove 'center_', 'pay_at_', etc.)
+            let cleaned = rawMethod.toLowerCase()
+              .replace('center_', '')
+              .replace('pay_at_', '')
+              .replace('pay_at', '')
+              .trim();
+            
+            mode = (cleaned === 'center' || !cleaned) ? 'CASH' : cleaned.toUpperCase();
           }
 
           return {
             ...item,
-            paymentMethod: mode,
+            paymentSource: source,
             paymentMode: mode,
-            paymentType: type,
+            paymentType: mode,
             capacity: item.classId?.capacity || 'N/A',
             combinedDiscount: (Number(item.discountAmount) || 0) + (Number(item.couponAmount) || 0),
             slotTiming: item.sessionId ? (
@@ -211,8 +215,8 @@ export default function Reports() {
       { key: 'date', label: 'Date' },
       { key: 'totalAmount', label: 'Amount' },
       { key: 'status', label: 'Status' },
-      { key: 'paymentMethod', label: 'Payment Mode' },
-      { key: 'paymentType', label: 'Payment Type' },
+      { key: 'paymentSource', label: 'Payment Source' },
+      { key: 'paymentMode', label: 'Payment Mode' },
       { key: 'transactionId', label: 'Txn ID' },
       { key: 'paymentStatus', label: 'Payment' },
       { key: 'promotionId', label: 'Promotion' },
@@ -359,8 +363,8 @@ export default function Reports() {
       { key: 'lineTotal', label: 'Line Total' },
       { key: 'discount', label: 'Discount' },
       { key: 'discountType', label: 'Disc Type' },
+      { key: 'paymentSource', label: 'Payment Source' },
       { key: 'paymentMode', label: 'Payment Mode' },
-      { key: 'paymentType', label: 'Payment Type' },
     ]
   };
 
@@ -453,15 +457,16 @@ export default function Reports() {
       );
     }
 
-    if (key === 'paymentMethod' || key === 'paymentMode' || key === 'method') {
+    if (key === 'paymentSource') {
       if (!value) return <span className="text-ink/20">—</span>;
       const str = String(value).toUpperCase();
       return <span className="text-[10px] font-black text-ink/40 tracking-tight">{str}</span>;
     }
-
-    if (key === 'paymentType') {
+    
+    if (key === 'paymentMode' || key === 'method') {
       if (!value || value === 'N/A') return <span className="text-ink/20">—</span>;
-      return <span className="text-[10px] font-black text-coral uppercase tracking-tight">{value}</span>;
+      const str = String(value).toUpperCase();
+      return <span className="text-[10px] font-black text-coral uppercase tracking-tight">{str}</span>;
     }
 
     return String(value);

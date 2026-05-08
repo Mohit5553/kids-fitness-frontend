@@ -175,7 +175,12 @@ export default function Membership() {
   const fetchMemberships = () => {
     setLoading(true);
     api.get('/memberships/mine').then((res) => {
-      setMemberships(res.data || []);
+      const data = res.data || [];
+      setMemberships(data);
+      if (showScheduleMembership) {
+        const updated = data.find(m => m._id === showScheduleMembership._id);
+        if (updated) setShowScheduleMembership(updated);
+      }
       setLoading(false);
     }).catch(() => setLoading(false));
   };
@@ -967,9 +972,19 @@ export default function Membership() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        {(() => {
+                        {s.rescheduleRequestStatus ? (
+                          <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                            s.rescheduleRequestStatus === 'approved' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' :
+                            s.rescheduleRequestStatus === 'rejected' ? 'bg-rose-50 text-rose-500 border-rose-100' :
+                            'bg-amber-50 text-amber-500 border-amber-100'
+                          }`}>
+                            {s.rescheduleRequestStatus === 'pending' ? 'PENDING' : 
+                             s.rescheduleRequestStatus === 'approved' ? 'ACCEPTED' : 
+                             s.rescheduleRequestStatus === 'rejected' ? 'REJECTED' : s.rescheduleRequestStatus.toUpperCase()}
+                          </span>
+                        ) : (() => {
                           const isPast = new Date(s.startTime) < new Date();
-                          const displayStatus = (s.attendanceStatus === 'pending' && isPast) ? 'absent' : s.attendanceStatus;
+                          const displayStatus = (['pending', 'booked'].includes(s.attendanceStatus) && isPast) ? 'absent' : (s.attendanceStatus || 'pending');
                           
                           return (
                             <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
@@ -977,11 +992,12 @@ export default function Membership() {
                               displayStatus === 'absent' ? 'bg-rose-50 text-rose-500 border-rose-100' :
                               'bg-brand-blue/5 text-brand-blue border-brand-blue/10'
                             }`}>
-                              {displayStatus}
+                              {displayStatus === 'booked' ? 'pending' : displayStatus}
                             </span>
                           );
                         })()}
-                        {(s.attendanceStatus === 'pending' || (s.attendanceStatus === 'absent' && new Date(s.startTime) < new Date())) && (showScheduleMembership.rescheduleCount < showScheduleMembership.maxReschedules) && (
+                        
+                        {(!s.rescheduleRequestStatus || s.rescheduleRequestStatus === 'rejected') && (['pending', 'booked'].includes(s.attendanceStatus) || (s.attendanceStatus === 'absent' && new Date(s.startTime) < new Date())) && (showScheduleMembership.rescheduleCount < showScheduleMembership.maxReschedules) && (
                           <button
                             onClick={() => setShowExtensionRequest({ 
                               membershipId: showScheduleMembership._id, 
