@@ -28,10 +28,11 @@ export default function AdminDashboard() {
     { to: `${base}/locations`, title: 'Locations', desc: 'Add or remove gym branches.', perm: 'locations:view' },
     { to: `${base}/specialties`, title: 'Specialty Master', desc: 'Manage trainer expertise areas.', perm: 'specialties:view' },
     { to: `${base}/reports`, title: 'Reports', desc: 'View detailed activity & export Excel.', perm: 'reports:view' },
-    { to: `${base}/settings`, title: 'System Setup', desc: 'Configure invoice sequences and global settings.', perm: 'settings:edit' },
+    { to: `${base}/settings`, title: 'Company Setup', desc: 'Manage company name, footer info, and invoice numbering.', perm: 'settings:edit' },
     { to: `${base}/taxes`, title: 'Tax Master', desc: 'Manage VAT and local tax rules location-wise.', perm: 'settings:view' },
     { to: `${base}/vouchers`, title: 'Vouchers', desc: 'Generate and print gift or promo vouchers.', perm: 'promotions:view' },
-    { to: `${base}/extensions`, title: 'Extension requests', desc: 'Handle missed session reschedule or duration extensions.', perm: 'memberships:view' }
+    { to: `${base}/extensions`, title: 'Extension requests', desc: 'Handle missed session reschedule or duration extensions.', perm: 'memberships:view' },
+    { to: `${base}/uat`, title: 'UAT Management', desc: 'Isolate test data and promote configs to Live.', role: 'superadmin' }
   ];
 
   const [stats, setStats] = useState({
@@ -109,7 +110,10 @@ export default function AdminDashboard() {
     { label: 'Pending bookings', value: stats.bookings?.pending || 0, to: `${base}/bookings`, perm: 'bookings:view' }
   ];
 
-  const filteredActions = adminActions.filter(action => isAdminOrSuper || permissions.includes(action.perm));
+  const filteredActions = adminActions.filter(action => {
+    if (action.role === 'superadmin') return user?.role === 'superadmin';
+    return isAdminOrSuper || permissions.includes(action.perm);
+  });
   const filteredStats = adminStats.filter(stat => isAdminOrSuper || permissions.includes(stat.perm));
 
   const getNotificationCount = (title) => {

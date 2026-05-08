@@ -573,8 +573,12 @@ export default function MyBookings() {
                                 </p>
                               </div>
                             </div>
-                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${new Date(s.startTime) < new Date() ? 'bg-slate-200 text-slate-500' : 'bg-moss/10 text-moss'}`}>
-                              {new Date(s.startTime) < new Date() ? 'Completed' : 'Upcoming'}
+                            <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-full border ${
+                              s.attendanceStatus === 'present' ? 'bg-emerald-50 text-emerald-500 border-emerald-100' :
+                              s.attendanceStatus === 'absent' ? 'bg-rose-50 text-rose-500 border-rose-100' :
+                              'bg-brand-blue/5 text-brand-blue border-brand-blue/10'
+                            }`}>
+                              {s.attendanceStatus === 'present' ? 'Present' : s.attendanceStatus === 'absent' ? 'Absent' : 'Upcoming'}
                             </span>
                           </div>
                         ))}
