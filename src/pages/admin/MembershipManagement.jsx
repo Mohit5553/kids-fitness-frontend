@@ -10,6 +10,8 @@ export default function MembershipManagement() {
   const [trainers, setTrainers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 8;
   const { can } = usePermissions();
 
   const canEdit = can('memberships:edit');
@@ -62,6 +64,15 @@ export default function MembershipManagement() {
     return parentName.includes(query) || childName.includes(query) || planName.includes(query);
   });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredMemberships.length / ITEMS_PER_PAGE);
+  const paginatedMemberships = filteredMemberships.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  // Reset to page 1 on search
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   return (
     <div className="min-h-screen bg-slate-50/50">
       <Navbar />
@@ -99,7 +110,7 @@ export default function MembershipManagement() {
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2">
-            {filteredMemberships.map((m) => (
+            {paginatedMemberships.map((m) => (
               <div key={m._id} className="group relative overflow-hidden rounded-[2.5rem] bg-white p-8 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 border border-slate-100">
                 <div className="flex items-start justify-between">
                   <div className="space-y-4">
@@ -187,6 +198,37 @@ export default function MembershipManagement() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="mt-12 flex items-center justify-between border-t border-slate-200/50 pt-8">
+            <p className="text-[10px] font-black text-ink/30 uppercase tracking-[0.2em]">
+              Page {currentPage} of {totalPages}
+            </p>
+            <div className="flex gap-3">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => {
+                  setCurrentPage(prev => prev - 1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === 1 ? 'bg-slate-100 text-ink/10 cursor-not-allowed' : 'bg-white border border-slate-200 text-coral hover:bg-coral hover:text-white hover:border-coral shadow-sm active:scale-95'}`}
+              >
+                ← Prev
+              </button>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => {
+                  setCurrentPage(prev => prev + 1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === totalPages ? 'bg-slate-100 text-ink/10 cursor-not-allowed' : 'bg-white border border-slate-200 text-coral hover:bg-coral hover:text-white hover:border-coral shadow-sm active:scale-95'}`}
+              >
+                Next →
+              </button>
+            </div>
           </div>
         )}
       </main>
