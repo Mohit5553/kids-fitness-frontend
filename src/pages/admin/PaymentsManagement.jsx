@@ -102,6 +102,8 @@ export default function PaymentsManagement() {
   const [expandedId, setExpandedId] = useState(null);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const { can } = usePermissions();
 
   const canExport = can('payments:view'); // Assuming if they can view, they can export, or we can use another perm.
@@ -166,6 +168,11 @@ export default function PaymentsManagement() {
     });
   }, [payments, search, statusFilter, methodFilter, typeFilter, fromDate, toDate]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, methodFilter, typeFilter, fromDate, toDate]);
+
   /* ── stats ── */
   const stats = useMemo(() => {
     const paid = filtered.filter(p => p.status === 'paid');
@@ -192,6 +199,10 @@ export default function PaymentsManagement() {
     // sort keys descending
     return Object.entries(map).sort(([a], [b]) => b.localeCompare(a));
   }, [filtered]);
+
+  /* ── pagination ── */
+  const totalPages = Math.ceil(grouped.length / ITEMS_PER_PAGE);
+  const paginatedGroups = grouped.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const exportCsv = async () => {
     try {
@@ -347,9 +358,9 @@ export default function PaymentsManagement() {
           </div>
         )}
 
-        {/* ── Date-wise groups ── */}
+        {/* ── Date-wise groups with Pagination ── */}
         <div className="space-y-8">
-          {grouped.map(([dateKey, dayPayments]) => {
+          {paginatedGroups.map(([dateKey, dayPayments]) => {
             const dayTotal = dayPayments
               .filter(p => p.status === 'paid')
               .reduce((s, p) => s + (p.amount || 0), 0);
@@ -567,6 +578,37 @@ export default function PaymentsManagement() {
             );
           })}
         </div>
+
+        {/* ── Pagination Controls ── */}
+        {totalPages > 1 && (
+          <div className="mt-12 flex items-center justify-between border-t border-brand-black/5 pt-8">
+            <p className="text-[10px] font-black text-brand-black/30 uppercase tracking-widest">
+              Page {currentPage} of {totalPages} — Showing {paginatedGroups.length} days
+            </p>
+            <div className="flex gap-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => {
+                  setCurrentPage(prev => prev - 1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === 1 ? 'text-brand-black/20 cursor-not-allowed' : 'bg-white border-2 border-brand-black/10 text-brand-blue hover:bg-brand-blue hover:text-white hover:border-brand-blue shadow-sm'}`}
+              >
+                ← Prev
+              </button>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => {
+                  setCurrentPage(prev => prev + 1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === totalPages ? 'text-brand-black/20 cursor-not-allowed' : 'bg-white border-2 border-brand-black/10 text-brand-blue hover:bg-brand-blue hover:text-white hover:border-brand-blue shadow-sm'}`}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
 
       </main>
       <Footer />

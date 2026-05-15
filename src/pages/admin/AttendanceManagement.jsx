@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -19,6 +19,9 @@ export default function AttendanceManagement() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const ITEMS_PER_PAGE = 10;
   const { can } = usePermissions();
   const { socket } = useSocket();
 
@@ -74,6 +77,19 @@ export default function AttendanceManagement() {
       .then((res) => setSessions(res.data || []))
       .catch(() => setError('Failed to load sessions.'));
   }, []);
+
+  const filteredRecords = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return records.filter(r => 
+      !query || 
+      r.childId?.name?.toLowerCase().includes(query) ||
+      r.participantName?.toLowerCase().includes(query) ||
+      r.sessionId?.classId?.title?.toLowerCase().includes(query)
+    );
+  }, [records, searchQuery]);
+
+  const totalPages = Math.ceil(filteredRecords.length / ITEMS_PER_PAGE);
+  const paginatedRecords = filteredRecords.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   // Filter attendees by session bookings
   useEffect(() => {
@@ -266,9 +282,22 @@ export default function AttendanceManagement() {
         </section>
 
         <section className="mt-16">
-          <div className="mb-8 flex items-center justify-between">
+          <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <h2 className="font-display text-2xl font-black text-ink">Recent Logs</h2>
-            <p className="text-xs font-bold text-ink/30 uppercase tracking-widest">{records.length} records found</p>
+            
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              <div className="relative group/search w-full md:w-80">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg grayscale opacity-30 group-focus-within/search:opacity-100 transition-opacity">🔍</span>
+                <input 
+                  type="text"
+                  placeholder="Search logs by student or class..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-2xl bg-white border border-slate-200 font-bold text-ink focus:ring-4 focus:ring-brand-blue/5 transition-all outline-none shadow-sm"
+                />
+              </div>
+              <p className="text-xs font-bold text-ink/30 uppercase tracking-widest">{filteredRecords.length} records found</p>
+            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 text-left">
@@ -282,7 +311,7 @@ export default function AttendanceManagement() {
                   </div>
                 </div>
               ))
-            ) : records.map((record) => (
+            ) : paginatedRecords.map((record) => (
               <div
                 key={record._id}
                 className="group relative flex items-center gap-6 rounded-3xl bg-white p-6 shadow-md transition-all hover:shadow-xl border border-transparent hover:border-brand-blue/10 animate-in fade-in slide-in-from-bottom-2"
@@ -331,6 +360,31 @@ export default function AttendanceManagement() {
               </div>
             ))}
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="mt-12 flex items-center justify-between bg-white/50 border border-slate-100 rounded-[2rem] p-6 shadow-sm">
+              <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest">
+                Page {currentPage} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === 1 ? 'text-ink/20 cursor-not-allowed' : 'bg-white border-2 border-slate-200 text-brand-blue hover:bg-brand-blue hover:text-white hover:border-brand-blue shadow-sm'}`}
+                >
+                  ← Previous
+                </button>
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === totalPages ? 'text-ink/20 cursor-not-allowed' : 'bg-white border-2 border-slate-200 text-brand-blue hover:bg-brand-blue hover:text-white hover:border-brand-blue shadow-sm'}`}
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
         </section>
       </main>
       <Footer />

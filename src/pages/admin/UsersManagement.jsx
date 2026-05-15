@@ -40,6 +40,8 @@ export default function UsersManagement() {
   const [customRoles, setCustomRoles] = useState([]);
   const [locations, setLocations] = useState([]);
   const [editingUserId, setEditingUserId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   
   // Password Reset State
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -178,6 +180,15 @@ export default function UsersManagement() {
     u.phone?.includes(searchQuery)
   );
 
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  // Reset to page 1 on search
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
@@ -298,8 +309,8 @@ export default function UsersManagement() {
         <div className="space-y-4">
           {loading ? (
             <div className="py-20 flex justify-center"><div className="h-10 w-10 animate-spin rounded-full border-[6px] border-coral border-t-transparent" /></div>
-          ) : filteredUsers.length > 0 ? (
-            filteredUsers.map((user) => (
+          ) : paginatedUsers.length > 0 ? (
+            paginatedUsers.map((user) => (
               <div key={user._id} className="group rounded-[36px] bg-white border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden">
                 <div className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-8">
                   <div className="flex items-center gap-6">
@@ -452,6 +463,37 @@ export default function UsersManagement() {
             </div>
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="mt-12 flex items-center justify-between border-t border-slate-200 pt-8">
+            <p className="text-[10px] font-black text-ink/30 uppercase tracking-[0.2em]">
+              Page {currentPage} of {totalPages}
+            </p>
+            <div className="flex gap-4">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => {
+                  setCurrentPage(prev => prev - 1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === 1 ? 'bg-slate-100 text-ink/10 cursor-not-allowed' : 'bg-white border border-slate-200 text-ink hover:bg-ink hover:text-white shadow-sm'}`}
+              >
+                ← Prev
+              </button>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => {
+                  setCurrentPage(prev => prev + 1);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === totalPages ? 'bg-slate-100 text-ink/10 cursor-not-allowed' : 'bg-white border border-slate-200 text-ink hover:bg-ink hover:text-white shadow-sm'}`}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Password Reset Modal */}

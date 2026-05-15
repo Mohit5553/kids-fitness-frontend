@@ -1,10 +1,28 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../api/api';
 import { useAuth } from '../../context/AuthContext';
 
 const UATManagement = () => {
   const { user } = useAuth();
-  const [configs, setConfigs] = useState({ classes: [], plans: [], promotions: [] });
+  const [configs, setConfigs] = useState({ 
+    classes: [], 
+    plans: [], 
+    promotions: [],
+    counts: {
+      users: 0,
+      children: 0,
+      bookings: 0,
+      memberships: 0,
+      payments: 0,
+      invoices: 0,
+      sessions: 0,
+      attendance: 0,
+      trials: 0,
+      leads: 0,
+      extensionRequests: 0
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -103,6 +121,17 @@ const UATManagement = () => {
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
+          <div className="flex items-center gap-4 mb-2">
+            <Link 
+              to="/superadmin" 
+              className="flex items-center gap-2 text-ink/40 hover:text-coral transition-colors font-bold text-xs uppercase tracking-widest"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to Dashboard
+            </Link>
+          </div>
           <h1 className="text-3xl font-display flex items-center gap-3">
             <svg className="w-8 h-8 text-coral" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -132,7 +161,7 @@ const UATManagement = () => {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
-            Wipe Test Transactions
+            Wipe {Object.values(configs.counts || {}).reduce((a, b) => a + b, 0)} Transactions
           </button>
         </div>
       </div>
@@ -254,20 +283,36 @@ const UATManagement = () => {
               <h2 className="text-2xl font-display mb-6">UAT Status Overview</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-                  <p className="text-white/60 text-xs font-bold uppercase tracking-wider mb-1">Isolating Since</p>
-                  <p className="text-xl font-black">TODAY</p>
+                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">Test Users</p>
+                  <p className="text-xl font-black">{configs.counts?.users || 0}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-                  <p className="text-white/60 text-xs font-bold uppercase tracking-wider mb-1">Environment</p>
-                  <p className="text-xl font-black text-amber-400 uppercase tracking-tighter">Isolated</p>
+                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">Test Bookings</p>
+                  <p className="text-xl font-black">{configs.counts?.bookings || 0}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-                  <p className="text-white/60 text-xs font-bold uppercase tracking-wider mb-1">Draft Items</p>
-                  <p className="text-xl font-black">{configs.classes.length + configs.plans.length + configs.promotions.length}</p>
+                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">Test Memberships</p>
+                  <p className="text-xl font-black">{configs.counts?.memberships || 0}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
-                  <p className="text-white/60 text-xs font-bold uppercase tracking-wider mb-1">Safety Lock</p>
+                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">Safety Lock</p>
                   <p className="text-xl font-black text-emerald-400">ENABLED</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">Test Sessions</p>
+                  <p className="text-xl font-black">{configs.counts?.sessions || 0}</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">Test Attendance</p>
+                  <p className="text-xl font-black">{configs.counts?.attendance || 0}</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">CRM (Trials/Leads)</p>
+                  <p className="text-xl font-black">{(configs.counts?.trials || 0) + (configs.counts?.leads || 0)}</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10">
+                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">Total UAT Records</p>
+                  <p className="text-xl font-black text-amber-400">{Object.values(configs.counts || {}).reduce((a, b) => a + b, 0)}</p>
                 </div>
               </div>
            </div>

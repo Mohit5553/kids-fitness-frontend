@@ -615,72 +615,34 @@ export default function Reports() {
         )}
 
         {/* Results Sections */}
-        {reportType === 'bookings' && filteredData.purchases ? (
-          <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-10">
+          {reportType === 'bookings' && filteredData.purchases ? (
+            <>
+              <ReportSection
+                title="Orders & Revenue (Single & Package Purchases)"
+                data={filteredData.purchases}
+                columns={COLUMNS.bookings}
+                renderValue={renderValue}
+                loading={loading}
+              />
+              <ReportSection
+                title="Membership Utilization (Usage Sessions)"
+                data={filteredData.sessions}
+                columns={COLUMNS.membership_sessions}
+                renderValue={renderValue}
+                loading={loading}
+              />
+            </>
+          ) : (
             <ReportSection
-              title="Orders & Revenue (Single & Package Purchases)"
-              data={filteredData.purchases}
-              columns={COLUMNS.bookings}
+              title={`${REPORT_TYPES.find(t => t.id === reportType)?.label || 'Report'} Results`}
+              data={Array.isArray(filteredData) ? filteredData : []}
+              columns={columns}
               renderValue={renderValue}
               loading={loading}
             />
-            <ReportSection
-              title="Membership Utilization (Usage Sessions)"
-              data={filteredData.sessions}
-              columns={COLUMNS.membership_sessions}
-              renderValue={renderValue}
-              loading={loading}
-            />
-          </div>
-        ) : (
-          <div className="bg-white rounded-[32px] overflow-hidden shadow-sm border border-slate-200/60">
-            <div className="overflow-x-auto min-h-[400px]">
-              <table className="w-full text-left border-collapse table-auto">
-                <thead className="bg-[#F8FAFC] border-b border-slate-100">
-                  <tr>
-                    {columns.map(col => (
-                      <th key={col.key} className="px-6 py-5 text-[10px] font-black text-ink/40 uppercase tracking-widest whitespace-nowrap">{col.label}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {loading ? (
-                    Array(5).fill(0).map((_, i) => (
-                      <tr key={i} className="animate-pulse">
-                        {columns.map((_, j) => (
-                          <td key={j} className="px-6 py-5"><div className="h-4 bg-slate-50 rounded-lg w-full"></div></td>
-                        ))}
-                      </tr>
-                    ))
-                  ) : filteredData.length > 0 ? filteredData.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/40 transition-colors group">
-                      {columns.map(col => (
-                        <td key={col.key} className="px-6 py-5 text-[11px] font-bold text-ink/70">
-                          {renderValue(col.key, item[col.key])}
-                        </td>
-                      ))}
-                    </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan="100" className="px-6 py-32 text-center">
-                        <div className="text-5xl mb-6 opacity-20">📊</div>
-                        <h3 className="font-display text-2xl text-ink font-bold">No results found</h3>
-                        <p className="text-sm text-ink/40 mt-2 max-w-xs mx-auto font-medium">Try broadening your filters or selecting a different data source.</p>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {(!reportData.purchases && filteredData.length > 0) && (
-              <div className="px-8 py-5 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center">
-                <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest">
-                  Showing {filteredData.length} records
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </main>
       <Footer />
     </div>
@@ -688,6 +650,17 @@ export default function Reports() {
 }
 
 function ReportSection({ title, data, columns, renderValue, loading }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 25;
+
+  const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE);
+  const paginatedData = data.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  // Reset to page 1 when the dataset changes (e.g., search/filter)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [data]);
+
   return (
     <div className="bg-white rounded-[32px] overflow-hidden shadow-sm border border-slate-200/60">
       <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between">
@@ -712,7 +685,7 @@ function ReportSection({ title, data, columns, renderValue, loading }) {
                   ))}
                 </tr>
               ))
-            ) : data.length > 0 ? data.map((item, idx) => (
+            ) : paginatedData.length > 0 ? paginatedData.map((item, idx) => (
               <tr key={idx} className="hover:bg-slate-50/40 transition-colors group">
                 {columns.map(col => (
                   <td key={col.key} className="px-6 py-5 text-[11px] font-bold text-ink/70">
@@ -722,14 +695,41 @@ function ReportSection({ title, data, columns, renderValue, loading }) {
               </tr>
             )) : (
               <tr>
-                <td colSpan="100" className="px-6 py-20 text-center">
-                  <span className="text-sm text-ink/30 font-medium">No records matching the filter in this section.</span>
+                <td colSpan="100" className="px-6 py-32 text-center">
+                  <div className="text-5xl mb-6 opacity-20">📊</div>
+                  <h3 className="font-display text-2xl text-ink font-bold">No results found</h3>
+                  <p className="text-sm text-ink/40 mt-2 max-w-xs mx-auto font-medium">Try broadening your filters or selecting a different data source.</p>
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="px-8 py-5 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center">
+          <div className="flex gap-2">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === 1 ? 'text-ink/20 cursor-not-allowed' : 'bg-white text-brand-blue shadow-sm hover:bg-brand-blue hover:text-white'}`}
+            >
+              ← Previous
+            </button>
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${currentPage === totalPages ? 'text-ink/20 cursor-not-allowed' : 'bg-white text-brand-blue shadow-sm hover:bg-brand-blue hover:text-white'}`}
+            >
+              Next →
+            </button>
+          </div>
+          <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest">
+            Page {currentPage} of {totalPages}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
