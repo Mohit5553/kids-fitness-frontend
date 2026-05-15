@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import AdminHeader from '../../components/AdminHeader.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { toast } from 'react-hot-toast';
 
 export default function MembershipManagement() {
+  const { roleSlug } = useParams();
   const [memberships, setMemberships] = useState([]);
   const [trainers, setTrainers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,16 +80,15 @@ export default function MembershipManagement() {
     <div className="min-h-screen bg-slate-50/50">
       <Navbar />
       <main className="page-shell py-12">
-        <header className="relative mb-12 overflow-hidden rounded-[2.5rem] bg-slate-900 p-10 text-white shadow-2xl">
-          <div className="relative z-10">
-            <p className="text-xs font-black uppercase tracking-[0.3em] text-white/50">Admin Panel</p>
-            <h1 className="mt-4 font-display text-4xl font-black italic tracking-tight">Membership <span className="text-coral">Management</span></h1>
-            <p className="mt-3 max-w-xl text-lg text-white/60 leading-relaxed font-medium">
-              Monitor active subscriptions and reassign trainers to ensure consistent session delivery.
-            </p>
-          </div>
-          <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-coral/10 blur-3xl" />
-        </header>
+        <AdminHeader 
+          title="Membership Management" 
+          description="Monitor active subscriptions and reassign trainers to ensure consistent session delivery."
+          backTo={`/${roleSlug}`}
+        />
+
+        <div className="mt-8 mb-12">
+          {/* Header content moved to AdminHeader */}
+        </div>
 
         <div className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="relative w-full md:w-96">

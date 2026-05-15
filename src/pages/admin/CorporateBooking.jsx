@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import AdminHeader from '../../components/AdminHeader.jsx';
 
 export default function CorporateBooking() {
+  const { roleSlug } = useParams();
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
   const [selectedSessions, setSelectedSessions] = useState([]);
@@ -92,19 +94,14 @@ export default function CorporateBooking() {
       <Navbar />
       
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-12">
-        <header className="mb-12">
-          <div className="flex items-center gap-4 mb-4">
-            <button 
-              onClick={() => navigate('/admin/bookings')}
-              className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 text-ink/40 hover:text-ink transition-all"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </button>
-            <h1 className="font-display text-4xl font-black text-ink">Corporate Group Booking</h1>
-          </div>
-          <p className="text-ink/40 font-medium text-lg">Manage multi-session registrations for your corporate clients and large groups.</p>
+        <AdminHeader 
+          title="Corporate Group Booking" 
+          description="Manage multi-session registrations for your corporate clients and large groups."
+          backTo={`/${roleSlug}/bookings`}
+        />
+
+        <header className="mt-8 mb-12">
+          {/* Header content moved to AdminHeader */}
         </header>
 
         {error && (

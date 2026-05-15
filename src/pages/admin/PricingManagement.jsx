@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import AdminHeader from '../../components/AdminHeader.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
 
 const emptyForm = {
@@ -36,6 +38,7 @@ const emptyForm = {
 };
 
 export default function PricingManagement() {
+  const { roleSlug } = useParams();
   const [plans, setPlans] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState('');
@@ -176,8 +179,15 @@ export default function PricingManagement() {
     <div>
       <Navbar />
       <main className="page-shell py-12">
-        <h1 className="font-display text-3xl">Add Membership</h1>
-        <p className="mt-2 text-sm text-ink/70">Update plan pricing and benefits.</p>
+        <AdminHeader 
+          title="Membership Pricing" 
+          description="Update plan pricing, benefits, and membership terms."
+          backTo={`/${roleSlug}`}
+        />
+
+        <div className="mt-8">
+          {/* Header content moved to AdminHeader */}
+        </div>
         {message ? <p className="mt-3 text-sm text-coral">{message}</p> : null}
 
         {canCreate || (editingId && canEdit) ? (

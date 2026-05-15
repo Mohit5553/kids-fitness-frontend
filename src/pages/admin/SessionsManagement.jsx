@@ -1,8 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import toast from 'react-hot-toast';
+import AdminHeader from '../../components/AdminHeader.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useBranch } from '../../context/BranchContext.jsx';
 
@@ -17,6 +19,7 @@ const emptyForm = {
 };
 
 export default function SessionsManagement() {
+  const { roleSlug } = useParams();
   const [sessions, setSessions] = useState([]);
   const [classes, setClasses] = useState([]);
   const [trainers, setTrainers] = useState([]);
@@ -268,10 +271,15 @@ export default function SessionsManagement() {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <Navbar />
       <main className="page-shell flex-1 py-12">
-        <div className="flex items-center justify-between mb-8">
+        <AdminHeader 
+          title="Session Manager" 
+          description="Schedule specific time slots for trainers and classes."
+          backTo={`/${roleSlug}`}
+        />
+
+        <div className="mt-8 flex items-center justify-between mb-8">
           <div>
-            <h1 className="font-display text-4xl font-black text-ink">Session Manager</h1>
-            <p className="mt-1 text-ink/50 font-medium">Schedule specific time slots for trainers and classes.</p>
+            {/* Header info moved to AdminHeader */}
           </div>
           <div className="flex flex-col items-end gap-3">
             <button

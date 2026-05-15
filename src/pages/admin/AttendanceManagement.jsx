@@ -1,7 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import AdminHeader from '../../components/AdminHeader.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useSocket } from '../../context/SocketContext.jsx';
 
@@ -12,6 +14,7 @@ const formatSession = (session) => {
 };
 
 export default function AttendanceManagement() {
+  const { roleSlug } = useParams();
   const [records, setRecords] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [attendees, setAttendees] = useState([]); // Changed name to attendees for clarity
@@ -183,16 +186,15 @@ export default function AttendanceManagement() {
     <div className="min-h-screen bg-slate-50/50">
       <Navbar />
       <main className="page-shell py-12">
-        <header className="relative mb-12 overflow-hidden rounded-[2.5rem] bg-brand-blue p-10 text-white shadow-2xl">
-          <div className="relative z-10">
-            <p className="text-xs font-black uppercase tracking-[0.3em] text-white/60">Operations</p>
-            <h1 className="mt-4 font-display text-4xl font-black">Attendance Tracking</h1>
-            <p className="mt-3 max-w-xl text-lg text-white/80 leading-relaxed font-medium">
-              Manage physical presence for classes. Select a session to see all attendees (both members and guests).
-            </p>
-          </div>
-          <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
-        </header>
+        <AdminHeader 
+          title="Attendance Tracker" 
+          description="Monitor real-time session attendance and mark participant presence."
+          backTo={`/${roleSlug}`}
+        />
+
+        <div className="mt-8">
+          {/* Legacy header section removed */}
+        </div>
 
         {message && (
           <div className="mb-6 animate-rise rounded-2xl bg-emerald-50 p-4 text-emerald-700 border border-emerald-100 flex items-center gap-3 font-bold text-sm shadow-sm">

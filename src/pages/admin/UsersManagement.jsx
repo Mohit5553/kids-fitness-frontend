@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import toast from 'react-hot-toast';
+import AdminHeader from '../../components/AdminHeader.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
 
 const MODULES = [
@@ -32,6 +34,7 @@ const ACTIONS = [
 ];
 
 export default function UsersManagement() {
+  const { roleSlug } = useParams();
   const [users, setUsers] = useState([]);
   const [expandedUser, setExpandedUser] = useState(null);
   const [userChildren, setUserChildren] = useState({});
@@ -193,12 +196,11 @@ export default function UsersManagement() {
     <div className="min-h-screen bg-slate-50">
       <Navbar />
       <main className="page-shell py-12">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-          <div>
-            <h1 className="font-display text-4xl font-black text-ink tracking-tight">Staff & User Management</h1>
-            <p className="mt-2 text-sm text-ink/70 font-medium tracking-wide">Manage access, roles, and profiles for everyone on the platform.</p>
-          </div>
-          {canCreate && (
+        <AdminHeader 
+          title="Staff & User Management" 
+          description="Manage access, roles, and profiles for everyone on the platform."
+          backTo={`/${roleSlug}`}
+          actions={canCreate && (
             <button 
               onClick={() => {
                 if (showAddStaff) {
@@ -219,6 +221,10 @@ export default function UsersManagement() {
               )}
             </button>
           )}
+        />
+
+        <div className="mt-8 mb-10">
+          {/* Header content moved to AdminHeader */}
         </div>
 
         {/* Staff Creation / Edit Form */}
