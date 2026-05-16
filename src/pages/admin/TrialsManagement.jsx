@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import AdminHeader from '../../components/AdminHeader.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
 
 const statusLabels = {
@@ -13,6 +15,7 @@ const statusLabels = {
 };
 
 export default function TrialsManagement() {
+  const { roleSlug } = useParams();
   const [trials, setTrials] = useState([]);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -69,33 +72,31 @@ export default function TrialsManagement() {
     <div>
       <Navbar />
       <main className="page-shell pb-12 pt-8">
-        <section className="relative overflow-hidden rounded-[32px] bg-gradient-to-r from-sky-600 via-blue-600 to-emerald-500 p-8 text-white shadow-glow">
-          <div className="relative z-10 flex flex-wrap items-end justify-between gap-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/80">Trial desk</p>
-              <h1 className="mt-3 font-display text-3xl md:text-4xl">Trial Requests</h1>
-              <p className="mt-2 max-w-2xl text-sm text-white/80">
-                Track trial submissions, update statuses, and follow up with parents from one place.
-              </p>
-            </div>
+        <AdminHeader 
+          title="Trial Requests" 
+          description="Track trial submissions, update statuses, and follow up with parents from one place."
+          backTo={`/${roleSlug}`}
+          actions={(
             <button
-              className="rounded-full bg-white/15 px-5 py-2 text-sm font-semibold text-white shadow-glow backdrop-blur"
+              className="rounded-full bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20 active:scale-95"
               onClick={exportCsv}
             >
               Export CSV
             </button>
-          </div>
-          <div className="relative z-10 mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          )}
+        />
+
+        <div className="mt-8 mb-8">
+          {/* Header content moved to AdminHeader */}
+          <div className="relative z-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Object.entries(statusLabels).map(([key, label]) => (
-              <div key={key} className="rounded-2xl bg-white/15 p-4 backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.2em] text-white/70">{label}</p>
-                <p className="mt-2 text-2xl font-semibold">{counts[key]}</p>
+              <div key={key} className="rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/40">{label}</p>
+                <p className="mt-2 text-2xl font-black text-ink">{counts[key]}</p>
               </div>
             ))}
           </div>
-          <div className="pointer-events-none absolute -right-16 -top-24 h-60 w-60 rounded-full bg-white/15" />
-          <div className="pointer-events-none absolute -bottom-20 left-12 h-44 w-44 rounded-full bg-white/10" />
-        </section>
+        </div>
 
         <section className="mt-8 soft-card rounded-3xl p-5 shadow-glow">
           <div className="flex flex-wrap items-center gap-4">

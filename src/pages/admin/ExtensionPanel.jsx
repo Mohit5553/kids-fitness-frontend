@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import toast from 'react-hot-toast';
+import AdminHeader from '../../components/AdminHeader.jsx';
 
 export default function ExtensionPanel() {
+  const { roleSlug } = useParams();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,9 +37,14 @@ export default function ExtensionPanel() {
     <div className="min-h-screen bg-slate-50">
       <Navbar />
       <main className="page-shell py-12">
-        <header className="mb-10">
-          <h1 className="font-display text-4xl font-black text-ink">Extension & Reschedule Requests</h1>
-          <p className="mt-2 text-ink/60">Review and approve requests for missed sessions or membership extensions.</p>
+        <AdminHeader 
+          title="Extension Panel" 
+          description="Review and process membership extension requests from parents."
+          backTo={`/${roleSlug}`}
+        />
+
+        <header className="mt-8 mb-10">
+          {/* Header content moved to AdminHeader */}
         </header>
 
         <div className="grid gap-6">

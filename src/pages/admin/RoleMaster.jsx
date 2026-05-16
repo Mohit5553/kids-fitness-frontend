@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import toast from 'react-hot-toast';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import api from '../../api/api.js';
+import AdminHeader from '../../components/AdminHeader.jsx';
 
 const MODULES = [
   { id: 'classes', label: 'Classes' },
@@ -33,6 +35,7 @@ const ACTIONS = [
 ];
 
 export default function RoleMaster() {
+  const { roleSlug } = useParams();
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingRole, setEditingRole] = useState(null);
@@ -124,9 +127,14 @@ export default function RoleMaster() {
     <div className="min-h-screen bg-slate-50">
       <Navbar />
       <main className="page-shell py-12">
-        <div className="mb-8">
-          <h1 className="font-display text-4xl font-black text-ink tracking-tight">Role Master</h1>
-          <p className="mt-2 text-sm text-ink/70 font-medium tracking-wide">Define granular CRUD access for staff roles.</p>
+        <AdminHeader 
+          title="Role Master" 
+          description="Define granular CRUD access and feature visibility for staff roles."
+          backTo={`/${roleSlug}`}
+        />
+
+        <div className="mt-8">
+          {/* Header content moved to AdminHeader */}
         </div>
 
         <div className="grid gap-8 lg:grid-cols-5">

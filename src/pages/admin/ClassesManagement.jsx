@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import toast from 'react-hot-toast';
+import AdminHeader from '../../components/AdminHeader.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
 
 const emptyForm = {
@@ -23,6 +25,7 @@ const emptyForm = {
 };
 
 export default function ClassesManagement() {
+  const { roleSlug } = useParams();
   const [classes, setClasses] = useState([]);
   const [trainers, setTrainers] = useState([]);
   const [form, setForm] = useState(emptyForm);
@@ -141,8 +144,15 @@ export default function ClassesManagement() {
     <div>
       <Navbar />
       <main className="page-shell py-12">
-        <h1 className="font-display text-3xl">Classes Management</h1>
-        <p className="mt-2 text-sm text-ink/70">Create, update, and schedule classes.</p>
+        <AdminHeader 
+          title="Class Definitions" 
+          description="Create and manage activities, age requirements, and base pricing."
+          backTo={`/${roleSlug}`}
+        />
+
+        <div className="mt-8">
+          {/* Header content moved to AdminHeader */}
+        </div>
         {message ? <p className="mt-3 text-sm text-coral">{message}</p> : null}
 
         {canCreate || (editingId && canEdit) ? (

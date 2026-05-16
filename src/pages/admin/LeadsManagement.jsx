@@ -1,8 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import toast from 'react-hot-toast';
+import AdminHeader from '../../components/AdminHeader.jsx';
 
 const statusLabels = {
   all: 'All leads',
@@ -12,6 +14,7 @@ const statusLabels = {
 };
 
 export default function LeadsManagement() {
+  const { roleSlug } = useParams();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -71,23 +74,23 @@ export default function LeadsManagement() {
     <div>
       <Navbar />
       <main className="page-shell pb-12 pt-8">
-        <section className="relative overflow-hidden rounded-[32px] bg-gradient-to-r from-orange-400 to-rose-400 p-8 text-white shadow-glow">
-          <div className="relative z-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/80">Inbox</p>
-            <h1 className="mt-3 font-display text-3xl md:text-4xl">General Inquiries</h1>
-            <p className="mt-2 text-sm text-white/90">
-              Manage messages from the contact form. Keep track of customer leads here.
-            </p>
-          </div>
-          <div className="relative z-10 mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <AdminHeader 
+          title="General Inquiries" 
+          description="Manage messages from the contact form. Keep track of customer leads here."
+          backTo={`/${roleSlug}`}
+        />
+
+        <div className="mt-8 mb-8">
+          {/* Header content moved to AdminHeader */}
+          <div className="relative z-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Object.entries(statusLabels).map(([key, label]) => (
-              <div key={key} className="rounded-2xl bg-white/15 p-4 backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.2em] text-white/70">{label}</p>
-                <p className="mt-2 text-2xl font-semibold">{counts[key]}</p>
+              <div key={key} className="rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/40">{label}</p>
+                <p className="mt-2 text-2xl font-black text-ink">{counts[key]}</p>
               </div>
             ))}
           </div>
-        </section>
+        </div>
 
         <section className="mt-8 soft-card rounded-3xl p-5 shadow-glow">
           <div className="flex flex-wrap items-center gap-4">

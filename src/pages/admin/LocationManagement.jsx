@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import AdminHeader from '../../components/AdminHeader.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
 
 export default function LocationManagement() {
+    const { roleSlug } = useParams();
     const [locations, setLocations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -123,23 +126,23 @@ export default function LocationManagement() {
         <div className="min-h-screen bg-slate-50">
             <Navbar />
             <main className="page-shell pb-12 pt-8">
-                <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-ocean to-moss p-8 text-white shadow-glow mb-8">
-                    <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
-                        <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/80">Admin Center</p>
-                            <h1 className="mt-3 font-display text-3xl md:text-4xl">Location Management</h1>
-                            <p className="mt-2 text-sm text-white/80">Manage your gym's physical and virtual presence.</p>
-                        </div>
-                        {canCreate && (
-                            <button
-                                onClick={() => setShowForm(!showForm)}
-                                className="rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-ocean transition hover:bg-opacity-90 active:scale-95"
-                            >
-                                {showForm ? 'Cancel' : 'Add New Location'}
-                            </button>
-                        )}
-                    </div>
-                </section>
+                <AdminHeader 
+                    title="Location Management" 
+                    description="Manage your gym's physical and virtual presence across different cities."
+                    backTo={`/${roleSlug}`}
+                    actions={canCreate && (
+                        <button
+                            onClick={() => setShowForm(!showForm)}
+                            className="rounded-full bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20 active:scale-95"
+                        >
+                            {showForm ? 'Cancel' : 'Add New Location'}
+                        </button>
+                    )}
+                />
+
+                <div className="mt-8 mb-8">
+                    {/* Header content moved to AdminHeader */}
+                </div>
 
                 {(canCreate || (editingId && canEdit)) && showForm ? (
                     <div className="mb-10 rounded-[32px] bg-white p-8 shadow-sm border border-slate-100">

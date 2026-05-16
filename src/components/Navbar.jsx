@@ -42,6 +42,7 @@ export default function Navbar({ className = '' }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef(null);
   const [companyInfo, setCompanyInfo] = useState({ name: 'JTS Booking', logoUrl: '' });
+  const [isUATGlobal, setIsUATGlobal] = useState(true);
 
   useEffect(() => {
     api.get('/settings/global')
@@ -49,6 +50,16 @@ export default function Navbar({ className = '' }) {
         const companySetting = res.data.find(s => s.key === 'company_info');
         if (companySetting && companySetting.value) {
           setCompanyInfo(companySetting.value);
+        }
+
+        const uatSetting = res.data.find(s => s.key === 'is_uat_enabled');
+        const isEnabled = uatSetting ? !!uatSetting.value : true; // Default true for now if not set
+        setIsUATGlobal(isEnabled);
+
+        // If UAT is disabled globally but local mode is UAT, force Live
+        if (!isEnabled && localStorage.getItem('systemMode') === 'uat') {
+          localStorage.setItem('systemMode', 'live');
+          window.location.reload();
         }
       })
       .catch(() => {});
@@ -114,34 +125,36 @@ export default function Navbar({ className = '' }) {
           </nav>
 
           <div className="hidden xl:flex items-center gap-3">
-             <div className="flex items-center bg-slate-100 rounded-full p-1 border border-brand-navy/5 mr-2">
-               <button
-                 onClick={() => {
-                   localStorage.setItem('systemMode', 'live');
-                   window.location.reload();
-                 }}
-                 className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-                   (localStorage.getItem('systemMode') || 'live') === 'live'
-                     ? 'bg-white text-brand-blue shadow-sm'
-                     : 'text-ink/40 hover:text-ink'
-                 }`}
-               >
-                 Live
-               </button>
-               <button
-                 onClick={() => {
-                   localStorage.setItem('systemMode', 'uat');
-                   window.location.reload();
-                 }}
-                 className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-                   localStorage.getItem('systemMode') === 'uat'
-                     ? 'bg-amber-500 text-white shadow-sm'
-                     : 'text-ink/40 hover:text-ink'
-                 }`}
-               >
-                 UAT
-               </button>
-             </div>
+             {isUATGlobal && (
+               <div className="flex items-center bg-slate-100 rounded-full p-1 border border-brand-navy/5 mr-2">
+                 <button
+                   onClick={() => {
+                     localStorage.setItem('systemMode', 'live');
+                     window.location.reload();
+                   }}
+                   className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                     (localStorage.getItem('systemMode') || 'live') === 'live'
+                       ? 'bg-white text-brand-blue shadow-sm'
+                       : 'text-ink/40 hover:text-ink'
+                   }`}
+                 >
+                   Live
+                 </button>
+                 <button
+                   onClick={() => {
+                     localStorage.setItem('systemMode', 'uat');
+                     window.location.reload();
+                   }}
+                   className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                     localStorage.getItem('systemMode') === 'uat'
+                       ? 'bg-amber-500 text-white shadow-sm'
+                       : 'text-ink/40 hover:text-ink'
+                   }`}
+                 >
+                   UAT
+                 </button>
+               </div>
+             )}
              <LocationSelect />
              {user ? (
                 <div className="relative" ref={profileRef}>
@@ -229,37 +242,39 @@ export default function Navbar({ className = '' }) {
                 </NavLink>
               ))}
               <div className="h-px bg-slate-100 my-2" />
-              <div className="px-4 py-2">
-                <p className="text-[10px] font-black text-ink/40 uppercase tracking-widest mb-2">Environment Mode</p>
-                <div className="flex items-center bg-slate-100 rounded-2xl p-1 border border-brand-navy/5">
-                  <button
-                    onClick={() => {
-                      localStorage.setItem('systemMode', 'live');
-                      window.location.reload();
-                    }}
-                    className={`flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                      (localStorage.getItem('systemMode') || 'live') === 'live'
-                        ? 'bg-white text-brand-blue shadow-sm'
-                        : 'text-ink/40'
-                    }`}
-                  >
-                    Live
-                  </button>
-                  <button
-                    onClick={() => {
-                      localStorage.setItem('systemMode', 'uat');
-                      window.location.reload();
-                    }}
-                    className={`flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                      localStorage.getItem('systemMode') === 'uat'
-                        ? 'bg-amber-500 text-white shadow-sm'
-                        : 'text-ink/40'
-                    }`}
-                  >
-                    UAT
-                  </button>
+              {isUATGlobal && (
+                <div className="px-4 py-2">
+                  <p className="text-[10px] font-black text-ink/40 uppercase tracking-widest mb-2">Environment Mode</p>
+                  <div className="flex items-center bg-slate-100 rounded-2xl p-1 border border-brand-navy/5">
+                    <button
+                      onClick={() => {
+                        localStorage.setItem('systemMode', 'live');
+                        window.location.reload();
+                      }}
+                      className={`flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                        (localStorage.getItem('systemMode') || 'live') === 'live'
+                          ? 'bg-white text-brand-blue shadow-sm'
+                          : 'text-ink/40'
+                      }`}
+                    >
+                      Live
+                    </button>
+                    <button
+                      onClick={() => {
+                        localStorage.setItem('systemMode', 'uat');
+                        window.location.reload();
+                      }}
+                      className={`flex-1 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                        localStorage.getItem('systemMode') === 'uat'
+                          ? 'bg-amber-500 text-white shadow-sm'
+                          : 'text-ink/40'
+                      }`}
+                    >
+                      UAT
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
               <LocationSelect />
               {user ? (
                 <>

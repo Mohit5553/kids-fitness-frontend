@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import AdminHeader from '../../components/AdminHeader.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
 
 const emptyForm = {
@@ -11,6 +13,7 @@ const emptyForm = {
 };
 
 export default function SpecialtiesManagement() {
+  const { roleSlug } = useParams();
   const [specialties, setSpecialties] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState('');
@@ -82,13 +85,15 @@ export default function SpecialtiesManagement() {
     <div className="min-h-screen bg-slate-50">
       <Navbar />
       <main className="page-shell py-12">
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 to-violet-600 p-8 text-white shadow-glow mb-8">
-          <div className="relative z-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/80">Master Data</p>
-            <h1 className="mt-3 font-display text-3xl md:text-4xl">Specialty Master</h1>
-            <p className="mt-2 text-sm text-white/80 max-w-xl">Configure the specific expertise areas that trainers can be assigned to.</p>
-          </div>
-        </section>
+        <AdminHeader 
+          title="Specialty Master" 
+          description="Configure the specific expertise areas that trainers can be assigned to."
+          backTo={`/${roleSlug}`}
+        />
+
+        <div className="mt-8">
+          {/* Header content moved to AdminHeader */}
+        </div>
 
         <div className={`grid gap-8 ${canCreate || editingId ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
           {/* Form Section */}

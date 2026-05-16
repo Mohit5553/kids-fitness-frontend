@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import * as XLSX from 'xlsx';
+import AdminHeader from '../../components/AdminHeader.jsx';
 
 const REPORT_TYPES = [
   { id: 'classes', label: 'Classes Report' },
@@ -22,6 +24,7 @@ const REPORT_TYPES = [
 ];
 
 export default function Reports() {
+  const { roleSlug } = useParams();
   const [summary, setSummary] = useState(null);
   const [reportType, setReportType] = useState('bookings');
   const [reportData, setReportData] = useState([]);
@@ -490,10 +493,15 @@ export default function Reports() {
     <div className="min-h-screen bg-[#F8FAFC]">
       <Navbar />
       <main className="page-shell py-12">
-        <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <AdminHeader 
+          title="Analytical Reports" 
+          description="Generate and export system-wide data for classes, payments, and users."
+          backTo={`/${roleSlug}`}
+        />
+
+        <div className="mt-8 mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="font-display text-4xl font-black text-ink tracking-tight">Reports Center</h1>
-            <p className="mt-2 text-sm text-ink/50 font-medium">Analytics, activity logs and data exports.</p>
+            {/* Header info moved to AdminHeader */}
           </div>
           <div className="flex items-center gap-3">
             <button

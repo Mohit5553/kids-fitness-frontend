@@ -5,6 +5,7 @@ import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import toast from 'react-hot-toast';
+import AdminHeader from '../../components/AdminHeader.jsx';
 
 export default function BookingManagement() {
   const [bookings, setBookings] = useState([]);
@@ -315,10 +316,15 @@ export default function BookingManagement() {
     <div className="min-h-screen bg-slate-50/50">
       <Navbar />
       <main className="page-shell py-12">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+        <AdminHeader 
+          title="Booking Management" 
+          description="Manage and monitor all client registrations."
+          backTo={`/${roleSlug}`}
+        />
+
+        <div className="mt-8 flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div>
-            <h1 className="font-display text-4xl font-black text-ink">Booking Management</h1>
-            <p className="mt-2 text-sm text-ink/50 font-medium">Manage and monitor all client registrations.</p>
+            {/* Title moved to AdminHeader */}
           </div>
           <Link
             to={`/${roleSlug}/corporate-booking`}

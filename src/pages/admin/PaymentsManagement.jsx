@@ -1,7 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import AdminHeader from '../../components/AdminHeader.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
 
 /* ── helpers ── */
@@ -93,6 +95,7 @@ function StatCard({ label, value, sub, accent }) {
 }
 
 export default function PaymentsManagement() {
+  const { roleSlug } = useParams();
   const [payments, setPayments]   = useState([]);
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
@@ -220,13 +223,16 @@ export default function PaymentsManagement() {
     <div>
       <Navbar />
       <main className="page-shell py-10">
+        <AdminHeader 
+          title="Payment Monitoring" 
+          description="Review revenue, track transactions, and manage center-level payments."
+          backTo={`/${roleSlug}`}
+        />
 
         {/* ── Header ── */}
-        <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
+        <div className="mt-8 flex flex-wrap items-start justify-between gap-4 mb-8">
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-brand-blue mb-1">Admin</p>
-            <h1 className="font-display text-3xl font-black text-brand-black">Payments</h1>
-            <p className="mt-1 text-sm text-brand-black/50">Monitor all payment transactions, grouped by date.</p>
+            {/* Title moved to AdminHeader */}
           </div>
           <button
             onClick={exportCsv}

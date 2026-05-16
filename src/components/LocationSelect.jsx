@@ -12,25 +12,37 @@ export default function LocationSelect({ allowAll = false }) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // 1. Fetch latest user profile to sync permissions (crucial for staff)
-        const meRes = await api.get('/auth/me');
-        const freshUser = meRes.data;
-        if (freshUser) {
-          const localUser = JSON.parse(localStorage.getItem('user') || '{}');
-          localStorage.setItem('user', JSON.stringify({ ...localUser, ...freshUser }));
+        const token = localStorage.getItem('kfb_token');
+        let activeUser = user;
+
+        if (token) {
+          try {
+            // 1. Fetch latest user profile to sync permissions (crucial for staff)
+            const meRes = await api.get('/auth/me');
+            activeUser = meRes.data;
+            if (activeUser) {
+              const localUser = JSON.parse(localStorage.getItem('kfb_user') || '{}');
+              localStorage.setItem('kfb_user', JSON.stringify({ ...localUser, ...activeUser }));
+            }
+          } catch (meErr) {
+            console.warn("Failed to sync user profile", meErr);
+            // If this fails (e.g. 401), we just use the local user or treat as guest
+          }
         }
 
         // 2. Fetch all locations
         const locRes = await api.get('/locations?all=true');
         const list = locRes.data || [];
-        const isSuper = freshUser?.role === 'superadmin';
+        const isSuper = activeUser?.role === 'superadmin';
         
         let filtered = list;
 
-        // If not superadmin, only show assigned locations
-        if (!isSuper) {
-          const assignedIds = (freshUser.locationIds || []).map(l => typeof l === 'string' ? l : l._id);
-          filtered = list.filter(l => assignedIds.includes(l._id));
+        // If logged in and not superadmin, only show assigned locations if any are assigned
+        if (activeUser && !isSuper) {
+          const assignedIds = (activeUser.locationIds || []).map(l => typeof l === 'string' ? l : l._id);
+          if (assignedIds.length > 0) {
+            filtered = list.filter(l => assignedIds.includes(l._id));
+          }
         }
 
         // Superadmins always get the 'All locations' option

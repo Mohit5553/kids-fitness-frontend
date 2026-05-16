@@ -15,15 +15,15 @@ api.interceptors.request.use((config) => {
   if (locationSlug && locationSlug !== 'all') {
     config.headers['x-location'] = locationSlug;
   }
-  
+
   const selectedBranchId = localStorage.getItem('selectedBranch');
   if (selectedBranchId && selectedBranchId !== 'all') {
     config.headers['x-location-id'] = selectedBranchId;
   }
-  
+
   const systemMode = localStorage.getItem('systemMode') || 'live';
   config.headers['x-system-mode'] = systemMode;
-  
+
   return config;
 });
 
@@ -31,10 +31,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Only clear session if it's not a login/register attempt
+    const isAuthPath = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/register');
+
+    if (error.response?.status === 401 && !isAuthPath) {
       console.warn('Session expired or invalid token - Clearing session');
       clearAuth();
-      // Optional: Notify user or redirect to login
     }
     return Promise.reject(error);
   }
