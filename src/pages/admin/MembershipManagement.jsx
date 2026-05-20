@@ -129,7 +129,7 @@ export default function MembershipManagement() {
                       </div>
                       <h3 className="text-xl font-black text-ink">{m.childId?.name || m.userId?.name}</h3>
                       <p className="text-xs font-bold text-ink/40 uppercase tracking-widest mt-1">
-                        Parent: <span className="text-ink/60">{m.userId?.name || 'Unknown'}</span>
+                        Customer: <span className="text-ink/60">{m.userId?.name || 'Unknown'}</span>
                       </p>
                     </div>
 

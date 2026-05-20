@@ -726,7 +726,7 @@ export default function SessionsManagement() {
                     <div key={booking._id} className="p-6 rounded-3xl bg-slate-50 border border-slate-100">
                       <div className="flex justify-between items-start mb-4">
                         <div>
-                          <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest leading-none mb-1">Parent / Contact</p>
+                          <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest leading-none mb-1">Customer / Contact</p>
                           <h4 className="text-sm font-black text-ink">{booking.userId?.name || booking.guestDetails?.name || booking.packageInfo?.parentName || 'Guest'}</h4>
                           <p className="text-[10px] font-bold text-ink/40 mt-0.5">{booking.userId?.phone || booking.guestDetails?.phone || 'No phone'}</p>
                           {(booking.planId?.name || booking.packageInfo?.name) && (

@@ -54,15 +54,15 @@ export default function MyChildren() {
     <div>
       <Navbar />
       <main className="page-shell py-12">
-        <h1 className="font-display text-3xl">My Children</h1>
-        <p className="mt-2 text-sm text-ink/70">Register children, update profiles, and view milestones.</p>
+        <h1 className="font-display text-3xl">My Customers</h1>
+        <p className="mt-2 text-sm text-ink/70">Register customers, update profiles, and view milestones.</p>
 
         <form className="mt-6 grid gap-3 rounded-3xl bg-white/80 p-6 shadow-glow" onSubmit={handleSubmit}>
           <div className="grid gap-3 md:grid-cols-3">
             <input
               className="rounded-xl border border-orange-200/70 p-3"
               name="name"
-              placeholder="Child name"
+              placeholder="Customer name"
               value={form.name}
               onChange={handleChange}
               required
@@ -89,7 +89,7 @@ export default function MyChildren() {
           </div>
           <div className="flex gap-2">
             <button className="flex-1 rounded-full bg-coral px-5 py-3 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98]" type="submit">
-              {editingChildId ? 'Update child profile' : 'Add child'}
+              {editingChildId ? 'Update customer profile' : 'Add customer'}
             </button>
             {editingChildId && (
               <button 
@@ -115,7 +115,7 @@ export default function MyChildren() {
               <button
                 onClick={() => startEdit(child)}
                 className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-500 opacity-0 transition-all group-hover:opacity-100 hover:bg-orange-100"
-                title="Edit child"
+                title="Edit customer"
               >
                 ✏️
               </button>

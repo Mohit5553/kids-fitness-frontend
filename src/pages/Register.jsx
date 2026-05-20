@@ -105,7 +105,7 @@ export default function Register() {
   const nextStep = () => {
     if (step === 1) {
       if (!form.firstName || !form.lastName || !form.email || !form.password || !form.locationId) {
-        setError('Please fill in all required parent fields.');
+        setError('Please fill in all required customer fields.');
         return;
       }
       if (form.password !== form.passwordConfirmation) {
@@ -171,7 +171,7 @@ export default function Register() {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-bold text-ink/70">Parent Photo</label>
+          <label className="text-sm font-bold text-ink/70">Customer Photo</label>
           <div className="flex items-center gap-4">
             <input
               type="file"
@@ -324,7 +324,7 @@ export default function Register() {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-bold text-ink/70">Parent Birth Date</label>
+          <label className="text-sm font-bold text-ink/70">Customer Birth Date</label>
           <input
             name="birthDate"
             type="date"
@@ -377,7 +377,7 @@ export default function Register() {
           onClick={nextStep}
           className="rounded-full bg-ocean px-10 py-3.5 text-sm font-black text-white shadow-lg hover:scale-105 transition-transform active:scale-95"
         >
-          Next: Child Info
+          Next: Customer Info
         </button>
       </div>
     </div>
@@ -392,7 +392,7 @@ export default function Register() {
               <span className="w-8 h-8 rounded-full bg-ocean/10 text-ocean flex items-center justify-center text-xs">
                 {index + 1}
               </span>
-              Child Information
+              Customer Information
             </h3>
             {form.children.length > 1 && (
               <button
@@ -415,7 +415,7 @@ export default function Register() {
                 value={child.firstName}
                 onChange={(e) => handleChildChange(index, e)}
                 className="w-full rounded-2xl border-slate-200 bg-white p-3.5 text-sm focus:border-ocean focus:ring-0"
-                placeholder="Child's first name"
+                placeholder="Customer's first name"
                 required
               />
             </div>
@@ -426,7 +426,7 @@ export default function Register() {
                 value={child.lastName}
                 onChange={(e) => handleChildChange(index, e)}
                 className="w-full rounded-2xl border-slate-200 bg-white p-3.5 text-sm focus:border-ocean focus:ring-0"
-                placeholder="Child's last name"
+                placeholder="Customer's last name"
               />
             </div>
             <div className="space-y-2">
@@ -478,7 +478,7 @@ export default function Register() {
               />
             </div>
             <div className="md:col-span-2 space-y-2">
-              <label className="text-sm font-bold text-ink/70">Child Photo</label>
+              <label className="text-sm font-bold text-ink/70">Customer Photo</label>
               <div className="flex items-center gap-4">
                 <input
                   type="file"
@@ -508,7 +508,7 @@ export default function Register() {
           onClick={addChild}
           className="flex items-center gap-2 rounded-full border-2 border-dashed border-slate-200 px-6 py-3 text-sm font-bold text-ink/60 hover:border-ocean hover:text-ocean transition-all"
         >
-          <span className="text-xl">+</span> Add Another Child
+          <span className="text-xl">+</span> Add Another Customer
         </button>
       </div>
 
@@ -539,8 +539,8 @@ export default function Register() {
           <p className="font-bold text-xs text-ink mb-4 uppercase tracking-widest border-b pb-2">Terms & Conditions</p>
           <p> These Terms & Conditions are administered on behalf of My First Gym / trading as MY FIRST GYM. References to ‘we’, ‘us’ and ‘our’ are references to the My First Gym / trading as MY FIRST GYM, registered in the UAE, and whose registered office is at, Abu Dhabi and Dubai, UAE. My First Gym maintains the website (www.myfirstgym.com). </p>
           <p> References to ‘you’, ‘your’ and ‘yours’, and after acceptance, the member, are references to the individual completing the membership application form. </p>
-          <p> You must be aged 18 or over to be a parent, guardian, or responsible of a child member of the facility and to register his or her membership via our website. </p>
-          <p> If you are under the age of 18 you are not eligible to be a member or to register via our website. You should seek the support of your parent or guardian to become a member. </p>
+          <p> You must be aged 18 or over to be a customer, guardian, or responsible of a dependent member of the facility and to register his or her membership via our website. </p>
+          <p> If you are under the age of 18 you are not eligible to be a member or to register via our website. You should seek the support of your customer or guardian to become a member. </p>
 
           <p className="font-bold text-ink pt-2 uppercase tracking-tighter">PRINCIPLE TERMS</p>
           <ul className="list-disc pl-4 space-y-1">
@@ -689,7 +689,7 @@ export default function Register() {
                   {s}
                 </div>
                 <span className={`text-[10px] uppercase font-bold tracking-widest ${step >= s ? 'text-ocean' : 'text-slate-300'}`}>
-                  {s === 1 ? 'Parent Info' : s === 2 ? 'Child Info' : 'Terms'}
+                  {s === 1 ? 'Customer Info' : s === 2 ? 'Dependent Info' : 'Terms'}
                 </span>
               </div>
             ))}

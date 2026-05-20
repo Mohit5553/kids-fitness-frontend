@@ -141,7 +141,7 @@ export default function BookTrial() {
                 <input
                   className="rounded-xl border border-orange-200/70 p-3"
                   name="childName"
-                  placeholder="Child name"
+                  placeholder="Customer / Dependent Name"
                   value={form.childName}
                   onChange={handleChange}
                   required
@@ -186,7 +186,7 @@ export default function BookTrial() {
                 <input
                   className="rounded-xl border border-orange-200/70 p-3"
                   name="parentName"
-                  placeholder="Parent name"
+                  placeholder="Customer name"
                   value={form.parentName}
                   onChange={handleChange}
                   required
@@ -194,7 +194,7 @@ export default function BookTrial() {
                 <input
                   className="rounded-xl border border-orange-200/70 p-3"
                   name="parentPhone"
-                  placeholder="Parent phone"
+                  placeholder="Customer phone"
                   value={form.parentPhone}
                   onChange={handleChange}
                 />
@@ -203,7 +203,7 @@ export default function BookTrial() {
                 className="rounded-xl border border-orange-200/70 p-3"
                 name="parentEmail"
                 type="email"
-                placeholder="Parent email"
+                placeholder="Customer email"
                 value={form.parentEmail}
                 onChange={handleChange}
                 required

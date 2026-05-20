@@ -382,7 +382,7 @@ export default function Membership() {
             {/* Table Header */}
             <div className="grid grid-cols-[1.5fr_1.5fr_2fr_1fr_1.5fr_1.5fr] gap-6 px-12 py-8 border-b-2 border-slate-50 bg-slate-50/10">
               <div className="text-[9px] font-black text-ink/20 uppercase tracking-[0.3em]">Reference</div>
-              <div className="text-[9px] font-black text-ink/20 uppercase tracking-[0.3em]">Parent & Child</div>
+              <div className="text-[9px] font-black text-ink/20 uppercase tracking-[0.3em]">Customer</div>
               <div className="text-[9px] font-black text-ink/20 uppercase tracking-[0.3em]">Plan Details</div>
               <div className="text-[9px] font-black text-ink/20 uppercase tracking-[0.3em] text-center">Status</div>
               <div className="text-[9px] font-black text-ink/20 uppercase tracking-[0.3em]">Timeline</div>

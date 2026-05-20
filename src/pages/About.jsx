@@ -18,14 +18,14 @@ export default function About() {
             <h3 className="font-display text-xl">What we believe</h3>
             <p className="mt-3 text-sm text-ink/70">
               Kids thrive when movement is joyful and structured. Our sessions focus on coordination,
-              balance, and confidence while parents stay in the loop.
+              balance, and confidence while customers stay in the loop.
             </p>
           </div>
           <div className="soft-card rounded-3xl p-6">
             <h3 className="font-display text-xl">How we coach</h3>
             <p className="mt-3 text-sm text-ink/70">
               Certified trainers guide small groups with clear milestones. Every class ends with a quick
-              progress note in the parent dashboard.
+              progress note in the customer dashboard.
             </p>
           </div>
           <div className="soft-card rounded-3xl p-6 md:col-span-2 overflow-hidden flex items-center justify-center">

@@ -5,18 +5,18 @@ import Footer from '../components/Footer.jsx';
 const MANUAL_CONTENT = {
   user: {
     title: 'Detailed User Manual',
-    subtitle: 'Step-by-step guide for Parents & Trainers',
+    subtitle: 'Step-by-step guide for Customers & Trainers',
     sections: [
       {
         id: 'parents',
-        title: '👨‍👩‍👧 For Parents',
+        title: '👨‍👩‍👧 For Customers',
         content: [
           {
             h: '1. Account Setup & Registration',
             p: [
               'Choose a Branch: When registering, select your "Preferred Branch." This helps us tailor your dashboard to your local class schedule.',
-              'Parent Profile: Fill in your details. Add your Instagram handle to link your social activity to our loyalty program!',
-              'Child Profiles: Enter the correct Birth Date. The booking system uses this to filter classes that are age-appropriate for your child.'
+              'Customer Profile: Fill in your details. Add your Instagram handle to link your social activity to our loyalty program!',
+              'Dependent Profiles: Enter the correct Birth Date. The booking system uses this to filter classes that are age-appropriate for your dependent.'
             ]
           },
           {
@@ -25,7 +25,7 @@ const MANUAL_CONTENT = {
               'Select Program: Choose an activity (e.g., Gymnastics, Swimming).',
               'Choose Location: Select the branch where you want to attend.',
               'Select Trainer & Slot: Pick your favorite coach and a time that fits your schedule.',
-              'Confirm Participants: Select which child (or children) will attend. The system validates age requirements automatically.',
+              'Confirm Participants: Select which dependent (or dependents) will attend. The system validates age requirements automatically.',
               'Payment: Choose Online Payment for instant confirmation, or Pay at Center for desk-side payment.'
             ]
           },
@@ -34,7 +34,7 @@ const MANUAL_CONTENT = {
             p: [
               'Bookings: View all upcoming and past sessions.',
               'Invoices: You can print a Tax Invoice for any completed booking. Go to your booking details and click "Print Invoice."',
-              'Child Updates: Keep medical conditions and school info up-to-date in your profile.'
+              'Dependent Updates: Keep medical conditions and school info up-to-date in your profile.'
             ]
           }
         ]
@@ -55,7 +55,7 @@ const MANUAL_CONTENT = {
             h: '2. Managing Attendance',
             p: [
               'Check-In: On the day of the class, click "Check In" next to each participant as they arrive.',
-              'Real-Time Updates: Checking in updates the parent\'s dashboard instantly.',
+              'Real-Time Updates: Checking in updates the customer\'s dashboard instantly.',
               'Roster Summary: Use the session view to see total occupancy and prepare your session plan.'
             ]
           }

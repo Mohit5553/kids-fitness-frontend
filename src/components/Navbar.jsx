@@ -125,7 +125,7 @@ export default function Navbar({ className = '' }) {
           </nav>
 
           <div className="hidden xl:flex items-center gap-3">
-             {isUATGlobal && (
+             {user && isUATGlobal && (
                <div className="flex items-center bg-slate-100 rounded-full p-1 border border-brand-navy/5 mr-2">
                  <button
                    onClick={() => {
@@ -155,7 +155,7 @@ export default function Navbar({ className = '' }) {
                  </button>
                </div>
              )}
-             <LocationSelect />
+             {user && <LocationSelect />}
              {user ? (
                 <div className="relative" ref={profileRef}>
                   <button 
@@ -242,7 +242,7 @@ export default function Navbar({ className = '' }) {
                 </NavLink>
               ))}
               <div className="h-px bg-slate-100 my-2" />
-              {isUATGlobal && (
+              {user && isUATGlobal && (
                 <div className="px-4 py-2">
                   <p className="text-[10px] font-black text-ink/40 uppercase tracking-widest mb-2">Environment Mode</p>
                   <div className="flex items-center bg-slate-100 rounded-2xl p-1 border border-brand-navy/5">
@@ -275,7 +275,7 @@ export default function Navbar({ className = '' }) {
                   </div>
                 </div>
               )}
-              <LocationSelect />
+              {user && <LocationSelect />}
               {user ? (
                 <>
                    <NavLink to={dashboardPath} onClick={closeMenu} className="text-lg font-bold text-brand-blue px-4">Dashboard</NavLink>
