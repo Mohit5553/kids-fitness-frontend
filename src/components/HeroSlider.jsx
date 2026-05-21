@@ -12,8 +12,8 @@ const slides = [
     {
         image: sliderMain,
         kicker: "Welcome to My First Gym",
-        title: "Where Every child Is A Star",
-        description: "From Ninja Warrior and Martial Arts to Gymnastics and Fitness, we provide a joyful space for children to grow, learn, and build confidence.",
+        title: "Where Every Customer Is A Star",
+        description: "From Ninja Warrior and Martial Arts to Gymnastics and Fitness, we provide a joyful space for customers to grow, learn, and build confidence.",
         ctaText: "Explore Classes",
         ctaLink: "/programs"
     },
@@ -21,7 +21,7 @@ const slides = [
         image: sliderBirthday,
         kicker: "Unforgettable Parties",
         title: "Celebrate Your Big Day With Us",
-        description: "We host the coolest birthday parties in town! Stress-free for parents and pure magic for the kids.",
+        description: "We host the coolest birthday parties in town! Stress-free for customers and pure magic for the kids.",
         ctaText: "Learn More",
         ctaLink: "/contact"
     }

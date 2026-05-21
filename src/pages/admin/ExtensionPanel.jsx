@@ -39,7 +39,7 @@ export default function ExtensionPanel() {
       <main className="page-shell py-12">
         <AdminHeader 
           title="Extension Panel" 
-          description="Review and process membership extension requests from parents."
+          description="Review and process membership extension requests from customers."
           backTo={`/${roleSlug}`}
         />
 

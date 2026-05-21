@@ -127,10 +127,10 @@ export default function Reports() {
     if (reportType === 'membership_consumption') {
       return {
         'Membership ID': item._id.slice(-6).toUpperCase(),
-        'Child Name': item.childName,
-        'Parent Name': item.parentName,
-        'Parent Email': item.userId?.email,
-        'Parent Phone': item.userId?.phone,
+        'Customer Name (Child)': item.childName,
+        'Customer Name': item.parentName,
+        'Customer Email': item.userId?.email,
+        'Customer Phone': item.userId?.phone,
         'Plan Name': item.planName,
         'Location': item.locationName,
         'Status': item.status,
@@ -265,8 +265,8 @@ export default function Reports() {
       { key: 'locationId', label: 'Branch' },
     ],
     trials: [
-      { key: 'parentName', label: 'Parent' },
-      { key: 'childName', label: 'Child' },
+      { key: 'parentName', label: 'Customer' },
+      { key: 'childName', label: 'Dependent' },
       { key: 'parentPhone', label: 'Phone' },
       { key: 'preferredClass', label: 'Class' },
       { key: 'preferredTime', label: 'Time' },
@@ -288,7 +288,7 @@ export default function Reports() {
     attendance: [
       { key: 'bookingId', label: 'Booking' },
       { key: 'sessionId', label: 'Session/Trainer' },
-      { key: 'childId', label: 'Child/Participant' },
+      { key: 'childId', label: 'Customer/Participant' },
       { key: 'checkedInAt', label: 'Checked In' },
       { key: 'status', label: 'Status' },
       { key: 'method', label: 'Method' },
@@ -334,8 +334,8 @@ export default function Reports() {
       { key: 'cashierName', label: 'Staff' },
     ],
     membership_consumption: [
-      { key: 'childName', label: 'Student' },
-      { key: 'parentName', label: 'Parent' },
+      { key: 'childName', label: 'Student/Customer' },
+      { key: 'parentName', label: 'Customer' },
       { key: 'planName', label: 'Plan' },
       { key: 'sessionsUsed', label: 'Used' },
       { key: 'sessionsRemaining', label: 'Remaining' },

@@ -1343,7 +1343,7 @@ export default function BookingFlow() {
                         <label className="block text-xs font-bold text-ink/40 uppercase tracking-widest mb-2 px-2">Full Name</label>
                         <input
                           type="text"
-                          placeholder="Parent / Guardian Name"
+                          placeholder="Customer / Guardian Name"
                           className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:border-brand-blue focus:ring-0 outline-none transition-all"
                           value={guestDetails.name}
                           onChange={(e) => setGuestDetails({ ...guestDetails, name: e.target.value })}

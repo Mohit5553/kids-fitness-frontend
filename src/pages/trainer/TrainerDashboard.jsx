@@ -574,7 +574,7 @@ export default function TrainerDashboard() {
                               <div className="flex items-center justify-between mb-4 border-b border-slate-200/50 pb-4">
                                 <div>
                                   <div className="flex items-center gap-3">
-                                    <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest leading-none">Parent / Contact</p>
+                                    <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest leading-none">Customer / Contact</p>
                                     <span className="text-[9px] font-black text-coral border border-coral/20 bg-coral/5 px-1.5 py-0.5 rounded-md leading-none">#{booking.bookingNumber}</span>
                                   </div>
                                   <h4 className="text-sm font-black text-ink mt-1.5">{booking.userId?.name || booking.guestDetails?.name || 'Guest User'}</h4>
@@ -694,7 +694,7 @@ export default function TrainerDashboard() {
                           <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-4">
                             <div>
                               <div className="flex items-center gap-3">
-                                <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest leading-none">Parent / Contact</p>
+                                <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest leading-none">Customer / Contact</p>
                                 <span className="text-[9px] font-black text-coral border border-coral/20 bg-coral/5 px-1.5 py-0.5 rounded-md leading-none">#{booking.bookingNumber}</span>
                               </div>
                               <h4 className="text-sm font-black text-ink mt-1.5">{booking.userId?.name || booking.guestDetails?.name || 'Guest User'}</h4>
@@ -865,7 +865,7 @@ export default function TrainerDashboard() {
 
                       <div className="space-y-4 mb-8 bg-white p-6 rounded-[32px] border border-slate-100">
                         <div>
-                          <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest mb-1">Parent Guardian</p>
+                          <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest mb-1">Customer</p>
                           <p className="text-sm font-black text-ink">{trial.parentName}</p>
                         </div>
                         <div className="flex justify-between border-t border-slate-50 pt-4">

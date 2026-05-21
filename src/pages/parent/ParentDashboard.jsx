@@ -5,7 +5,7 @@ import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 
 const actions = [
-  { to: '/dashboard/children', title: 'Add child profile', desc: 'Register a new child and set preferences.' },
+  { to: '/dashboard/children', title: 'Add customer profile', desc: 'Register a new customer and set preferences.' },
   { to: '/calendar', title: 'Book from calendar', desc: 'Choose upcoming sessions and reserve seats.' },
   { to: '/dashboard/bookings', title: 'My Booking', desc: 'Complete payments to confirm classes.' },
   { to: '/dashboard/membership', title: 'Manage membership', desc: 'Upgrade or renew a plan.' },
@@ -30,7 +30,7 @@ export default function ParentDashboard() {
   }, []);
 
   const quickStats = [
-    { label: 'Children registered', value: stats.childrenCount },
+    { label: 'Customers registered', value: stats.childrenCount },
     { label: 'Upcoming classes', value: stats.upcomingClassesCount },
     { label: 'Membership status', value: stats.membershipStatus }
   ];
@@ -41,10 +41,10 @@ export default function ParentDashboard() {
       <main className="page-shell flex-1 pb-12 pt-8">
         <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-ocean to-coral p-8 text-white shadow-glow">
           <div className="relative z-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/80">Parent dashboard</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/80">Customer dashboard</p>
             <h1 className="mt-3 font-display text-3xl md:text-4xl">Welcome back</h1>
             <p className="mt-2 max-w-2xl text-sm text-white/80">
-              Manage child profiles, book classes, and track attendance in one place.
+              Manage customer profiles, book classes, and track attendance in one place.
             </p>
           </div>
           <div className="pointer-events-none absolute -right-24 -top-20 h-64 w-64 rounded-full bg-white/10" />
@@ -136,7 +136,7 @@ export default function ParentDashboard() {
             <h3 className="font-display text-lg">Quick links</h3>
             <div className="mt-4 space-y-3 text-sm font-bold uppercase tracking-wider">
               <Link className="flex items-center gap-2 text-brand-blue hover:underline" to="/dashboard/children">
-                <span>Manage children</span>
+                <span>Manage customers</span>
                 <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
               </Link>
               <Link className="flex items-center gap-2 text-brand-blue hover:underline" to="/calendar">

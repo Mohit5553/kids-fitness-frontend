@@ -56,7 +56,33 @@ export default function RoleMaster() {
   const load = () => {
     setLoading(true);
     api.get('/roles?all=true')
-      .then((res) => setRoles(res.data || []))
+      .then((res) => {
+        const dbRoles = res.data || [];
+        const superadminRole = {
+          _id: 'sys-superadmin',
+          name: 'Superadmin',
+          description: 'Unrestricted system access',
+          status: 'active',
+          isSystem: true,
+          permissions: MODULES.flatMap(m => ACTIONS.map(a => `${m.id}:${a.id}`))
+        };
+        let adminRole = dbRoles.find(r => r.name.toLowerCase() === 'admin');
+        if (!adminRole) {
+          adminRole = {
+            _id: 'sys-admin',
+            name: 'Admin',
+            description: 'Administrative system access',
+            status: 'active',
+            isSystem: false, // Make admin editable
+            permissions: MODULES.flatMap(m => ACTIONS.map(a => `${m.id}:${a.id}`))
+          };
+        } else {
+          adminRole.isSystem = false;
+        }
+        
+        const otherRoles = dbRoles.filter(r => r.name.toLowerCase() !== 'admin');
+        setRoles([superadminRole, adminRole, ...otherRoles]);
+      })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   };
@@ -78,7 +104,7 @@ export default function RoleMaster() {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      if (editingRole) {
+      if (editingRole && !editingRole._id.startsWith('sys-')) {
         await api.put(`/roles/${editingRole._id}`, formData);
         toast.success('Role updated');
       } else {
@@ -232,19 +258,19 @@ export default function RoleMaster() {
                       <div>
                         <div className="flex items-center gap-3">
                           <h3 className="font-display text-xl font-bold text-ink">{role.name}</h3>
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${role.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                            {role.status || 'Active'}
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${role.isSystem ? 'bg-brand-blue text-white' : role.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                            {role.isSystem ? 'System Role' : role.status || 'Active'}
                           </span>
                         </div>
                         <p className="text-xs text-ink/40 font-bold mt-1 uppercase tracking-widest">{role.description || 'No description'}</p>
                       </div>
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {canEdit && (
+                        {canEdit && !role.isSystem && (
                           <button onClick={() => startEdit(role)} className="h-10 w-10 flex items-center justify-center rounded-xl bg-slate-50 text-ink/40 hover:bg-brand-blue/5 hover:text-brand-blue transition-all">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                           </button>
                         )}
-                        {canDelete && (
+                        {canDelete && !role.isSystem && (
                           <button
                             onClick={() => handleToggleStatus(role)}
                             className={`h-10 px-4 flex items-center justify-center rounded-xl transition-all shadow-sm ${role.status === 'inactive' ? 'bg-green-50 text-green-500 hover:bg-green-500 hover:text-white' : 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white'}`}

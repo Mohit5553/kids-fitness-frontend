@@ -74,7 +74,7 @@ export default function TrialsManagement() {
       <main className="page-shell pb-12 pt-8">
         <AdminHeader 
           title="Trial Requests" 
-          description="Track trial submissions, update statuses, and follow up with parents from one place."
+          description="Track trial submissions, update statuses, and follow up with customers from one place."
           backTo={`/${roleSlug}`}
           actions={(
             <button
@@ -104,7 +104,7 @@ export default function TrialsManagement() {
               <label className="text-xs font-semibold uppercase tracking-[0.25em] text-ink/50">Search</label>
               <input
                 className="mt-2 w-full rounded-2xl border border-orange-200/70 bg-white px-4 py-3 text-sm"
-                placeholder="Search by child, parent, email, class"
+                placeholder="Search by customer, email, class"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
@@ -133,7 +133,7 @@ export default function TrialsManagement() {
                 <div>
                   <p className="text-xs uppercase tracking-[0.22em] text-ink/50">{trial.preferredClass || 'Class TBA'}</p>
                   <h3 className="mt-2 font-display text-lg">{trial.childName}</h3>
-                  <p className="mt-2 text-sm text-ink/70">Parent: {trial.parentName}</p>
+                  <p className="mt-2 text-sm text-ink/70">Customer: {trial.parentName}</p>
                   <p className="text-sm text-ink/70">Email: {trial.parentEmail}</p>
                   {trial.parentPhone ? <p className="text-sm text-ink/70">Phone: {trial.parentPhone}</p> : null}
                 </div>

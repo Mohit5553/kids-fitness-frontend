@@ -538,7 +538,7 @@ export default function MyBookings() {
                           </div>
                           <div>
                             <p className="text-sm font-bold text-ink">{p.name}</p>
-                            <p className="text-[10px] text-ink/50 uppercase font-black">{p.relation || 'Child'} • {p.age} Years • {p.gender}</p>
+                            <p className="text-[10px] text-ink/50 uppercase font-black">{p.relation || 'Customer'} • {p.age} Years • {p.gender}</p>
                           </div>
                         </div>
                       </div>

@@ -1,4 +1,4 @@
-﻿import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
@@ -13,7 +13,7 @@ import api from '../api/api.js';
 import { useEffect, useState } from 'react';
 
 const highlights = [
-  { title: 'Member login', desc: 'Parents track classes and payments in one portal.' },
+  { title: 'Member login', desc: 'Customers track classes and payments in one portal.' },
   { title: 'QR check-in', desc: 'Fast attendance capture with QR tokens.' },
   { title: 'Class calendar', desc: 'See today’s schedule and upcoming sessions.' }
 ];
