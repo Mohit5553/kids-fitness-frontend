@@ -41,7 +41,8 @@ export const setAuth = (payload) => {
     companyAddress: payload?.companyAddress,
     locationIds: payload?.locationIds || [],
     trainerId: payload?.trainerId,
-    permissions: payload?.permissions
+    permissions: payload?.permissions,
+    allowUAT: payload?.allowUAT
   };
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 };

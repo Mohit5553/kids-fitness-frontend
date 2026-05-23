@@ -39,6 +39,9 @@ export default function UsersManagement() {
   const [expandedUser, setExpandedUser] = useState(null);
   const [userChildren, setUserChildren] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [uatFilter, setUatFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(false);
   const [customRoles, setCustomRoles] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -60,7 +63,8 @@ export default function UsersManagement() {
     password: '',
     role: 'admin',
     phone: '',
-    locationIds: []
+    locationIds: [],
+    allowUAT: false
   });
 
   const { can, user } = usePermissions();
@@ -98,6 +102,17 @@ export default function UsersManagement() {
     }
   };
 
+  const handleToggleUATAccess = async (targetUser) => {
+    try {
+      const nextUAT = !targetUser.allowUAT;
+      await api.put(`/users/${targetUser._id}`, { allowUAT: nextUAT });
+      toast.success(`UAT Access ${nextUAT ? 'allowed' : 'restricted'} for ${targetUser.name}`);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update UAT Access');
+    }
+  };
+
   const handleToggleStatus = async (u) => {
     const action = u.status === 'inactive' ? 'activate' : 'deactivate';
     if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
@@ -129,7 +144,8 @@ export default function UsersManagement() {
       password: '', // Leave blank for security, only update if provided (backend might need adjustment if password is required)
       role: u.role || 'customer',
       phone: u.phone || '',
-      locationIds: (u.locationIds || []).map(l => l._id || l)
+      locationIds: (u.locationIds || []).map(l => l._id || l),
+      allowUAT: u.allowUAT || false
     });
     setShowAddStaff(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -151,7 +167,7 @@ export default function UsersManagement() {
       }
       setShowAddStaff(false);
       setEditingUserId(null);
-      setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '', locationIds: [] });
+      setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '', locationIds: [], allowUAT: false });
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save user');
@@ -177,20 +193,38 @@ export default function UsersManagement() {
     }
   };
 
-  const filteredUsers = users.filter(u => 
-    u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.phone?.includes(searchQuery)
-  );
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = 
+      !searchQuery ||
+      u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.phone?.includes(searchQuery);
+
+    const matchesRole = 
+      roleFilter === 'all' || 
+      u.role?.toLowerCase() === roleFilter.toLowerCase();
+
+    const matchesUat = 
+      uatFilter === 'all' || 
+      (uatFilter === 'allowed' && (u.role === 'superadmin' || u.allowUAT)) ||
+      (uatFilter === 'restricted' && u.role !== 'superadmin' && !u.allowUAT);
+
+    const matchesStatus = 
+      statusFilter === 'all' || 
+      (statusFilter === 'active' && (u.status === 'active' || !u.status)) ||
+      (statusFilter === 'inactive' && u.status === 'inactive');
+
+    return matchesSearch && matchesRole && matchesUat && matchesStatus;
+  });
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  // Reset to page 1 on search
+  // Reset to page 1 on search or filter change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, roleFilter, uatFilter, statusFilter]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -206,7 +240,7 @@ export default function UsersManagement() {
                 if (showAddStaff) {
                   setShowAddStaff(false);
                   setEditingUserId(null);
-                  setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '', locationIds: [] });
+                  setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '', locationIds: [], allowUAT: false });
                 } else {
                   setShowAddStaff(true);
                 }
@@ -259,6 +293,18 @@ export default function UsersManagement() {
                     {customRoles.map(r => <option key={r._id} value={r.name}>{r.name}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="text-[10px] font-black text-ink/30 uppercase tracking-widest block mb-2">UAT Environment Access</label>
+                  <label className="flex items-center gap-3 bg-slate-50 rounded-2xl py-3 px-4 text-sm font-bold cursor-pointer hover:bg-slate-100/80 transition-all min-h-[44px]">
+                    <input 
+                      type="checkbox"
+                      className="h-5 w-5 rounded border-slate-300 text-coral focus:ring-coral transition-all cursor-pointer"
+                      checked={staffForm.allowUAT}
+                      onChange={e => setStaffForm({...staffForm, allowUAT: e.target.checked})}
+                    />
+                    <span className="text-xs font-bold text-ink">Allow UAT Access</span>
+                  </label>
+                </div>
                 {user?.role === 'superadmin' && (
                   <div className="md:col-span-2">
                     <label className="text-[10px] font-black text-ink/30 uppercase tracking-widest block mb-4">Branch Assignment (Select multiple)</label>
@@ -297,18 +343,62 @@ export default function UsersManagement() {
           </div>
         )}
 
-        {/* Search */}
-        <div className="relative mb-8 max-w-md">
-          <input
-            type="text"
-            className="w-full bg-white border border-slate-200 rounded-3xl py-4 px-12 text-sm font-bold text-ink shadow-sm focus:ring-4 focus:ring-coral/5 transition-all outline-none"
-            placeholder="Search by name, email, or phone..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-          />
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-4 top-4 text-ink/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+        {/* Search and Filters */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          {/* Search */}
+          <div className="relative flex-1 max-w-md">
+            <input
+              type="text"
+              className="w-full bg-white border border-slate-200 rounded-3xl py-4 px-12 text-sm font-bold text-ink shadow-sm focus:ring-4 focus:ring-coral/5 transition-all outline-none"
+              placeholder="Search by name, email, or phone..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-4 top-4 text-ink/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-3 items-center">
+            {/* Role Filter */}
+            <select
+              className="bg-white border border-slate-200 rounded-2xl py-3.5 px-4 text-xs font-black uppercase tracking-wider text-ink focus:ring-4 focus:ring-coral/5 outline-none cursor-pointer shadow-sm min-w-[140px]"
+              value={roleFilter}
+              onChange={e => setRoleFilter(e.target.value)}
+            >
+              <option value="all">All Roles</option>
+              <option value="customer">Customer</option>
+              <option value="trainer">Trainer</option>
+              <option value="admin">Admin</option>
+              <option value="superadmin">Superadmin</option>
+              {customRoles.map(r => (
+                <option key={r._id} value={r.name}>{r.name}</option>
+              ))}
+            </select>
+
+            {/* UAT Filter */}
+            <select
+              className="bg-white border border-slate-200 rounded-2xl py-3.5 px-4 text-xs font-black uppercase tracking-wider text-ink focus:ring-4 focus:ring-coral/5 outline-none cursor-pointer shadow-sm min-w-[160px]"
+              value={uatFilter}
+              onChange={e => setUatFilter(e.target.value)}
+            >
+              <option value="all">All UAT Statuses</option>
+              <option value="allowed">UAT Allowed</option>
+              <option value="restricted">UAT Restricted</option>
+            </select>
+
+            {/* Status Filter */}
+            <select
+              className="bg-white border border-slate-200 rounded-2xl py-3.5 px-4 text-xs font-black uppercase tracking-wider text-ink focus:ring-4 focus:ring-coral/5 outline-none cursor-pointer shadow-sm min-w-[130px]"
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
         </div>
 
         {/* Users List */}
@@ -376,6 +466,30 @@ export default function UsersManagement() {
                           title="Edit Profile"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </button>
+                      )}
+                      {canEdit && (
+                        <button
+                          onClick={() => handleToggleUATAccess(user)}
+                          disabled={user.role === 'superadmin'}
+                          className={`h-14 w-14 flex items-center justify-center rounded-2xl transition-all active:scale-95 shadow-sm ${
+                            user.role === 'superadmin' 
+                              ? 'bg-purple-100/50 text-purple-400 cursor-not-allowed'
+                              : user.allowUAT
+                                ? 'bg-purple-50 text-purple-600 hover:bg-purple-600 hover:text-white'
+                                : 'bg-slate-50 text-slate-400 hover:bg-slate-200 hover:text-slate-600'
+                          }`}
+                          title={
+                            user.role === 'superadmin' 
+                              ? 'Superadmins have UAT access by default' 
+                              : user.allowUAT 
+                                ? 'Revoke UAT Access' 
+                                : 'Allow UAT Access'
+                          }
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.11a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                          </svg>
                         </button>
                       )}
                       {canEdit && (
@@ -453,9 +567,22 @@ export default function UsersManagement() {
                                  <span key={p} className="bg-white border border-slate-200 text-ink/40 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter">
                                    {p}
                                  </span>
-                               )) || <span className="text-xs text-ink/20">No role-based permissions</span>}
+                                )) || <span className="text-xs text-ink/20">No role-based permissions</span>}
                             </div>
                           )}
+                          <div className="mt-4 pt-4 border-t border-slate-200/60">
+                            <span className="text-[9px] font-black text-ink/30 uppercase tracking-widest block mb-2">UAT Environment Access</span>
+                            {user.role === 'superadmin' || user.allowUAT ? (
+                              <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                UAT Allowed
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 bg-slate-100 text-ink/40 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                                UAT Restricted
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

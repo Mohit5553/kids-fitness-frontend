@@ -14,6 +14,7 @@ const REPORT_TYPES = [
   { id: 'trials', label: 'Trial Requests Report' },
   { id: 'payments', label: 'Payments Report' },
   { id: 'users', label: 'Users Report' },
+  { id: 'staff', label: 'Staff Report' },
   { id: 'trainer_sales', label: 'Trainer Sales Report' },
   { id: 'attendance', label: 'Attendance Report' },
   { id: 'membership_consumption', label: 'Membership Consumption Report' },
@@ -300,6 +301,27 @@ export default function Reports() {
       { key: 'phone', label: 'Phone' },
       { key: 'role', label: 'Role' },
       { key: 'locationId', label: 'Branch' },
+      { key: 'children', label: 'Children' },
+      { key: 'gender', label: 'Gender' },
+      { key: 'city', label: 'City' },
+      { key: 'address', label: 'Address' },
+      { key: 'points', label: 'Points' },
+      { key: 'isCorporate', label: 'Corporate?' },
+      { key: 'companyName', label: 'Company' },
+      { key: 'createdAt', label: 'Registered' },
+    ],
+    staff: [
+      { key: 'name', label: 'Name' },
+      { key: 'email', label: 'Email' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'role', label: 'Role' },
+      { key: 'locationId', label: 'Branch' },
+      { key: 'gender', label: 'Gender' },
+      { key: 'city', label: 'City' },
+      { key: 'address', label: 'Address' },
+      { key: 'allowUAT', label: 'UAT Access' },
+      { key: 'status', label: 'Status' },
+      { key: 'createdAt', label: 'Registered' },
     ],
     trainer_sales: [
       { key: 'date', label: 'Session Date' },
@@ -374,6 +396,10 @@ export default function Reports() {
   const renderValue = (key, value) => {
     if (value === null || value === undefined) return <span className="text-ink/20">—</span>;
 
+    if (typeof value === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+
     if (key === 'createdAt' || key === 'date' || key === 'paymentDate' || key === 'checkedInAt' || key === 'invoiceDate') {
       try {
         const d = new Date(value);
@@ -412,7 +438,6 @@ export default function Reports() {
 
     if (key === 'status' || key === 'paymentStatus' || key === 'sessionStatus' || key === 'refundStatus') {
       const colors = {
-        active: 'text-moss bg-moss/10',
         inactive: 'text-ink/40 bg-slate-100',
         confirmed: 'text-moss bg-moss/10',
         completed: 'text-moss bg-moss/10',

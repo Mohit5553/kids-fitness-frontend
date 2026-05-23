@@ -18,6 +18,14 @@ const emptyForm = {
   status: 'scheduled'
 };
 
+const formatLocalDateForInput = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 export default function SessionsManagement() {
   const { roleSlug } = useParams();
   const [sessions, setSessions] = useState([]);
@@ -96,8 +104,8 @@ export default function SessionsManagement() {
       classId: session.classId?._id || session.classId || '',
       trainerId: session.trainerId?._id || session.trainerId || '',
       locationId: session.locationId?._id || session.locationId || '',
-      startTime: session.startTime ? new Date(session.startTime).toISOString().slice(0, 16) : '',
-      endTime: session.endTime ? new Date(session.endTime).toISOString().slice(0, 16) : '',
+      startTime: formatLocalDateForInput(session.startTime),
+      endTime: formatLocalDateForInput(session.endTime),
       capacity: session.capacity ?? '',
       location: session.location || '',
       status: session.status || 'scheduled'
@@ -859,7 +867,7 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
     }
 
     const sessions = [];
-    const start = new Date(form.startDate);
+    const start = new Date(form.startDate + 'T00:00:00');
     let current = new Date(start);
     const timeArr = form.startTime.split(':');
     
