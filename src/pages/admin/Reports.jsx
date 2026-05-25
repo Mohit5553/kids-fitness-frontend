@@ -9,7 +9,7 @@ import AdminHeader from '../../components/AdminHeader.jsx';
 const REPORT_TYPES = [
   { id: 'classes', label: 'Classes Report' },
   { id: 'trainers', label: 'Trainers Report' },
-  { id: 'pricing', label: 'Pricing & Plans Report' },
+  { id: 'pricing', label: 'Membership Plan Report' },
   { id: 'bookings', label: 'Bookings Report' },
   { id: 'trials', label: 'Trial Requests Report' },
   { id: 'payments', label: 'Payments Report' },
@@ -124,74 +124,103 @@ export default function Reports() {
       return;
     }
 
-    // Specific columns for Membership Consumption
+    // Flatten data for Excel
+    let flattenedData;
     if (reportType === 'membership_consumption') {
-      return {
-        'Membership ID': item._id.slice(-6).toUpperCase(),
+      flattenedData = dataToExport.map(item => ({
+        'Membership ID': item._id ? item._id.slice(-6).toUpperCase() : 'N/A',
         'Customer Name (Child)': item.childName,
         'Customer Name': item.parentName,
-        'Customer Email': item.userId?.email,
-        'Customer Phone': item.userId?.phone,
+        'Customer Email': item.userId?.email || 'N/A',
+        'Customer Phone': item.userId?.phone || 'N/A',
         'Plan Name': item.planName,
         'Location': item.locationName,
         'Status': item.status,
         'Sessions Used': item.sessionsUsed,
         'Sessions Remaining': item.sessionsRemaining,
         'Total Sessions': item.totalSessions,
-        'Expiry Date': item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : 'N/A'
-      };
-    }
+        'Expiry Date': item.expiryDate ? new Date(item.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'
+      }));
+    } else {
+      flattenedData = dataToExport.map(item => {
+        const flat = {};
 
-    // Flatten data for Excel
-    const flattenedData = dataToExport.map(item => {
-      const flat = {};
+        // Determine columns based on report type for better organization
+        Object.keys(item).forEach(key => {
+          if (['_id', '__v', 'updatedAt', 'password'].includes(key)) return;
 
-      // Determine columns based on report type for better organization
-      Object.keys(item).forEach(key => {
-        if (['_id', '__v', 'updatedAt'].includes(key)) return;
+          let value = item[key];
 
-        let value = item[key];
-
-        // Handle specific nested fields
-        if (key === 'userId' && typeof value === 'object') {
-          flat['User Name'] = value?.name || 'N/A';
-          flat['User Email'] = value?.email || 'N/A';
-          return;
-        }
-        if (key === 'classId' && typeof value === 'object') {
-          flat['Class'] = value?.title || 'N/A';
-          flat['Class Capacity'] = value?.capacity || 'N/A';
-          return;
-        }
-        if (key === 'locationId' && typeof value === 'object') {
-          flat['Location'] = value?.name || 'N/A';
-          return;
-        }
-        if (key === 'availableTrainers' && Array.isArray(value)) {
-          flat['Trainers'] = value.map(t => t.name).join(', ');
-          return;
-        }
-        if (key === 'sessionId' && typeof value === 'object') {
-          flat['Trainer'] = value?.trainerId?.name || 'TBA';
-          if (value?.startTime) {
-            flat['Slot Timing'] = `${new Date(value.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} - ${value.endTime ? new Date(value.endTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}`;
+          // Format Date values to not show timezone
+          if (key === 'birthDate') {
+            try {
+              const d = new Date(value);
+              if (!isNaN(d.getTime())) {
+                value = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+              }
+            } catch (e) {}
+          } else {
+            const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+            if (
+              ['createdAt', 'date', 'paymentDate', 'checkedInAt', 'invoiceDate', 'expiryDate', 'startTime', 'endTime'].includes(key) ||
+              (typeof value === 'string' && dateRegex.test(value))
+            ) {
+              try {
+                const d = new Date(value);
+                if (!isNaN(d.getTime())) {
+                  const formattedDate = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                  const formattedTime = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                  value = `${formattedDate} ${formattedTime}`;
+                }
+              } catch (e) {}
+            }
           }
-          return;
-        }
-        if (key === 'participants' && Array.isArray(value)) {
-          flat['Participants'] = value.map(p => `${p.name} (${p.relation})`).join(', ');
-          return;
-        }
-        if (Array.isArray(value)) {
-          flat[key] = value.join(', ');
-          return;
-        }
 
-        flat[key] = value;
+          // Handle specific nested fields
+          if (key === 'children') {
+            flat['Participants'] = value;
+            return;
+          }
+          if (key === 'userId' && typeof value === 'object') {
+            flat['User Name'] = value?.name || 'N/A';
+            flat['User Email'] = value?.email || 'N/A';
+            return;
+          }
+          if (key === 'classId' && typeof value === 'object') {
+            flat['Class'] = value?.title || 'N/A';
+            flat['Class Capacity'] = value?.capacity || 'N/A';
+            return;
+          }
+          if (key === 'locationId' && typeof value === 'object') {
+            flat['Location'] = value?.name || 'N/A';
+            return;
+          }
+          if (key === 'availableTrainers' && Array.isArray(value)) {
+            flat['Trainers'] = value.map(t => t.name).join(', ');
+            return;
+          }
+          if (key === 'sessionId' && typeof value === 'object') {
+            flat['Trainer'] = value?.trainerId?.name || 'TBA';
+            if (value?.startTime) {
+              flat['Slot Timing'] = `${new Date(value.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} - ${value.endTime ? new Date(value.endTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'TBA'}`;
+            }
+            return;
+          }
+          if (key === 'participants' && Array.isArray(value)) {
+            flat['Participants'] = value.map(p => `${p.name} (${p.relation})`).join(', ');
+            return;
+          }
+          if (Array.isArray(value)) {
+            flat[key] = value.join(', ');
+            return;
+          }
+
+          flat[key] = value;
+        });
+
+        return flat;
       });
-
-      return flat;
-    });
+    }
 
     const worksheet = XLSX.utils.json_to_sheet(flattenedData);
     const workbook = XLSX.utils.book_new();
@@ -301,7 +330,7 @@ export default function Reports() {
       { key: 'phone', label: 'Phone' },
       { key: 'role', label: 'Role' },
       { key: 'locationId', label: 'Branch' },
-      { key: 'children', label: 'Children' },
+      { key: 'children', label: 'Participants' },
       { key: 'gender', label: 'Gender' },
       { key: 'city', label: 'City' },
       { key: 'address', label: 'Address' },

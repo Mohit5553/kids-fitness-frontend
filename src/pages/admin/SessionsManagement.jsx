@@ -8,6 +8,35 @@ import AdminHeader from '../../components/AdminHeader.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { useBranch } from '../../context/BranchContext.jsx';
 
+const parseDurationToMinutes = (duration) => {
+  if (!duration) return 60;
+  const str = String(duration).toLowerCase().trim();
+  const num = parseFloat(str);
+  if (isNaN(num)) return 60;
+  if (str.includes('hour') || str.includes('hr')) {
+    return Math.round(num * 60);
+  }
+  return Math.round(num);
+};
+
+const addMinutesToDateTime = (dateTimeString, minutes) => {
+  if (!dateTimeString) return '';
+  const date = new Date(dateTimeString);
+  if (isNaN(date.getTime())) return '';
+  date.setMinutes(date.getMinutes() + minutes);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const addMinutesToTime = (timeString, minutes) => {
+  if (!timeString) return '';
+  const [hours, mins] = timeString.split(':').map(Number);
+  const date = new Date();
+  date.setHours(hours, mins + minutes, 0, 0);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 const emptyForm = {
   classId: '',
   trainerId: '',
@@ -57,6 +86,74 @@ export default function SessionsManagement() {
   const canEdit = can('sessions:edit');
   const canDelete = can('sessions:delete');
 
+  const [dateFilterOption, setDateFilterOption] = useState('all');
+  const [customDateFilter, setCustomDateFilter] = useState('');
+
+  const getLocalDateString = (date) => {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
+  const filteredSessions = useMemo(() => {
+    let result = [...sessions];
+
+    // Filter by Active vs Expired view
+    const now = new Date();
+    result = result.filter(s => {
+      const isPast = new Date(s.startTime) < now;
+      return view === 'active' ? !isPast : isPast;
+    });
+
+    // Filter by Selected Date Option
+    if (dateFilterOption === 'today') {
+      const todayStr = getLocalDateString(now);
+      result = result.filter(s => getLocalDateString(s.startTime) === todayStr);
+    } else if (dateFilterOption === 'tomorrow') {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(now.getDate() + 1);
+      const tomorrowStr = getLocalDateString(tomorrow);
+      result = result.filter(s => getLocalDateString(s.startTime) === tomorrowStr);
+    } else if (dateFilterOption === 'week') {
+      const startOfWeek = new Date(now);
+      const day = startOfWeek.getDay();
+      const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+
+      result = result.filter(s => {
+        const time = new Date(s.startTime);
+        return time >= startOfWeek && time <= endOfWeek;
+      });
+    } else if (dateFilterOption === 'month') {
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+
+      result = result.filter(s => {
+        const time = new Date(s.startTime);
+        return time.getFullYear() === currentYear && time.getMonth() === currentMonth;
+      });
+    } else if (dateFilterOption === 'custom' && customDateFilter) {
+      result = result.filter(s => getLocalDateString(s.startTime) === customDateFilter);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      if (view === 'active') {
+        return new Date(a.startTime) - new Date(b.startTime);
+      } else {
+        return new Date(b.startTime) - new Date(a.startTime);
+      }
+    });
+
+    return result;
+  }, [sessions, view, dateFilterOption, customDateFilter]);
+
   const load = () => {
     setLoading(true);
     const p1 = api.get('/sessions?all=true&includeMemberships=true').then((res) => {
@@ -74,29 +171,43 @@ export default function SessionsManagement() {
     load();
   }, []);
 
+  const selectedClass = classes.find(c => c._id === form.classId);
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((prev) => {
       const updated = { ...prev, [name]: value };
+      
       // Autofill capacity if class is selected and capacity is empty
-      if (name === 'classId' && value && !prev.capacity) {
+      if (name === 'classId' && value) {
         const cls = classes.find(c => c._id === value);
         if (cls) {
-          updated.capacity = cls.capacity || '';
+          if (!prev.capacity) updated.capacity = cls.capacity || '';
           if (cls.locationId) updated.locationId = cls.locationId?._id || cls.locationId;
+          if (prev.startTime && cls.duration) {
+            const durationMins = parseDurationToMinutes(cls.duration);
+            updated.endTime = addMinutesToDateTime(prev.startTime, durationMins);
+          }
         }
       }
+
+      if (name === 'startTime' && value) {
+        const cls = prev.classId ? classes.find(c => c._id === prev.classId) : null;
+        if (cls && cls.duration) {
+          const durationMins = parseDurationToMinutes(cls.duration);
+          updated.endTime = addMinutesToDateTime(value, durationMins);
+        }
+      }
+
       return updated;
     });
   };
 
   const filteredTrainers = useMemo(() => {
-    if (!form.classId) return trainers;
-    const selectedClass = classes.find(c => c._id === form.classId);
     if (!selectedClass || !selectedClass.availableTrainers) return trainers;
     const availableIds = selectedClass.availableTrainers.map(t => t._id || t);
     return trainers.filter(t => availableIds.includes(t._id));
-  }, [form.classId, classes, trainers]);
+  }, [selectedClass, trainers]);
 
   const handleEdit = (session) => {
     setEditingId(session._id);
@@ -347,11 +458,18 @@ export default function SessionsManagement() {
                             key={item._id}
                             type="button"
                             onClick={() => {
-                              setForm(prev => ({ 
-                                ...prev, 
-                                classId: item._id,
-                                capacity: prev.capacity || item.capacity || ''
-                              }));
+                              setForm(prev => {
+                                const updated = {
+                                  ...prev,
+                                  classId: item._id,
+                                  capacity: prev.capacity || item.capacity || ''
+                                };
+                                if (prev.startTime && item.duration) {
+                                  const durationMins = parseDurationToMinutes(item.duration);
+                                  updated.endTime = addMinutesToDateTime(prev.startTime, durationMins);
+                                }
+                                return updated;
+                              });
                               setClassSearchQuery(item.title);
                               setShowClassDropdown(false);
                             }}
@@ -427,13 +545,18 @@ export default function SessionsManagement() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">End Time (Optional)</label>
+                  <div className="flex justify-between items-center px-4">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-ink/30">End Time (Auto-calculated)</label>
+                    {selectedClass && (
+                      <span className="text-[10px] font-bold text-brand-blue">Class Duration: {selectedClass.duration || 'N/A'}</span>
+                    )}
+                  </div>
                   <input
-                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
+                    className="w-full bg-slate-100 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink/50 cursor-not-allowed outline-none transition-all"
                     name="endTime"
                     type="datetime-local"
                     value={form.endTime}
-                    onChange={handleChange}
+                    disabled
                   />
                 </div>
               </div>
@@ -488,32 +611,61 @@ export default function SessionsManagement() {
           </div>
         )}
 
+        {/* Date Filter Bar */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-[28px] border border-slate-100 shadow-sm">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: 'all', label: 'All Dates' },
+              { id: 'today', label: 'Today' },
+              { id: 'tomorrow', label: 'Tomorrow' },
+              { id: 'week', label: 'This Week' },
+              { id: 'month', label: 'This Month' }
+            ].map(opt => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => {
+                  setDateFilterOption(opt.id);
+                  setCustomDateFilter(''); // Clear custom date picker
+                }}
+                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  dateFilterOption === opt.id
+                    ? 'bg-brand-blue text-white shadow-md shadow-brand-blue/15'
+                    : 'bg-slate-50 text-ink/40 hover:bg-slate-100 hover:text-ink/60'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-black text-ink/30 uppercase tracking-widest">Or Select Date:</span>
+            <input
+              type="date"
+              value={customDateFilter}
+              onChange={(e) => {
+                const val = e.target.value;
+                setCustomDateFilter(val);
+                if (val) {
+                  setDateFilterOption('custom');
+                } else {
+                  setDateFilterOption('all');
+                }
+              }}
+              className="bg-slate-50 border border-slate-100 rounded-xl py-2 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all cursor-pointer"
+            />
+          </div>
+        </div>
+
         <div className="grid gap-4">
           {loading ? (
             <div className="py-20 text-center bg-white rounded-[48px] border border-dashed border-slate-200 flex flex-col items-center gap-4">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-blue border-t-transparent" />
               <p className="text-sm font-bold text-ink/30 uppercase tracking-widest">Fetching sessions...</p>
             </div>
-          ) : sessions
-            .filter(s => view === 'active' ? new Date(s.startTime) >= new Date() : new Date(s.startTime) < new Date())
-            .sort((a, b) => {
-              if (view === 'active') {
-                return new Date(a.startTime) - new Date(b.startTime); // Soonest first
-              } else {
-                return new Date(b.startTime) - new Date(a.startTime); // Most recent past first
-              }
-            })
-            .length > 0 ?
-            sessions
-              .filter(s => view === 'active' ? new Date(s.startTime) >= new Date() : new Date(s.startTime) < new Date())
-              .sort((a, b) => {
-                if (view === 'active') {
-                  return new Date(a.startTime) - new Date(b.startTime);
-                } else {
-                  return new Date(b.startTime) - new Date(a.startTime);
-                }
-              })
-              .map((session) => (
+          ) : filteredSessions.length > 0 ? (
+            filteredSessions.map((session) => (
               <div key={session._id} className={`soft-card rounded-[32px] p-6 hover:shadow-xl transition-all group flex flex-col md:flex-row items-center justify-between gap-6 border ${new Date(session.startTime) < new Date() ? 'bg-slate-50/50 border-slate-200/50' : 'border-slate-100/50'}`}>
                 <div className="flex items-center gap-6 flex-1">
                   <div className={`w-16 h-16 rounded-[24px] flex flex-col items-center justify-center ${new Date(session.startTime) < new Date() ? 'bg-slate-200/50 text-ink/20' : 'bg-brand-blue/5 text-brand-blue'}`}>
@@ -618,11 +770,12 @@ export default function SessionsManagement() {
                   )}
                 </div>
               </div>
-            )) : (
-              <div className="py-20 text-center bg-white rounded-[48px] border border-dashed border-slate-200">
-                <p className="font-display text-xl text-ink/30 italic font-black">No {view} sessions found.</p>
-              </div>
-            )}
+            ))
+          ) : (
+            <div className="py-20 text-center bg-white rounded-[48px] border border-dashed border-slate-200">
+              <p className="font-display text-xl text-ink/30 italic font-black">No {view} sessions found.</p>
+            </div>
+          )}
         </div>
       </main>
       <Footer />
@@ -856,10 +1009,19 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
     if (selectedClass) {
       setForm(prev => ({ 
         ...prev, 
-        durationMinutes: parseInt(selectedClass.duration) || 60 
+        durationMinutes: parseDurationToMinutes(selectedClass.duration) 
       }));
     }
   }, [selectedClass]);
+
+  useEffect(() => {
+    if (form.startTime && form.durationMinutes) {
+      setForm(prev => ({
+        ...prev,
+        endTime: addMinutesToTime(prev.startTime, prev.durationMinutes)
+      }));
+    }
+  }, [form.startTime, form.durationMinutes]);
 
   const generatePreview = () => {
     if (!form.classId || !form.startDate || form.days.length === 0 || !form.startTime) {
@@ -868,13 +1030,17 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
 
     const sessions = [];
     const start = new Date(form.startDate + 'T00:00:00');
+    const endLimit = form.endDate ? new Date(form.endDate + 'T23:59:59') : null;
     let current = new Date(start);
     const timeArr = form.startTime.split(':');
     
-    // Safety break after 100 iterations or if we exceed endDate (if provided)
+    const maxSessions = endLimit ? 500 : (parseInt(form.occurences) || 10);
     let iterations = 0;
-    while (sessions.length < form.occurences && iterations < 500) {
+    while (sessions.length < maxSessions && iterations < 500) {
       iterations++;
+      if (endLimit && current > endLimit) {
+        break;
+      }
       const day = current.getDay();
       if (form.days.includes(day)) {
         const sessionStart = new Date(current);
@@ -977,12 +1143,17 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">End Time (Optional)</label>
+                  <div className="flex justify-between items-center px-4">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-ink/30">End Time (Auto-calculated)</label>
+                    {selectedClass && (
+                      <span className="text-[10px] font-bold text-brand-blue">Duration: {selectedClass.duration}</span>
+                    )}
+                  </div>
                   <input 
                     type="time" 
-                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink" 
+                    className="w-full bg-slate-100 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink/50 cursor-not-allowed" 
                     value={form.endTime}
-                    onChange={e => setForm({...form, endTime: e.target.value})}
+                    disabled
                   />
                 </div>
                 <div className="space-y-2">
@@ -1017,7 +1188,7 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
                 </div>
               </div>
 
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-3">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Start Date</label>
                   <input 
@@ -1025,6 +1196,15 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
                     className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink" 
                     value={form.startDate}
                     onChange={e => setForm({...form, startDate: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">End Date (Optional)</label>
+                  <input 
+                    type="date" 
+                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink" 
+                    value={form.endDate}
+                    onChange={e => setForm({...form, endDate: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
