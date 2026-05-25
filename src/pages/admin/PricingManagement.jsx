@@ -34,7 +34,8 @@ const emptyForm = {
   dailyBookingLimit: 0,
   cancellationWindow: 6,
   allowFreezing: false,
-  gender: 'mixed'
+  gender: 'mixed',
+  replicateToLocations: []
 };
 
 export default function PricingManagement() {
@@ -46,6 +47,7 @@ export default function PricingManagement() {
   const [loading, setLoading] = useState(true);
   const [trainers, setTrainers] = useState([]);
   const [taxes, setTaxes] = useState([]);
+  const [locations, setLocations] = useState([]);
 
   const { can } = usePermissions();
 
@@ -56,10 +58,9 @@ export default function PricingManagement() {
 
   const load = () => {
     setLoading(true);
-    api.get('/plans?all=true')
-      .then((res) => setPlans(res.data || []))
-      .catch(() => { })
-      .finally(() => setLoading(false));
+    const p1 = api.get('/plans?all=true').then((res) => setPlans(res.data || [])).catch(() => { });
+    const p2 = api.get('/locations?all=true').then((res) => setLocations(res.data || [])).catch(() => { });
+    Promise.all([p1, p2]).finally(() => setLoading(false));
   };
 
   const loadTrainers = () => {
@@ -114,7 +115,8 @@ export default function PricingManagement() {
       taxId: plan.taxId?._id || plan.taxId || '',
       creditsIncluded: plan.creditsIncluded ?? 0,
       dailyBookingLimit: plan.dailyBookingLimit ?? 0,
-      gender: plan.gender || 'mixed'
+      gender: plan.gender || 'mixed',
+      replicateToLocations: []
     });
   };
 
@@ -146,7 +148,8 @@ export default function PricingManagement() {
       },
       creditsIncluded: Number(form.creditsIncluded || 0),
       dailyBookingLimit: Number(form.dailyBookingLimit || 0),
-      trainerId: (form.trainerAllocation === 'fixed' && form.trainerId) ? form.trainerId : null
+      trainerId: (form.trainerAllocation === 'fixed' && form.trainerId) ? form.trainerId : null,
+      replicateToLocations: form.replicateToLocations || []
     };
 
     try {
@@ -488,6 +491,32 @@ export default function PricingManagement() {
               value={form.benefits}
               onChange={handleChange}
             />
+            {/* Replicate to other locations */}
+            {locations.length > 1 && (
+              <div className="rounded-xl border border-orange-200/70 p-3 bg-slate-50/50">
+                <p className="text-[10px] font-bold text-ink/40 uppercase mb-2">Also Add / Copy to Other Locations</p>
+                <div className="flex flex-wrap gap-2">
+                  {locations
+                    .filter(loc => loc._id !== localStorage.getItem('selectedBranch') && loc.status === 'active')
+                    .map(loc => (
+                      <label key={loc._id} className="flex items-center gap-2 text-xs font-bold text-ink/70 bg-white px-3 py-1.5 rounded-full cursor-pointer border border-slate-100 hover:bg-slate-50 transition-all">
+                        <input
+                          type="checkbox"
+                          checked={form.replicateToLocations?.includes(loc._id) || false}
+                          onChange={(e) => {
+                            const newLocations = e.target.checked
+                              ? [...(form.replicateToLocations || []), loc._id]
+                              : (form.replicateToLocations || []).filter(id => id !== loc._id);
+                            setForm({ ...form, replicateToLocations: newLocations });
+                          }}
+                          className="accent-brand-blue"
+                        />
+                        {loc.name}
+                      </label>
+                    ))}
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap gap-3">
               <button className="rounded-full bg-coral px-5 py-3 text-sm font-semibold text-white" type="submit">
                 {editingId ? 'Update plan' : 'Create plan'}

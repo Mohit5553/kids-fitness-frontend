@@ -211,7 +211,7 @@ export default function BookingFlow() {
           setSelectedClass(parsed.selectedClass);
           setSelectedLocation(parsed.selectedLocation);
           setSelectedTrainer(parsed.selectedTrainer);
-          setSessions(parsed.selectedSessions);
+          setSelectedSessions(parsed.selectedSessions);
           setParticipants(parsed.participants);
           if (parsed.guestDetails) setGuestDetails(parsed.guestDetails);
           if (parsed.showGuestForm !== undefined) setShowGuestForm(parsed.showGuestForm);

@@ -97,6 +97,8 @@ export default function BookingManagement() {
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [bookingTypeFilter, setBookingTypeFilter] = useState('');
+  const [refundFilter, setRefundFilter] = useState(false);
   const [dateFilter, setDateFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [rescueMissed, setRescueMissed] = useState(false);
@@ -138,7 +140,19 @@ export default function BookingManagement() {
     }
 
     if (statusFilter) {
-      result = result.filter(b => b.status === statusFilter);
+      if (statusFilter === 'confirmed') {
+        result = result.filter(b => ['confirmed', 'attended', 'completed'].includes(b.status));
+      } else {
+        result = result.filter(b => b.status === statusFilter);
+      }
+    }
+
+    if (bookingTypeFilter) {
+      result = result.filter(b => b.bookingType === bookingTypeFilter);
+    }
+
+    if (refundFilter) {
+      result = result.filter(b => b.refundStatus === 'requested');
     }
 
     if (dateFilter) {
@@ -155,7 +169,7 @@ export default function BookingManagement() {
     }
 
     setFilteredBookings(result);
-  }, [searchQuery, statusFilter, dateFilter, locationFilter, bookings]);
+  }, [searchQuery, statusFilter, bookingTypeFilter, refundFilter, dateFilter, locationFilter, bookings]);
 
   const isBookingLocked = (booking) => {
     // 1. Lock if status is already 'completed'
@@ -200,6 +214,11 @@ export default function BookingManagement() {
   };
 
   const confirmCenterPayment = (bookingId) => {
+    const booking = bookings.find(b => b._id === bookingId);
+    if (booking && isBookingLocked(booking)) {
+      toast.error('This booking is locked and payment cannot be confirmed.');
+      return;
+    }
     setConfirmingBookingId(bookingId);
     setSelectedMethod('cash');
     setPaymentRef('');
@@ -262,6 +281,8 @@ export default function BookingManagement() {
   const clearFilters = () => {
     setSearchQuery('');
     setStatusFilter('');
+    setBookingTypeFilter('');
+    setRefundFilter(false);
     setDateFilter('');
     setLocationFilter('');
   };
@@ -342,6 +363,8 @@ export default function BookingManagement() {
             icon="📊"
             color="slate"
             loading={loading}
+            onClick={() => { setStatusFilter(''); setBookingTypeFilter(''); setRefundFilter(false); }}
+            isActive={statusFilter === '' && bookingTypeFilter === '' && !refundFilter}
           />
           <StatCard
             label="Pending"
@@ -349,6 +372,8 @@ export default function BookingManagement() {
             icon="⏳"
             color="amber"
             loading={loading}
+            onClick={() => { setStatusFilter('pending'); setBookingTypeFilter(''); setRefundFilter(false); }}
+            isActive={statusFilter === 'pending' && bookingTypeFilter === '' && !refundFilter}
           />
           <StatCard
             label="Packages"
@@ -356,6 +381,8 @@ export default function BookingManagement() {
             icon="📦"
             color="indigo"
             loading={loading}
+            onClick={() => { setStatusFilter(''); setBookingTypeFilter('package'); setRefundFilter(false); }}
+            isActive={bookingTypeFilter === 'package' && !refundFilter}
           />
           <StatCard
             label="Confirmed"
@@ -363,6 +390,8 @@ export default function BookingManagement() {
             icon="✅"
             color="emerald"
             loading={loading}
+            onClick={() => { setStatusFilter('confirmed'); setBookingTypeFilter(''); setRefundFilter(false); }}
+            isActive={['confirmed', 'attended', 'completed'].includes(statusFilter) && bookingTypeFilter === '' && !refundFilter}
           />
           <StatCard
             label="Refunds"
@@ -370,6 +399,8 @@ export default function BookingManagement() {
             icon="💰"
             color="coral"
             loading={loading}
+            onClick={() => { setStatusFilter(''); setBookingTypeFilter(''); setRefundFilter(true); }}
+            isActive={refundFilter}
           />
         </div>
 
@@ -396,7 +427,11 @@ export default function BookingManagement() {
               <select
                 className="w-full bg-slate-50 border-none rounded-2xl py-3 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
                 value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
+                onChange={e => {
+                  setStatusFilter(e.target.value);
+                  setBookingTypeFilter('');
+                  setRefundFilter(false);
+                }}
               >
                 <option value="">All Statuses</option>
                 <option value="pending">Pending</option>
@@ -553,7 +588,7 @@ export default function BookingManagement() {
 
                 <div className="flex items-center gap-4">
                   <div className="text-right flex flex-col items-end gap-2">
-                    {canEdit && booking.paymentMethod === 'center' && booking.paymentStatus === 'pending' && booking.status !== 'cancelled' && (
+                    {canEdit && booking.paymentMethod === 'center' && booking.paymentStatus === 'pending' && booking.status !== 'cancelled' && !isBookingLocked(booking) && (
                       <button
                         onClick={() => confirmCenterPayment(booking._id)}
                         className="mb-2 bg-brand-blue text-white text-[10px] font-black px-4 py-2 rounded-xl shadow-lg shadow-brand-blue/20 hover:scale-[1.05] transition-all flex items-center gap-2"
@@ -1134,7 +1169,7 @@ export default function BookingManagement() {
 }
 
 // Statistics Card Component
-const StatCard = ({ label, value, icon, color, loading }) => {
+const StatCard = ({ label, value, icon, color, loading, onClick, isActive }) => {
   const colors = {
     slate: 'bg-slate-50 text-slate-600 border-slate-100',
     amber: 'bg-amber-50 text-amber-600 border-amber-100',
@@ -1143,8 +1178,15 @@ const StatCard = ({ label, value, icon, color, loading }) => {
     coral: 'bg-coral/5 text-coral border-coral/10'
   };
 
+  const activeStyles = isActive 
+    ? 'ring-4 ring-brand-blue/20 border-brand-blue/30 shadow-lg scale-[1.02]' 
+    : 'hover:shadow-md hover:scale-[1.02] border-slate-100';
+
   return (
-    <div className={`soft-card rounded-[32px] p-5 flex flex-col items-center justify-center text-center transition-all hover:shadow-md border bg-white ${loading ? 'animate-pulse opacity-60' : ''}`}>
+    <div 
+      onClick={onClick}
+      className={`soft-card rounded-[32px] p-5 flex flex-col items-center justify-center text-center transition-all border bg-white cursor-pointer ${activeStyles} ${loading ? 'animate-pulse opacity-60' : ''}`}
+    >
       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-3 ${colors[color] || colors.slate} border`}>
         {icon}
       </div>

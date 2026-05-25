@@ -21,7 +21,8 @@ const emptyForm = {
   imageUrl: '',
   taxId: '',
   creditCost: 1,
-  status: 'active'
+  status: 'active',
+  replicateToLocations: []
 };
 
 export default function ClassesManagement() {
@@ -33,6 +34,7 @@ export default function ClassesManagement() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [taxes, setTaxes] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
 
   const { can } = usePermissions();
@@ -46,7 +48,8 @@ export default function ClassesManagement() {
     const p1 = api.get('/classes?all=true').then((res) => setClasses(res.data || [])).catch(() => { });
     const p2 = api.get('/trainers?all=true').then((res) => setTrainers(res.data || [])).catch(() => { });
     const p3 = api.get('/taxes').then(res => setTaxes(res.data.data || [])).catch(() => {});
-    Promise.all([p1, p2, p3]).finally(() => setLoading(false));
+    const p4 = api.get('/locations?all=true').then((res) => setLocations(res.data || [])).catch(() => { });
+    Promise.all([p1, p2, p3, p4]).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -67,13 +70,14 @@ export default function ClassesManagement() {
       maxAge: item.maxAge ?? '',
       genderRestriction: item.genderRestriction || 'any',
       duration: item.duration || '',
-      availableTrainers: (item.availableTrainers || []).map(t => t._id || t),
+      availableTrainers: (item.availableTrainers || []).filter(t => t).map(t => t._id || t),
       price: item.price ?? '',
       capacity: item.capacity ?? '',
       imageUrl: item.imageUrl || '',
       taxId: item.taxId?._id || item.taxId || '',
       creditCost: item.creditCost ?? 1,
-      status: item.status || 'active'
+      status: item.status || 'active',
+      replicateToLocations: []
     });
   };
 
@@ -85,11 +89,21 @@ export default function ClassesManagement() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setMessage('');
+    
+    const validTrainers = (form.availableTrainers || []).filter(t => t);
+    if (validTrainers.length === 0) {
+      toast.error('Please select at least one trainer');
+      setMessage('Please select at least one trainer.');
+      return;
+    }
+
     const payload = {
       ...form,
+      availableTrainers: validTrainers,
       price: Number(form.price),
-      capacity: form.capacity ? Number(form.capacity) : undefined,
-      creditCost: Number(form.creditCost || 1)
+      capacity: form.capacity !== '' ? Number(form.capacity) : null,
+      creditCost: Number(form.creditCost || 1),
+      replicateToLocations: form.replicateToLocations || []
     };
 
     try {
@@ -227,7 +241,7 @@ export default function ClassesManagement() {
                 onChange={handleChange}
               />
               <div className="rounded-xl border border-orange-200/70 p-3">
-                <p className="text-[10px] font-bold text-ink/40 uppercase mb-2">Available Trainers</p>
+                <p className="text-[10px] font-bold text-ink/40 uppercase mb-2">Available Trainers <span className="text-coral">*</span></p>
                 <div className="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto">
                   {trainers.map(t => (
                     <label key={t._id} className="flex items-center gap-2 text-xs font-bold text-ink/70 bg-slate-50 px-3 py-1.5 rounded-full cursor-pointer hover:bg-slate-100 transition-all">
@@ -334,6 +348,32 @@ export default function ClassesManagement() {
               </div>
               <p className="text-[8px] text-ink/20 px-3">Enter a URL or upload a local photo for the class cover.</p>
             </div>
+            {/* Replicate to other locations */}
+            {locations.length > 1 && (
+              <div className="rounded-xl border border-orange-200/70 p-3 bg-slate-50/50">
+                <p className="text-[10px] font-bold text-ink/40 uppercase mb-2">Also Add / Copy to Other Locations</p>
+                <div className="flex flex-wrap gap-2">
+                  {locations
+                    .filter(loc => loc._id !== localStorage.getItem('selectedBranch') && loc.status === 'active')
+                    .map(loc => (
+                      <label key={loc._id} className="flex items-center gap-2 text-xs font-bold text-ink/70 bg-white px-3 py-1.5 rounded-full cursor-pointer border border-slate-100 hover:bg-slate-50 transition-all">
+                        <input
+                          type="checkbox"
+                          checked={form.replicateToLocations?.includes(loc._id) || false}
+                          onChange={(e) => {
+                            const newLocations = e.target.checked
+                              ? [...(form.replicateToLocations || []), loc._id]
+                              : (form.replicateToLocations || []).filter(id => id !== loc._id);
+                            setForm({ ...form, replicateToLocations: newLocations });
+                          }}
+                          className="accent-brand-blue"
+                        />
+                        {loc.name}
+                      </label>
+                    ))}
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap gap-3 mt-2">
               <button className="rounded-full bg-brand-blue px-8 py-3 text-sm font-black text-white shadow-lg hover:scale-105 transition-all" type="submit">
                 {editingId ? 'Update class' : 'Create class'}
