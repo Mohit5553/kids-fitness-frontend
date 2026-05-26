@@ -177,7 +177,7 @@ export default function SessionsManagement() {
     const { name, value } = event.target;
     setForm((prev) => {
       const updated = { ...prev, [name]: value };
-      
+
       // Autofill capacity if class is selected and capacity is empty
       if (name === 'classId' && value) {
         const cls = classes.find(c => c._id === value);
@@ -274,7 +274,7 @@ export default function SessionsManagement() {
 
   const handleToggleStatus = async (session) => {
     const action = session.status === 'scheduled' ? 'cancel' : 'restore';
-    
+
     if (action === 'cancel') {
       setCancellingSession(session);
       return;
@@ -360,7 +360,7 @@ export default function SessionsManagement() {
   const handleSendAllReminders = async () => {
     if (!participantsList.length) return;
     if (!window.confirm(`Are you sure you want to send reminders to all ${participantsList.length} participants?`)) return;
-    
+
     setSendingAllReminders(true);
     let successCount = 0;
     let failCount = 0;
@@ -390,8 +390,8 @@ export default function SessionsManagement() {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <Navbar />
       <main className="page-shell flex-1 py-12">
-        <AdminHeader 
-          title="Session Manager" 
+        <AdminHeader
+          title="Session Manager"
           description="Schedule specific time slots for trainers and classes."
           backTo={`/${roleSlug}`}
         />
@@ -435,71 +435,71 @@ export default function SessionsManagement() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Class Path</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
-                    placeholder="Search and select class..."
-                    value={classSearchQuery || (classes.find(c => c._id === form.classId)?.title || '')}
-                    onChange={(e) => {
-                      setClassSearchQuery(e.target.value);
-                      if (!showClassDropdown) setShowClassDropdown(true);
-                      // Clear selection if searching
-                      if (form.classId) setForm(prev => ({ ...prev, classId: '' }));
-                    }}
-                    onFocus={() => setShowClassDropdown(true)}
-                  />
-                  {showClassDropdown && (
-                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl max-h-[300px] overflow-y-auto overflow-x-hidden p-2 animate-in fade-in zoom-in-95 duration-200">
-                      {classes
-                        .filter(c => !classSearchQuery || c.title?.toLowerCase().includes(classSearchQuery.toLowerCase()))
-                        .map((item) => (
-                          <button
-                            key={item._id}
-                            type="button"
-                            onClick={() => {
-                              setForm(prev => {
-                                const updated = {
-                                  ...prev,
-                                  classId: item._id,
-                                  capacity: prev.capacity || item.capacity || ''
-                                };
-                                if (prev.startTime && item.duration) {
-                                  const durationMins = parseDurationToMinutes(item.duration);
-                                  updated.endTime = addMinutesToDateTime(prev.startTime, durationMins);
-                                }
-                                return updated;
-                              });
-                              setClassSearchQuery(item.title);
-                              setShowClassDropdown(false);
-                            }}
-                            className="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-50 transition-all group"
-                          >
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm font-black text-ink group-hover:text-brand-blue">{item.title}</span>
-                              <span className="text-[10px] font-bold text-ink/20">{item.ageGroup}</span>
-                            </div>
-                          </button>
-                        ))
-                      }
-                      {classes.filter(c => !classSearchQuery || c.title?.toLowerCase().includes(classSearchQuery.toLowerCase())).length === 0 && (
-                        <div className="p-4 text-center">
-                          <p className="text-xs font-bold text-ink/30 italic">No classes found matching "{classSearchQuery}"</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {/* Backdrop to close dropdown */}
-                  {showClassDropdown && (
-                    <div 
-                      className="fixed inset-0 z-40" 
-                      onClick={() => {
-                        setShowClassDropdown(false);
-                        setClassSearchQuery(''); // Reset query on close
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
+                      placeholder="Search and select class..."
+                      value={classSearchQuery || (classes.find(c => c._id === form.classId)?.title || '')}
+                      onChange={(e) => {
+                        setClassSearchQuery(e.target.value);
+                        if (!showClassDropdown) setShowClassDropdown(true);
+                        // Clear selection if searching
+                        if (form.classId) setForm(prev => ({ ...prev, classId: '' }));
                       }}
+                      onFocus={() => setShowClassDropdown(true)}
                     />
-                  )}
-                </div>
+                    {showClassDropdown && (
+                      <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl max-h-[300px] overflow-y-auto overflow-x-hidden p-2 animate-in fade-in zoom-in-95 duration-200">
+                        {classes
+                          .filter(c => !classSearchQuery || c.title?.toLowerCase().includes(classSearchQuery.toLowerCase()))
+                          .map((item) => (
+                            <button
+                              key={item._id}
+                              type="button"
+                              onClick={() => {
+                                setForm(prev => {
+                                  const updated = {
+                                    ...prev,
+                                    classId: item._id,
+                                    capacity: prev.capacity || item.capacity || ''
+                                  };
+                                  if (prev.startTime && item.duration) {
+                                    const durationMins = parseDurationToMinutes(item.duration);
+                                    updated.endTime = addMinutesToDateTime(prev.startTime, durationMins);
+                                  }
+                                  return updated;
+                                });
+                                setClassSearchQuery(item.title);
+                                setShowClassDropdown(false);
+                              }}
+                              className="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-50 transition-all group"
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm font-black text-ink group-hover:text-brand-blue">{item.title}</span>
+                                <span className="text-[10px] font-bold text-ink/20">{item.ageGroup}</span>
+                              </div>
+                            </button>
+                          ))
+                        }
+                        {classes.filter(c => !classSearchQuery || c.title?.toLowerCase().includes(classSearchQuery.toLowerCase())).length === 0 && (
+                          <div className="p-4 text-center">
+                            <p className="text-xs font-bold text-ink/30 italic">No classes found matching "{classSearchQuery}"</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Backdrop to close dropdown */}
+                    {showClassDropdown && (
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => {
+                          setShowClassDropdown(false);
+                          setClassSearchQuery(''); // Reset query on close
+                        }}
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Assigned Trainer</label>
@@ -586,8 +586,8 @@ export default function SessionsManagement() {
               </div>
 
               <div className="flex items-center gap-3 mt-4">
-                <button 
-                  className={`bg-brand-blue text-white px-10 py-4 rounded-full font-black shadow-lg transition-all ${selectedBranch === 'all' && !editingId ? 'opacity-50 cursor-not-allowed hover:scale-100' : 'hover:scale-105 active:scale-95'}`} 
+                <button
+                  className={`bg-brand-blue text-white px-10 py-4 rounded-full font-black shadow-lg transition-all ${selectedBranch === 'all' && !editingId ? 'opacity-50 cursor-not-allowed hover:scale-100' : 'hover:scale-105 active:scale-95'}`}
                   type="submit"
                   disabled={selectedBranch === 'all' && !editingId}
                 >
@@ -628,11 +628,10 @@ export default function SessionsManagement() {
                   setDateFilterOption(opt.id);
                   setCustomDateFilter(''); // Clear custom date picker
                 }}
-                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                  dateFilterOption === opt.id
+                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${dateFilterOption === opt.id
                     ? 'bg-brand-blue text-white shadow-md shadow-brand-blue/15'
                     : 'bg-slate-50 text-ink/40 hover:bg-slate-100 hover:text-ink/60'
-                }`}
+                  }`}
               >
                 {opt.label}
               </button>
@@ -685,7 +684,7 @@ export default function SessionsManagement() {
                         )}
                       </p>
                       <p className="text-xs font-bold text-ink/40">Trainer: <span className={new Date(session.startTime) < new Date() ? 'text-ink/20' : 'text-brand-blue'}>{session.trainerId?.name || 'TBA'}</span></p>
-                      <button 
+                      <button
                         onClick={() => handleShowParticipants(session)}
                         className={`text-xs font-bold transition-all group/occ ${session.bookedParticipants > 0 ? 'cursor-pointer hover:underline' : 'cursor-default'}`}
                       >
@@ -698,7 +697,7 @@ export default function SessionsManagement() {
                     <div className="mt-2 text-[10px] font-black uppercase tracking-widest flex gap-2">
                       {new Date(session.startTime) < new Date() ? (
                         <span className="text-ink/30 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-                           Closed / Expired
+                          Closed / Expired
                         </span>
                       ) : (
                         <span className="text-moss bg-moss/10 px-3 py-1 rounded-full border border-moss/20">
@@ -711,11 +710,10 @@ export default function SessionsManagement() {
                         </span>
                       )}
                       {session.trainerId && (
-                        <span className={`px-3 py-1 rounded-full border ${
-                          session.trainerStatus === 'accepted' ? 'text-emerald-500 bg-emerald-50 border-emerald-100' :
-                          session.trainerStatus === 'rejected' ? 'text-red-500 bg-red-50 border-red-100' :
-                          'text-amber-500 bg-amber-50 border-amber-100'
-                        }`}>
+                        <span className={`px-3 py-1 rounded-full border ${session.trainerStatus === 'accepted' ? 'text-emerald-500 bg-emerald-50 border-emerald-100' :
+                            session.trainerStatus === 'rejected' ? 'text-red-500 bg-red-50 border-red-100' :
+                              'text-amber-500 bg-amber-50 border-amber-100'
+                          }`}>
                           Trainer: {session.trainerStatus || 'pending'}
                         </span>
                       )}
@@ -733,8 +731,8 @@ export default function SessionsManagement() {
                   {canEdit && (
                     <button
                       className={`rounded-full px-6 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${new Date(session.startTime) < new Date()
-                          ? 'bg-white border border-slate-200 text-ink/40 hover:bg-slate-50'
-                          : 'bg-brand-blue text-white hover:bg-brand-blue/90 shadow-md shadow-brand-blue/10'
+                        ? 'bg-white border border-slate-200 text-ink/40 hover:bg-slate-50'
+                        : 'bg-brand-blue text-white hover:bg-brand-blue/90 shadow-md shadow-brand-blue/10'
                         }`}
                       onClick={() => handleEdit(session)}
                     >
@@ -786,17 +784,17 @@ export default function SessionsManagement() {
           <div className="w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 duration-300">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-2xl font-black text-ink">Cancel Session</h3>
-              <button 
+              <button
                 onClick={() => {
                   setCancellingSession(null);
                   setCancelReason('');
-                }} 
+                }}
                 className="text-3xl text-ink/20 hover:text-ink/60 transition-colors"
               >
                 ×
               </button>
             </div>
-            
+
             <div className="mb-8">
               <p className="text-xs font-bold text-ink/50 leading-relaxed">
                 Provide a reason for cancelling the <span className="text-brand-blue font-black">{cancellingSession.classId?.title}</span> session on <span className="font-black text-ink">{new Date(cancellingSession.startTime).toLocaleDateString()}</span>.
@@ -866,8 +864,8 @@ export default function SessionsManagement() {
                     Remind All
                   </button>
                 )}
-                <button 
-                  onClick={() => setViewingParticipantsSession(null)} 
+                <button
+                  onClick={() => setViewingParticipantsSession(null)}
                   className="w-10 h-10 flex items-center justify-center rounded-xl bg-white text-ink/20 hover:text-ink/60 shadow-sm border border-slate-100 transition-all font-black text-xl"
                 >
                   ×
@@ -906,13 +904,12 @@ export default function SessionsManagement() {
                             {booking.status}
                           </span>
                           {booking.refundStatus && booking.refundStatus !== 'none' && (
-                             <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border ${
-                               booking.refundStatus === 'requested' ? 'bg-amber-50 text-amber-600 border-amber-200' :
-                               booking.refundStatus === 'refunded' ? 'bg-rose-50 text-rose-600 border-rose-200' :
-                               'bg-red-50 text-red-400 border-red-100'
-                             }`}>
-                               {booking.refundStatus === 'requested' ? 'Refund Req.' : booking.refundStatus}
-                             </span>
+                            <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border ${booking.refundStatus === 'requested' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                                booking.refundStatus === 'refunded' ? 'bg-rose-50 text-rose-600 border-rose-200' :
+                                  'bg-red-50 text-red-400 border-red-100'
+                              }`}>
+                              {booking.refundStatus === 'requested' ? 'Refund Req.' : booking.refundStatus}
+                            </span>
                           )}
                           {(booking.status === 'confirmed' || booking.status === 'scheduled') && (
                             <button
@@ -928,7 +925,7 @@ export default function SessionsManagement() {
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="grid gap-3 sm:grid-cols-2">
                         {booking.participants?.map((p, idx) => (
                           <div key={idx} className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
@@ -951,9 +948,9 @@ export default function SessionsManagement() {
                 </div>
               )}
             </div>
-            
+
             <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex justify-end">
-              <button 
+              <button
                 onClick={() => setViewingParticipantsSession(null)}
                 className="px-8 py-3 rounded-2xl bg-white border border-slate-200 text-ink/40 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all font-black"
               >
@@ -983,8 +980,7 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
   const [form, setForm] = useState({
     classId: '',
     trainerId: '',
-    startTime: '',
-    endTime: '',
+    timeSlots: [{ startTime: '', endTime: '' }], // Support multiple slots
     durationMinutes: 60,
     days: [], // 0 = Sun, 1 = Mon ...
     startDate: '',
@@ -1007,64 +1003,98 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
 
   useEffect(() => {
     if (selectedClass) {
-      setForm(prev => ({ 
-        ...prev, 
-        durationMinutes: parseDurationToMinutes(selectedClass.duration) 
-      }));
+      const duration = parseDurationToMinutes(selectedClass.duration);
+      setForm(prev => {
+        const updatedSlots = prev.timeSlots.map(slot => ({
+          ...slot,
+          endTime: slot.startTime ? addMinutesToTime(slot.startTime, duration) : ''
+        }));
+        return { 
+          ...prev, 
+          durationMinutes: duration,
+          timeSlots: updatedSlots
+        };
+      });
     }
   }, [selectedClass]);
 
-  useEffect(() => {
-    if (form.startTime && form.durationMinutes) {
-      setForm(prev => ({
-        ...prev,
-        endTime: addMinutesToTime(prev.startTime, prev.durationMinutes)
-      }));
-    }
-  }, [form.startTime, form.durationMinutes]);
+  const handleTimeSlotChange = (index, value) => {
+    setForm(prev => {
+      const updatedSlots = [...prev.timeSlots];
+      updatedSlots[index] = {
+        startTime: value,
+        endTime: value ? addMinutesToTime(value, prev.durationMinutes) : ''
+      };
+      return { ...prev, timeSlots: updatedSlots };
+    });
+  };
+
+  const addTimeSlot = () => {
+    setForm(prev => ({
+      ...prev,
+      timeSlots: [...prev.timeSlots, { startTime: '', endTime: '' }]
+    }));
+  };
+
+  const removeTimeSlot = (index) => {
+    setForm(prev => ({
+      ...prev,
+      timeSlots: prev.timeSlots.filter((_, idx) => idx !== index)
+    }));
+  };
 
   const generatePreview = () => {
-    if (!form.classId || !form.startDate || form.days.length === 0 || !form.startTime) {
-      return toast.error('Please fill all required fields');
+    const validSlots = form.timeSlots.filter(slot => slot.startTime);
+    if (!form.classId || !form.startDate || form.days.length === 0 || validSlots.length === 0) {
+      return toast.error('Please fill all required fields (Class, Days, Start Date, and at least one Start Time)');
     }
 
     const sessions = [];
-    const start = new Date(form.startDate + 'T00:00:00');
-    const endLimit = form.endDate ? new Date(form.endDate + 'T23:59:59') : null;
-    let current = new Date(start);
-    const timeArr = form.startTime.split(':');
+    const maxOccurrences = parseInt(form.occurences) || 10;
     
-    const maxSessions = endLimit ? 500 : (parseInt(form.occurences) || 10);
-    let iterations = 0;
-    while (sessions.length < maxSessions && iterations < 500) {
-      iterations++;
-      if (endLimit && current > endLimit) {
-        break;
-      }
-      const day = current.getDay();
-      if (form.days.includes(day)) {
-        const sessionStart = new Date(current);
-        sessionStart.setHours(parseInt(timeArr[0]), parseInt(timeArr[1]), 0, 0);
-        
-        const sessionEnd = new Date(sessionStart);
-        if (form.endTime) {
-          const endTimeArr = form.endTime.split(':');
-          sessionEnd.setHours(parseInt(endTimeArr[0]), parseInt(endTimeArr[1]), 0, 0);
-        } else {
-          sessionEnd.setMinutes(sessionEnd.getMinutes() + (parseInt(form.durationMinutes) || 60));
+    for (const slot of validSlots) {
+      const start = new Date(form.startDate + 'T00:00:00');
+      const endLimit = form.endDate ? new Date(form.endDate + 'T23:59:59') : null;
+      let current = new Date(start);
+      const timeArr = slot.startTime.split(':');
+      
+      const slotSessions = [];
+      const maxSessionsForSlot = endLimit ? 500 : maxOccurrences;
+      let iterations = 0;
+      
+      while (slotSessions.length < maxSessionsForSlot && iterations < 500) {
+        iterations++;
+        if (endLimit && current > endLimit) {
+          break;
         }
+        const day = current.getDay();
+        if (form.days.includes(day)) {
+          const sessionStart = new Date(current);
+          sessionStart.setHours(parseInt(timeArr[0]), parseInt(timeArr[1]), 0, 0);
+          
+          const sessionEnd = new Date(sessionStart);
+          if (slot.endTime) {
+            const endTimeArr = slot.endTime.split(':');
+            sessionEnd.setHours(parseInt(endTimeArr[0]), parseInt(endTimeArr[1]), 0, 0);
+          } else {
+            sessionEnd.setMinutes(sessionEnd.getMinutes() + (parseInt(form.durationMinutes) || 60));
+          }
 
-        sessions.push({
-          classId: form.classId,
-          trainerId: form.trainerId,
-          startTime: sessionStart.toISOString(),
-          endTime: sessionEnd.toISOString(),
-          location: form.room,
-          locationId: selectedBranch && selectedBranch !== 'all' ? selectedBranch : selectedClass?.locationId
-        });
+          slotSessions.push({
+            classId: form.classId,
+            trainerId: form.trainerId,
+            startTime: sessionStart.toISOString(),
+            endTime: sessionEnd.toISOString(),
+            location: form.room,
+            locationId: selectedBranch && selectedBranch !== 'all' ? selectedBranch : selectedClass?.locationId
+          });
+        }
+        current.setDate(current.getDate() + 1);
       }
-      current.setDate(current.getDate() + 1);
+      sessions.push(...slotSessions);
     }
+    
+    sessions.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
     setPreview(sessions);
     setStep(2);
   };
@@ -1132,38 +1162,69 @@ function BulkSessionModal({ onClose, classes, trainers, plans, onCreated, select
                 </div>
               </div>
 
-              <div className="grid gap-6 md:grid-cols-3">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Start Time</label>
-                  <input 
-                    type="time" 
-                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink" 
-                    value={form.startTime}
-                    onChange={e => setForm({...form, startTime: e.target.value})}
-                  />
+              {/* Multiple Time Slots Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between px-4">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30">Time Slots</label>
+                  {selectedClass && (
+                    <span className="text-[10px] font-bold text-brand-blue">Duration: {selectedClass.duration}</span>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center px-4">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-ink/30">End Time (Auto-calculated)</label>
-                    {selectedClass && (
-                      <span className="text-[10px] font-bold text-brand-blue">Duration: {selectedClass.duration}</span>
-                    )}
+                
+                <div className="space-y-3">
+                  {form.timeSlots.map((slot, index) => (
+                    <div key={index} className="flex flex-col md:flex-row items-end gap-4 bg-slate-50/50 p-4 rounded-3xl border border-slate-100 animate-in fade-in duration-200">
+                      <div className="flex-1 space-y-2 w-full">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-ink/30 ml-4">Start Time #{index + 1}</label>
+                        <input 
+                          type="time" 
+                          className="w-full bg-white border border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-ink outline-none focus:ring-2 focus:ring-brand-blue/20" 
+                          value={slot.startTime}
+                          onChange={e => handleTimeSlotChange(index, e.target.value)}
+                        />
+                      </div>
+                      <div className="flex-1 space-y-2 w-full">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-ink/30 ml-4">End Time (Auto-calculated)</label>
+                        <input 
+                          type="time" 
+                          className="w-full bg-slate-100 border border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-ink/50 cursor-not-allowed outline-none" 
+                          value={slot.endTime}
+                          disabled
+                        />
+                      </div>
+                      {form.timeSlots.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeTimeSlot(index)}
+                          className="mb-2 h-12 px-6 rounded-2xl bg-red-50 text-red-500 text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center justify-center border border-red-100"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pt-2">
+                  <button
+                    type="button"
+                    onClick={addTimeSlot}
+                    className="bg-brand-blue/10 text-brand-blue px-6 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-blue hover:text-white transition-all flex items-center gap-2 self-start"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Add Time Slot
+                  </button>
+                  <div className="space-y-2 w-full md:w-64">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4 block">Total Occurrences</label>
+                    <input 
+                      type="number" 
+                      className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none" 
+                      value={form.occurences}
+                      onChange={e => setForm({...form, occurences: e.target.value})}
+                    />
                   </div>
-                  <input 
-                    type="time" 
-                    className="w-full bg-slate-100 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink/50 cursor-not-allowed" 
-                    value={form.endTime}
-                    disabled
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/30 ml-4">Total Occurrences</label>
-                  <input 
-                    type="number" 
-                    className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 text-sm font-bold text-ink" 
-                    value={form.occurences}
-                    onChange={e => setForm({...form, occurences: e.target.value})}
-                  />
                 </div>
               </div>
 
