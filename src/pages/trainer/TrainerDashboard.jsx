@@ -608,7 +608,7 @@ export default function TrainerDashboard() {
                               <div className="mt-4 pt-4 border-t border-slate-200/50 flex justify-between items-center">
                                 <div className="flex items-center gap-3">
                                   <span className="text-[9px] font-black text-ink/20 uppercase tracking-[0.2em]">{booking.paymentMethod === 'online' ? 'Paid Online' : 'Pay at Center'}</span>
-                                  {viewType === 'current' && booking.status === 'confirmed' && (
+                                  {(viewType === 'current' || viewType === 'past') && booking.status === 'confirmed' && (
                                     <button
                                       onClick={() => handleApproveAttendance(booking._id)}
                                       className="px-4 py-1.5 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-md active:scale-95"
@@ -616,7 +616,7 @@ export default function TrainerDashboard() {
                                       Approve Attendance
                                     </button>
                                   )}
-                                  {booking.status === 'attended' && (
+                                  {(booking.status === 'attended' || booking.status === 'completed') && (
                                     <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase tracking-widest rounded-lg border border-emerald-100 flex items-center gap-1.5">
                                       <span>✔</span> Verified
                                     </span>
@@ -700,11 +700,11 @@ export default function TrainerDashboard() {
                               <h4 className="text-sm font-black text-ink mt-1.5">{booking.userId?.name || booking.guestDetails?.name || 'Guest User'}</h4>
                               <p className="text-[10px] font-bold text-ink/50 mt-1">{booking.userId?.phone || booking.guestDetails?.phone || booking.userId?.email || 'No contact'}</p>
                             </div>
-                            <span className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${booking.status === 'attended' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                            <span className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${(booking.status === 'attended' || booking.status === 'completed') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
                               booking.status === 'confirmed' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
                                 'bg-amber-50 text-amber-600 border border-amber-100'
                               }`}>
-                              {booking.status === 'attended' ? '✔ Verified' : booking.status}
+                              {(booking.status === 'attended' || booking.status === 'completed') ? '✔ Verified' : booking.status}
                             </span>
                           </div>
 
@@ -729,7 +729,7 @@ export default function TrainerDashboard() {
                           <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
                             <div className="flex items-center gap-3">
                               <span className="text-[9px] font-black text-ink/20 uppercase tracking-[0.2em]">{booking.paymentMethod === 'online' ? 'Paid Online' : 'Pay at Center'}</span>
-                              {viewType === 'current' && booking.status === 'confirmed' && (
+                              {(viewType === 'current' || viewType === 'past') && booking.status === 'confirmed' && (
                                 <button
                                   onClick={() => handleApproveAttendance(booking._id)}
                                   className="px-4 py-1.5 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-md active:scale-95"

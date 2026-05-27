@@ -357,6 +357,43 @@ export default function SystemSettings() {
               )}
             </div>
           </section>
+
+          {/* Feature Toggles Section */}
+          <section className="soft-card rounded-[40px] p-8 border-2 border-slate-50 bg-white/80 backdrop-blur-sm">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-2xl">
+                ⚙️
+              </div>
+              <div>
+                <h2 className="text-2xl font-display text-ink">Feature Toggles</h2>
+                <p className="text-sm text-ink/40">Enable or disable specific features for users</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="p-6 rounded-3xl bg-slate-50/50 border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                  <h4 className="font-bold text-ink mb-1">Allow Plan Upgrades</h4>
+                  <p className="text-xs text-ink/50 leading-relaxed max-w-sm">
+                    Allow parents to see the option to upgrade their plans from their dashboard.
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleToggleGlobal('allow_plan_upgrade', globalSettings.allow_plan_upgrade)}
+                    disabled={isSaving}
+                    className={`w-14 h-8 rounded-full transition-all relative ${globalSettings.allow_plan_upgrade ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                  >
+                    <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${globalSettings.allow_plan_upgrade ? 'left-7' : 'left-1'}`} />
+                  </button>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-ink/40">
+                    {globalSettings.allow_plan_upgrade ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
       <Footer />
