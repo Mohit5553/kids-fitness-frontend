@@ -166,6 +166,7 @@ export default function Membership() {
   const [couponCode, setCouponCode] = useState('');
   const [couponAmount, setCouponAmount] = useState(0);
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [globalSettings, setGlobalSettings] = useState({});
 
   // Search and Pagination States
   const [searchTerm, setSearchTerm] = useState('');
@@ -205,6 +206,13 @@ export default function Membership() {
     fetchMemberships();
     fetchPlans();
     fetchChildren();
+
+    // Fetch global settings
+    api.get('/settings/global').then(res => {
+      const settingsMap = {};
+      res.data.forEach(s => { settingsMap[s.key] = s.value; });
+      setGlobalSettings(settingsMap);
+    }).catch(() => {});
 
     const handleChange = () => fetchPlans();
     window.addEventListener('location-change', handleChange);
@@ -554,6 +562,14 @@ export default function Membership() {
                           >
                             View Schedule
                           </button>
+                          {globalSettings?.allow_plan_upgrade && m.status === 'active' && (
+                            <button
+                              onClick={() => navigate('/pricing')}
+                              className="w-full max-w-[120px] px-4 py-2 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                            >
+                              <span>⭐</span> Upgrade
+                            </button>
+                          )}
                           {m.status === 'active' && m.planId?.allowFreezing && (
                             <button
                               onClick={() => handleToggleFreeze(m._id)}
