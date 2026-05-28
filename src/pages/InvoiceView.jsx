@@ -1,3 +1,4 @@
+import { getImageUrl  } from '../api/api.js';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/api.js';
@@ -121,7 +122,7 @@ export default function InvoiceView() {
 
    const brandMark = companyInfo.name === 'JTS Booking' ? 'JTS' : companyInfo.name.substring(0, 3).toUpperCase();
    const logoSrc = companyInfo.logoUrl ? (
-     companyInfo.logoUrl.startsWith('http') ? companyInfo.logoUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${companyInfo.logoUrl}`
+     getImageUrl(companyInfo.logoUrl)
    ) : null;
 
    return (

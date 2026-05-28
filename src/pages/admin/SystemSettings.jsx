@@ -1,3 +1,4 @@
+import { getImageUrl  } from '../../api/api.js';
 import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
@@ -142,7 +143,7 @@ export default function SystemSettings() {
   };
 
   const logoPreview = companyInfo.logoUrl ? (
-    companyInfo.logoUrl.startsWith('http') ? companyInfo.logoUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${companyInfo.logoUrl}`
+    getImageUrl(companyInfo.logoUrl)
   ) : null;
 
   return (

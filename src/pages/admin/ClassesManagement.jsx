@@ -1,3 +1,4 @@
+import { getImageUrl  } from '../../api/api.js';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
@@ -403,7 +404,7 @@ export default function ClassesManagement() {
               <div className="w-full md:w-32 h-32 rounded-2xl bg-slate-50 border border-slate-100 shrink-0 overflow-hidden">
                 {item.imageUrl ? (
                   <img 
-                    src={item.imageUrl.startsWith('http') ? item.imageUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${item.imageUrl}`} 
+                    src={getImageUrl(item.imageUrl)} 
                     alt={item.title} 
                     className="w-full h-full object-cover" 
                   />

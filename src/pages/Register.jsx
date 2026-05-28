@@ -1,3 +1,4 @@
+import { getImageUrl  } from '../api/api.js';
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
@@ -186,7 +187,7 @@ export default function Register() {
                 cursor-pointer"
             />
             {form.avatarUrl && (
-              <img src={form.avatarUrl.startsWith('http') ? form.avatarUrl : `${api.defaults.baseURL.replace('/api', '')}${form.avatarUrl}`} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm" alt="Preview" />
+              <img src={getImageUrl(form.avatarUrl)} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm" alt="Preview" />
             )}
             {uploading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-ocean border-t-transparent" />}
           </div>
@@ -493,7 +494,7 @@ export default function Register() {
                     cursor-pointer"
                 />
                 {child.photoUrl && (
-                  <img src={child.photoUrl.startsWith('http') ? child.photoUrl : `${api.defaults.baseURL.replace('/api', '')}${child.photoUrl}`} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm" alt="Preview" />
+                  <img src={getImageUrl(child.photoUrl)} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm" alt="Preview" />
                 )}
                 {uploading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-ocean border-t-transparent" />}
               </div>

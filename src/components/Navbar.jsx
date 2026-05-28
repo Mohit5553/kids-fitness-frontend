@@ -1,3 +1,4 @@
+import { getImageUrl  } from '../api/api.js';
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { getUser, clearAuth, getRoleSlug } from '../utils/auth.js';
@@ -93,7 +94,7 @@ export default function Navbar({ className = '' }) {
 
   const brandMark = companyInfo.name === 'JTS Booking' ? 'JTS' : companyInfo.name.substring(0, 3).toUpperCase();
   const logoSrc = companyInfo.logoUrl ? (
-    companyInfo.logoUrl.startsWith('http') ? companyInfo.logoUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${companyInfo.logoUrl}`
+    getImageUrl(companyInfo.logoUrl)
   ) : null;
 
   return (
@@ -169,7 +170,7 @@ export default function Navbar({ className = '' }) {
                     <div className="h-10 w-10 rounded-full bg-brand-blue text-white flex items-center justify-center font-black text-sm shadow-sm overflow-hidden border-2 border-white">
                       {user.avatarUrl ? (
                         <img 
-                          src={user.avatarUrl.startsWith('http') ? user.avatarUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${user.avatarUrl}`} 
+                          src={getImageUrl(user.avatarUrl)} 
                           alt={user.name}
                           className="w-full h-full object-cover"
                         />

@@ -62,6 +62,7 @@ import LeadsManagement from './pages/admin/LeadsManagement.jsx';
 import CorporateBooking from './pages/admin/CorporateBooking.jsx';
 import SystemSettings from './pages/admin/SystemSettings.jsx';
 import ExtensionPanel from './pages/admin/ExtensionPanel.jsx';
+import ExpensesManagement from './pages/admin/ExpensesManagement.jsx';
 import UATManagement from './pages/admin/UATManagement.jsx';
 import TrainerDashboard from './pages/trainer/TrainerDashboard.jsx';
 
@@ -186,6 +187,11 @@ export default function App() {
             </Route>
 
             <Route path="/:roleSlug/extensions" element={<ExtensionPanel />} />
+            
+            <Route element={<RequirePermission permission="expenses:view" />}>
+              <Route path="/:roleSlug/expenses" element={<ExpensesManagement />} />
+            </Route>
+            
             <Route path="/:roleSlug/uat" element={<UATManagement />} />
           </Route>
         </Routes>

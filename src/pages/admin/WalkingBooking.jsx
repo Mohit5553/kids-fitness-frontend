@@ -1,3 +1,4 @@
+import { getImageUrl  } from '../../api/api.js';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/api.js';
@@ -1222,7 +1223,7 @@ export default function WalkingBooking() {
                             className={`p-5 rounded-[24px] border-2 transition-all flex items-center gap-4 group ${selectedTrainer === t._id ? 'border-brand-blue bg-white shadow-glow' : 'bg-white border-slate-50 hover:border-brand-blue/20'}`}
                           >
                             <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-2xl overflow-hidden shrink-0 group-hover:scale-105 transition-all">
-                              {t.avatarUrl ? <img src={t.avatarUrl.startsWith('http') ? t.avatarUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}${t.avatarUrl}`} className="h-full w-full object-cover" /> : '🏆'}
+                              {t.avatarUrl ? <img src={getImageUrl(t.avatarUrl)} className="h-full w-full object-cover" /> : '🏆'}
                             </div>
                             <div className="text-left overflow-hidden">
                               <p className="font-black text-base text-ink truncate">{t.name}</p>

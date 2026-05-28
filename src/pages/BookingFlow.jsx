@@ -1,3 +1,4 @@
+import { getImageUrl  } from '../api/api.js';
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../api/api.js';
@@ -652,7 +653,7 @@ export default function BookingFlow() {
                            {c.ageGroup}
                          </div>
                          <img 
-                           src={c.imageUrl ? (c.imageUrl.startsWith('http') ? c.imageUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${c.imageUrl}`) : `https://images.unsplash.com/photo-1594498653385-d5172c532c00?auto=format&fit=crop&q=80&w=800`} 
+                           src={c.imageUrl ? (getImageUrl(c.imageUrl)) : `https://images.unsplash.com/photo-1594498653385-d5172c532c00?auto=format&fit=crop&q=80&w=800`} 
                            alt="" 
                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 select-none pointer-events-none" 
                            onError={(e) => {
@@ -689,7 +690,7 @@ export default function BookingFlow() {
                       <div className="w-16 h-16 rounded-[24px] bg-slate-50 flex items-center justify-center text-3xl overflow-hidden shrink-0">
                         {loc.imageUrl ? (
                           <img
-                            src={loc.imageUrl.startsWith('http') ? loc.imageUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${loc.imageUrl}`}
+                            src={getImageUrl(loc.imageUrl)}
                             alt={loc.name}
                             className="h-full w-full object-cover"
                           />
@@ -1482,7 +1483,7 @@ export default function BookingFlow() {
 
                       return (
                         <img
-                          src={currentImg.startsWith('http') ? currentImg : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${currentImg}`}
+                          src={getImageUrl(currentImg)}
                           alt="Trainer Active"
                           className="h-full w-full object-cover animate-in fade-in zoom-in-95 duration-500"
                         />
@@ -1525,7 +1526,7 @@ export default function BookingFlow() {
                             className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all cursor-pointer shadow-sm hover:scale-105 ${activeImage === idx ? 'border-brand-blue scale-110' : 'border-white hover:border-brand-blue/30'}`}
                           >
                             <img
-                              src={img.startsWith('http') ? img : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${img}`}
+                              src={getImageUrl(img)}
                               className="w-full h-full object-cover"
                               alt={`Thumbnail ${idx}`}
                             />

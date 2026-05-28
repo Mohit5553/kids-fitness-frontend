@@ -1,3 +1,4 @@
+import { getImageUrl  } from '../../api/api.js';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -115,7 +116,7 @@ export default function Profile() {
                   <div className="w-32 h-32 rounded-[2rem] bg-slate-100 overflow-hidden border-4 border-white shadow-xl">
                     {formData.avatarUrl ? (
                       <img 
-                        src={formData.avatarUrl.startsWith('http') ? formData.avatarUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${formData.avatarUrl}`} 
+                        src={getImageUrl(formData.avatarUrl)} 
                         alt="Avatar" 
                         className="w-full h-full object-cover transition-transform group-hover:scale-110" 
                       />
