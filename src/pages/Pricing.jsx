@@ -7,11 +7,13 @@ import SectionTitle from '../components/SectionTitle.jsx';
 import LocationPicker from '../components/LocationPicker.jsx';
 import { getUser } from '../utils/auth.js';
 import { getLocationId } from '../utils/location.js';
+import { useSettings } from '../context/SettingsContext.jsx';
 
 export default function Pricing() {
   const navigate = useNavigate();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { currency } = useSettings();
 
   // Checkout State
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -132,7 +134,7 @@ export default function Pricing() {
     try {
       const res = await api.post('/coupons/validate', { code: couponInput });
       setAppliedCoupon(res.data.data);
-      setMessage(`Coupon applied! Saved AED ${res.data.data.amount}`);
+      setMessage(`Coupon applied! Saved ${currency} ${res.data.data.amount}`);
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid coupon code');
       setAppliedCoupon(null);
@@ -316,7 +318,7 @@ export default function Pricing() {
           <div className="relative z-10 mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-2xl bg-white/15 p-4 backdrop-blur">
               <p className="text-xs uppercase tracking-[0.2em] text-white/70">Drop-ins</p>
-              <p className="mt-2 text-xl font-semibold">From {minDropIn} AED</p>
+              <p className="mt-2 text-xl font-semibold">From {minDropIn} {currency}</p>
             </div>
             <div className="rounded-2xl bg-white/15 p-4 backdrop-blur">
               <p className="text-xs uppercase tracking-[0.2em] text-white/70">Bundles</p>
@@ -386,7 +388,7 @@ export default function Pricing() {
                         {item.activePromotions?.length > 0 ? (
                           <>
                             <p className="text-xs font-bold text-slate-300 line-through">
-                              {item.price.toLocaleString()} AED
+                              {item.price.toLocaleString()} {currency}
                             </p>
                             <p className="text-3xl font-black text-coral">
                               {Math.round(
@@ -394,13 +396,13 @@ export default function Pricing() {
                                   ? item.price * (1 - item.activePromotions[0].discountValue / 100)
                                   : Math.max(0, item.price - item.activePromotions[0].discountValue)
                               ).toLocaleString()}
-                              <span className="text-xs ml-1 opacity-40">AED</span>
+                              <span className="text-xs ml-1 opacity-40">{currency}</span>
                             </p>
                           </>
                         ) : (
                           <p className="text-3xl font-black text-brand-blue">
                             {item.price.toLocaleString()}
-                            <span className="text-xs ml-1 opacity-40">AED</span>
+                            <span className="text-xs ml-1 opacity-40">{currency}</span>
                           </p>
                         )}
                       </div>
@@ -461,7 +463,7 @@ export default function Pricing() {
                 <div key={term._id} className="rounded-2xl border bg-white/80 p-5 flex flex-col justify-between">
                   <div>
                     <p className="text-sm text-ink/70 font-bold">{term.name}</p>
-                    <p className="mt-2 text-2xl font-black text-ocean">{term.price.toLocaleString()} AED</p>
+                    <p className="mt-2 text-2xl font-black text-ocean">{term.price.toLocaleString()} {currency}</p>
                   </div>
                   <button
                     onClick={() => openCheckout(term)}
@@ -604,7 +606,7 @@ export default function Pricing() {
               <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">
                 {checkoutStep === 1 ? 'Step 1: Scheduling' : 'Step 2: Payment'}
               </p>
-              <h3 className="text-2xl font-black">{selectedPlan.name} — {selectedPlan.price} AED</h3>
+              <h3 className="text-2xl font-black">{selectedPlan.name} — {selectedPlan.price} {currency}</h3>
               {checkoutStep === 2 && (
                 <button onClick={() => setCheckoutStep(1)} className="mt-4 text-[10px] font-black uppercase tracking-widest border border-white/30 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-all">← Back to scheduling</button>
               )}
@@ -706,7 +708,7 @@ export default function Pricing() {
                             <div className="text-left">
                               <p className="font-bold text-xs">{promo.name}</p>
                               <p className="text-[9px] font-black text-emerald-600 uppercase">
-                                {promo.promoType === 'bogo' ? 'Buy 1 Get 1 FREE' : `Save ${calculateDiscount(promo, multipliedPrice)} AED`}
+                                {promo.promoType === 'bogo' ? 'Buy 1 Get 1 FREE' : `Save ${currency} ${calculateDiscount(promo, multipliedPrice)}`}
                               </p>
                             </div>
                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPromo?._id === promo._id ? 'bg-brand-blue border-brand-blue text-white' : 'border-slate-100'}`}>
@@ -749,7 +751,7 @@ export default function Pricing() {
                      </div>
                      {appliedCoupon && (
                         <div className="mt-2 ml-2 flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase">
-                           <span>🎁</span> Voucher Valid: -AED {appliedCoupon.amount} Applied
+                           <span>🎁</span> Voucher Valid: -{currency} {appliedCoupon.amount} Applied
                         </div>
                      )}
                   </div>
@@ -869,7 +871,7 @@ export default function Pricing() {
                     <div className="space-y-3">
                       <div className="flex justify-between items-center text-sm font-bold">
                         <span className="text-ink/60">Gross Amount</span>
-                        <span className="text-ink font-black">AED {multipliedPrice.toFixed(2)}</span>
+                        <span className="text-ink font-black">{currency} {multipliedPrice.toFixed(2)}</span>
                       </div>
 
                       {membershipUnits > 1 && (
@@ -882,22 +884,22 @@ export default function Pricing() {
                       {discountAmount > 0 && (
                         <div className="flex justify-between items-center text-rose-500 font-bold mb-2">
                           <span className="text-[10px] uppercase tracking-widest pl-2">Promotion Discount</span>
-                          <span className="text-sm">-AED {discountAmount.toFixed(2)}</span>
+                          <span className="text-sm">-{currency} {discountAmount.toFixed(2)}</span>
                         </div>
                       )}
                       {appliedCoupon && (
                         <div className="flex justify-between items-center text-emerald-600 font-bold mb-2">
                           <span className="text-[10px] uppercase tracking-widest pl-2">Voucher Redeemed</span>
-                          <span className="text-sm">-AED {appliedCoupon.amount.toFixed(2)}</span>
+                          <span className="text-sm">-{currency} {appliedCoupon.amount.toFixed(2)}</span>
                         </div>
                       )}
 
                       <div className="flex justify-between items-center text-sm font-bold border-t border-slate-200 pt-3">
                         <span className="text-ink/60">
-                           VAT ({activeTax?.value}{activeTax?.type === 'percentage' ? '%' : ' AED'})
+                           VAT ({activeTax?.value}{activeTax?.type === 'percentage' ? '%' : ` ${currency}`})
                            {activeTax?.calculationMethod === 'inclusive' && <span className="block text-[8px] font-black uppercase text-brand-blue/40 tracking-widest">Included in price</span>}
                         </span>
-                        <span className="text-ink">AED {currTaxValue.toFixed(2)}</span>
+                        <span className="text-ink">{currency} {currTaxValue.toFixed(2)}</span>
                       </div>
 
                       <div className="flex justify-between items-end border-t border-slate-200 pt-4">
@@ -905,7 +907,7 @@ export default function Pricing() {
                           <p className="text-[10px] font-black uppercase tracking-widest text-brand-blue">Final Payable</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-black text-brand-blue leading-none">AED {finalTotalAmount.toFixed(2)}</p>
+                          <p className="text-2xl font-black text-brand-blue leading-none">{currency} {finalTotalAmount.toFixed(2)}</p>
                         </div>
                       </div>
                     </div>
@@ -966,7 +968,7 @@ export default function Pricing() {
                               </>
                            ) : (
                               <>
-                                 <span>🔒 Securely Pay AED {finalTotalAmount.toFixed(2)}</span>
+                                 <span>🔒 Securely Pay {currency} {finalTotalAmount.toFixed(2)}</span>
                               </>
                            )}
                          </button>

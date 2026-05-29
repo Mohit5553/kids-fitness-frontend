@@ -1,4 +1,8 @@
+import { Link } from 'react-router-dom';
+import { useSettings } from '../context/SettingsContext.jsx';
+
 export default function PricingCard({ plan }) {
+  const { currency } = useSettings();
   const hasPromotion = plan.activePromotions && plan.activePromotions.length > 0;
   const promo = hasPromotion ? plan.activePromotions[0] : null;
 
@@ -17,11 +21,11 @@ export default function PricingCard({ plan }) {
           <h3 className="font-display text-3xl font-black text-ink leading-tight">{plan.name}</h3>
           <div className="mt-4 flex flex-col">
             <span className={`${hasPromotion ? 'text-sm text-slate-300 line-through font-bold' : 'text-4xl font-black text-brand-blue'}`}>
-              AED {plan.price}
+              {currency} {plan.price}
             </span>
             {hasPromotion && promo.discountValue && (
               <span className="text-4xl font-black text-coral mt-1">
-                AED {promo.discountType === 'percentage' 
+                {currency} {promo.discountType === 'percentage' 
                   ? Math.round(plan.price * (1 - promo.discountValue / 100)) 
                   : Math.max(0, plan.price - promo.discountValue)}
               </span>

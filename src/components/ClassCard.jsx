@@ -1,8 +1,10 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { useSettings } from '../context/SettingsContext.jsx';
 
 export default function ClassCard({ item }) {
   const hasPromotion = item.activePromotions && item.activePromotions.length > 0;
   const promo = hasPromotion ? item.activePromotions[0] : null;
+  const { currency } = useSettings();
 
   return (
     <div className={`soft-card rounded-[40px] p-6 transition-all hover:-translate-y-2 hover:shadow-2xl group border relative overflow-hidden ${hasPromotion ? 'border-coral shadow-[0_0_20px_rgba(255,83,83,0.1)]' : 'border-slate-100/50'}`}>
@@ -31,11 +33,11 @@ export default function ClassCard({ item }) {
         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-ocean bg-ocean/5 px-4 py-1.5 rounded-full">{item.ageGroup}</span>
         <div className="flex flex-col items-end">
             <span className={`${(hasPromotion && promo.promoType !== 'bogo') ? 'text-xs text-slate-300 line-through font-bold' : 'text-lg font-black text-brand-blue'}`}>
-               AED {item.price}
+               {currency} {item.price}
             </span>
             {hasPromotion && promo.promoType !== 'bogo' && (
                <span className="text-lg font-black text-coral">
-                  AED {promo.discountType === 'percentage' 
+                  {currency} {promo.discountType === 'percentage' 
                      ? Math.round(item.price * (1 - promo.discountValue / 100)) 
                      : Math.max(0, item.price - promo.discountValue)}
                </span>

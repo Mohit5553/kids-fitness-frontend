@@ -7,12 +7,14 @@ import api from '../../api/api.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import toast from 'react-hot-toast';
 import { getImageUrl } from '../../api/api.js';
+import { useSettings } from '../../context/SettingsContext.jsx';
 
 export default function ExpensesManagement() {
   const { roleSlug } = useParams();
   const [expenses, setExpenses] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { currency } = useSettings();
   
   // Filters
   const [filterCategory, setFilterCategory] = useState('all');
@@ -28,7 +30,7 @@ export default function ExpensesManagement() {
     title: '',
     category: 'Other',
     amount: '',
-    currency: 'AED',
+    currency: currency,
     date: new Date().toISOString().split('T')[0],
     locationId: '',
     description: '',
@@ -104,7 +106,7 @@ export default function ExpensesManagement() {
         title: expense.title,
         category: expense.category,
         amount: expense.amount,
-        currency: expense.currency || 'AED',
+        currency: expense.currency || currency,
         date: expense.date ? new Date(expense.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         locationId: expense.locationId?._id || '',
         description: expense.description || '',
@@ -163,7 +165,7 @@ export default function ExpensesManagement() {
           <div className="rounded-[32px] bg-white p-8 shadow-sm border border-slate-100 flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-ink/40 uppercase tracking-widest mb-1">Total Expenses</p>
-              <p className="text-3xl font-black text-ink">{totalAmount.toLocaleString()} AED</p>
+              <p className="text-3xl font-black text-ink">{totalAmount.toLocaleString()} {currency}</p>
             </div>
             <div className="w-12 h-12 rounded-full bg-coral/10 text-coral flex items-center justify-center text-xl">
               💰
@@ -251,7 +253,7 @@ export default function ExpensesManagement() {
                   <th className="p-6">Date</th>
                   <th className="p-6">Title / Category</th>
                   <th className="p-6">Branch</th>
-                  <th className="p-6 text-right">Amount (AED)</th>
+                  <th className="p-6 text-right">Amount ({currency})</th>
                   <th className="p-6 text-center">Receipt</th>
                   <th className="p-6 text-right">Actions</th>
                 </tr>
@@ -362,7 +364,7 @@ export default function ExpensesManagement() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-black text-ink/40 uppercase tracking-widest mb-2 block">Amount (AED) *</label>
+                  <label className="text-[10px] font-black text-ink/40 uppercase tracking-widest mb-2 block">Amount ({currency}) *</label>
                   <input
                     type="number"
                     required

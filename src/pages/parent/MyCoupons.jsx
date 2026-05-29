@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useSettings } from '../../context/SettingsContext.jsx';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import toast from 'react-hot-toast';
 
 export default function MyCoupons() {
+  const { currency } = useSettings();
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -62,7 +64,7 @@ export default function MyCoupons() {
                     🎟️
                   </div>
                   <div>
-                    <p className="text-3xl font-black text-ink">AED {coupon.amount}</p>
+                    <p className="text-3xl font-black text-ink">{currency} {coupon.amount}</p>
                     <p className="text-[10px] font-black text-brand-blue uppercase tracking-widest">Voucher Value</p>
                   </div>
                 </div>

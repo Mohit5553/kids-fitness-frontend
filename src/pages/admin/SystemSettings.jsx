@@ -6,6 +6,8 @@ import AdminHeader from '../../components/AdminHeader.jsx';
 import api from '../../api/api.js';
 import toast from 'react-hot-toast';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import Select from 'react-select';
+import { countries } from '../../utils/countries.js';
 
 const defaultCompanyInfo = {
   name: 'JTS Booking',
@@ -238,6 +240,52 @@ export default function SystemSettings() {
                   onChange={(e) => setCompanyInfo({...companyInfo, address: e.target.value})}
                   required
                 />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-ink/30 uppercase px-1">Country</label>
+                  <Select
+                    options={countries.map(c => ({ value: c.name, label: c.name, currency: c.currency }))}
+                    value={countries.find(c => c.name === companyInfo.country) ? { value: companyInfo.country, label: companyInfo.country, currency: companyInfo.currency } : null}
+                    onChange={(selected) => {
+                      if (selected) {
+                        setCompanyInfo({...companyInfo, country: selected.value, currency: selected.currency});
+                      } else {
+                        setCompanyInfo({...companyInfo, country: '', currency: ''});
+                      }
+                    }}
+                    placeholder="Search country..."
+                    isClearable
+                    styles={{
+                      control: (base, state) => ({
+                        ...base,
+                        borderRadius: '1rem',
+                        border: state.isFocused ? '2px solid #1a6bff' : '2px solid #f1f5f9',
+                        padding: '2px',
+                        boxShadow: 'none',
+                        '&:hover': {
+                          border: state.isFocused ? '2px solid #1a6bff' : '2px solid #f1f5f9'
+                        }
+                      }),
+                      menu: (base) => ({
+                        ...base,
+                        borderRadius: '1rem',
+                        overflow: 'hidden',
+                        zIndex: 50
+                      })
+                    }}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-ink/30 uppercase px-1">Currency Symbol</label>
+                  <input 
+                    className="w-full rounded-2xl border-2 border-slate-100 p-3 outline-none bg-slate-50 text-ink/50"
+                    value={companyInfo.currency || ''}
+                    readOnly
+                    placeholder="Auto-filled"
+                  />
+                </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">

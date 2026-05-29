@@ -1,4 +1,5 @@
 import { getImageUrl  } from '../api/api.js';
+import { useSettings } from '../context/SettingsContext.jsx';
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
@@ -17,6 +18,7 @@ const emptyChild = {
 };
 
 export default function Register() {
+  const { currency } = useSettings();
   const navigate = useNavigate();
   const { user, login } = useAuth();
   const [searchParams] = useSearchParams();
@@ -572,7 +574,7 @@ export default function Register() {
             <li>During certain special offer periods (e.g. pre-opening) the MY FIRST GYM management may in its sole discretion choose to remove or reduce the Joining Fee.</li>
             <li>The Joining Fee (if one is payable/applicable at the time of you joining) and first Monthly Recurring Payment are collected from you by us either by Debit or Credit card at time of purchase at the same time as you become a member.</li>
             <li>Your second Monthly Recurring Payment will be collected one month after you joined, unless you joined prior to your facility opening in which case it will be collected one month after the facility has opened. Subsequent Monthly Recurring Payments for monthly membership fees will be collected monthly thereafter.</li>
-            <li>If any Monthly Recurring Payment is returned unpaid or any cheque is returned unpaid or if any other form of payment is not honoured for whatever reason, you shall pay us on demand an administration fee of AED 200. If, despite us having notified you of a missed payment, further payments are missed, we reserve the right to, at our sole election, either suspend or terminate your membership. If you are ever over 30 days in arrears on a missed monthly payment then we reserve the right to bill you immediately after the 30 day grace period for the remaining contract value without any prior notification.</li>
+            <li>If any Monthly Recurring Payment is returned unpaid or any cheque is returned unpaid or if any other form of payment is not honoured for whatever reason, you shall pay us on demand an administration fee of {currency} 200. If, despite us having notified you of a missed payment, further payments are missed, we reserve the right to, at our sole election, either suspend or terminate your membership. If you are ever over 30 days in arrears on a missed monthly payment then we reserve the right to bill you immediately after the 30 day grace period for the remaining contract value without any prior notification.</li>
             <li>You are obligated to make the minimum number of Monthly Recurring Payments stated in your choice of membership. You are obligated to make every Recurring Payment regardless of non-attendance, except where the cancellation terms below are met.</li>
             <li>The date of your Monthly recurring Payment is likely to be the same date on each month as the first Monthly Recurring Payment. You are unable to amend the date of your Recurring Payment but we reserve the right to amend the date of your Monthly Recurring Payment at our sole discretion.</li>
             <li>Once you have completed the minimum number of Monthly Recurring Payments as stated in your membership choice we will automatically continue collecting Monthly Recurring Payments every month. Your membership will be extended by one month for each payment (“Renewal Period”).</li>
@@ -590,7 +592,7 @@ export default function Register() {
 
           <p className="font-bold text-ink pt-2 uppercase tracking-tighter">PAYMENT METHOD</p>
           <ul className="list-disc pl-4 space-y-1">
-            <li>We accept payment by Visa or Mastercard debit and credit cards in AED for our memberships and other products and services. All online purchases are also governed by the terms and conditions of respective merchant service providers. Please review respective merchant service provider’s user agreement and privacy policy before entering any transaction.</li>
+            <li>We accept payment by Visa or Mastercard debit and credit cards in {currency} for our memberships and other products and services. All online purchases are also governed by the terms and conditions of respective merchant service providers. Please review respective merchant service provider’s user agreement and privacy policy before entering any transaction.</li>
             <li>Payment confirmation via email to the email address you provide at the point of registration will be issued within 24 hours of successful processing of your payment.</li>
             <li>You, as the cardholder must retain a copy of transaction records and Merchant policies and rules.</li>
             <li>You are responsible for maintaining the confidentiality of your membership account and payment details.</li>

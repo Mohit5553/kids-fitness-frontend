@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import { useSettings } from '../../context/SettingsContext.jsx';
 
 /* ── helpers ── */
 function formatDateLabel(iso) {
@@ -18,8 +19,8 @@ function formatTime(iso) {
 function formatDateKey(iso) {
   return iso ? new Date(iso).toISOString().slice(0, 10) : 'unknown';
 }
-function formatCurrency(amount) {
-  return `AED ${Number(amount || 0).toFixed(2)}`;
+function formatCurrency(amount, currencySymbol = 'AED') {
+  return `${currencySymbol} ${Number(amount || 0).toFixed(2)}`;
 }
 
 const STATUS_COLORS = {
@@ -70,6 +71,7 @@ export default function PaymentHistory() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [filter, setFilter]     = useState('all'); // all | paid | pending | failed
+  const { currency } = useSettings();
 
   useEffect(() => {
     setLoading(true);
@@ -131,7 +133,7 @@ export default function PaymentHistory() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <div className="rounded-2xl p-5 flex flex-col gap-1" style={{ background: 'rgba(26,107,255,0.07)', border: '1px solid rgba(26,107,255,0.2)' }}>
             <p className="text-xs font-bold uppercase tracking-widest text-brand-blue">Total Spent</p>
-            <p className="text-2xl font-black text-brand-black">{formatCurrency(totalPaid)}</p>
+            <p className="text-2xl font-black text-brand-black">{formatCurrency(totalPaid, currency)}</p>
             <p className="text-xs text-brand-black/40">{countPaid} successful payment{countPaid !== 1 ? 's' : ''}</p>
           </div>
           <div className="rounded-2xl p-5 flex flex-col gap-1" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
@@ -204,7 +206,7 @@ export default function PaymentHistory() {
                       </h2>
                     </div>
                     {dayTotal > 0 && (
-                      <span className="text-sm font-black text-brand-blue">{formatCurrency(dayTotal)}</span>
+                      <span className="text-sm font-black text-brand-blue">{formatCurrency(dayTotal, currency)}</span>
                     )}
                   </div>
 
@@ -256,7 +258,7 @@ export default function PaymentHistory() {
                             <div className="flex items-center gap-6">
                               <div className="flex flex-col items-end gap-1.5 shrink-0">
                                 <p className="text-lg font-black" style={{ color: sc.text }}>
-                                  {formatCurrency(payment.amount)}
+                                  {formatCurrency(payment.amount, currency)}
                                 </p>
                                 <StatusBadge status={payment.status} />
                               </div>
@@ -316,7 +318,7 @@ export default function PaymentHistory() {
                                       </div>
                                       <div className="flex justify-between items-center text-sm">
                                         <span className="text-brand-black/40 font-bold">Total Amount</span>
-                                        <span className="font-black text-brand-black">{formatCurrency(payment.invoice.amount)}</span>
+                                        <span className="font-black text-brand-black">{formatCurrency(payment.invoice.amount, currency)}</span>
                                       </div>
                                       <div className="pt-2">
                                         <Link 

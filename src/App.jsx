@@ -65,29 +65,31 @@ import ExtensionPanel from './pages/admin/ExtensionPanel.jsx';
 import ExpensesManagement from './pages/admin/ExpensesManagement.jsx';
 import UATManagement from './pages/admin/UATManagement.jsx';
 import TrainerDashboard from './pages/trainer/TrainerDashboard.jsx';
+import { SettingsProvider } from './context/SettingsContext.jsx';
 
 export default function App() {
   return (
-    <SocketProvider>
-      <AuthProvider>
-        <BranchProvider>
-        <Toaster />
-        <Routes>
-          {/* ... existing routes ... */}
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/programs" element={<Programs />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/schedule" element={<Schedule />} />
-          <Route path="/gallery" element={<Gallery />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/book-trial" element={<BookTrial />} />
-          <Route path="/quick-checkin" element={<QuickCheckin />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/calendar" element={<Calendar />} />
-          <Route path="/book" element={<BookingFlow />} />
-          <Route path="/lookup" element={<GuestBookingLookup />} />
+    <SettingsProvider>
+      <SocketProvider>
+        <AuthProvider>
+          <BranchProvider>
+          <Toaster />
+          <Routes>
+            {/* ... existing routes ... */}
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/programs" element={<Programs />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/gallery" element={<Gallery />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/book-trial" element={<BookTrial />} />
+            <Route path="/quick-checkin" element={<QuickCheckin />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/book" element={<BookingFlow />} />
+            <Route path="/lookup" element={<GuestBookingLookup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/health-declaration" element={<MemberHealthDeclaration />} />
@@ -198,5 +200,6 @@ export default function App() {
       </BranchProvider>
     </AuthProvider>
   </SocketProvider>
+  </SettingsProvider>
   );
 }
