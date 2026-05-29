@@ -6,6 +6,7 @@ import AdminHeader from '../../components/AdminHeader.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import { BASE_URL  } from '../../api/api.js';
 
 export default function AdminDashboard() {
   const { roleSlug } = useParams();
@@ -32,6 +33,7 @@ export default function AdminDashboard() {
     { to: `${base}/taxes`, title: 'Tax Master', desc: 'Manage VAT and local tax rules location-wise.', perm: 'settings:view' },
     { to: `${base}/vouchers`, title: 'Vouchers', desc: 'Generate and print gift or promo vouchers.', perm: 'promotions:view' },
     { to: `${base}/extensions`, title: 'Extension requests', desc: 'Handle missed session reschedule or duration extensions.', perm: 'memberships:view' },
+    { to: `${base}/expenses`, title: 'Expense Management', desc: 'Track salaries, equipment, and other expenses.', perm: 'expenses:view' },
     { to: `${base}/uat`, title: 'UAT Management', desc: 'Isolate test data and promote configs to Live.', role: 'superadmin' }
   ];
 
@@ -54,8 +56,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     // Socket.io initialization
-    const socketUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace('/api', '');
-    const socket = io(socketUrl, { transports: ['polling', 'websocket'] });
+    const socket = io(BASE_URL, { transports: ['polling', 'websocket'] });
 
     socket.on('connect', () => {
       socket.emit('join_admin');

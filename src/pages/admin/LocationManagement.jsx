@@ -1,3 +1,4 @@
+import { getImageUrl  } from '../../api/api.js';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
@@ -203,7 +204,7 @@ export default function LocationManagement() {
                                         {formData.imageUrl && (
                                             <div className="h-20 w-20 rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-white shrink-0 relative group/preview">
                                                 <img 
-                                                    src={formData.imageUrl.startsWith('http') ? formData.imageUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${formData.imageUrl}`} 
+                                                    src={getImageUrl(formData.imageUrl)} 
                                                     alt="Preview" 
                                                     className="h-full w-full object-cover"
                                                 />
@@ -275,7 +276,7 @@ export default function LocationManagement() {
                                 <div className="relative h-40 w-full overflow-hidden bg-slate-100">
                                     {loc.imageUrl ? (
                                         <img 
-                                            src={loc.imageUrl.startsWith('http') ? loc.imageUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${loc.imageUrl}`} 
+                                            src={getImageUrl(loc.imageUrl)} 
                                             alt={loc.name} 
                                             className="h-full w-full object-cover transition duration-500 group-hover:scale-110" 
                                         />

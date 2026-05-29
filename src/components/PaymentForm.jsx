@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useSettings } from '../context/SettingsContext.jsx';
 
 export default function PaymentForm({ totalAmount, onSubmit, onCancel }) {
+  const { currency } = useSettings();
   const [form, setForm] = useState({
     cardNumber: '',
     expiry: '',
@@ -44,7 +46,7 @@ export default function PaymentForm({ totalAmount, onSubmit, onCancel }) {
           </svg>
         </div>
         <h2 className="font-display text-3xl font-black text-ink">Secure Payment</h2>
-        <p className="text-ink/60 mt-1">Total to pay: <span className="text-brand-blue font-black">AED {totalAmount}</span></p>
+        <p className="text-ink/60 mt-1">Total to pay: <span className="text-brand-blue font-black">{currency} {totalAmount}</span></p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 max-w-sm mx-auto">
@@ -115,7 +117,7 @@ export default function PaymentForm({ totalAmount, onSubmit, onCancel }) {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                 Processing...
               </>
-            ) : `Pay AED ${totalAmount}`}
+            ) : `Pay ${currency} ${totalAmount}`}
           </button>
           <button
             type="button"

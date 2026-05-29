@@ -5,6 +5,7 @@ import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import AdminHeader from '../../components/AdminHeader.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import { useSettings } from '../../context/SettingsContext.jsx';
 
 /* ── helpers ── */
 function formatDate(iso) {
@@ -40,8 +41,8 @@ function formatDateKey(iso) {
   const d = new Date(iso);
   return d.toISOString().slice(0, 10); // YYYY-MM-DD for grouping
 }
-function formatCurrency(amount) {
-  return `AED ${Number(amount || 0).toFixed(2)}`;
+function formatCurrency(amount, currencySymbol = 'AED') {
+  return `${currencySymbol} ${Number(amount || 0).toFixed(2)}`;
 }
 function isToday(iso) {
   const d = new Date(iso).toISOString().slice(0, 10);
@@ -108,6 +109,7 @@ export default function PaymentsManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
   const { can } = usePermissions();
+  const { currency } = useSettings();
 
   const canExport = can('payments:view'); // Assuming if they can view, they can export, or we can use another perm.
 
@@ -248,9 +250,9 @@ export default function PaymentsManagement() {
 
         {/* ── Summary Stats ── */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
-          <StatCard label="Total Revenue"  value={formatCurrency(stats.totalRevenue)} sub={`${stats.total} paid`}       accent="#1a6bff" />
-          <StatCard label="This Month"     value={formatCurrency(stats.monthRevenue)} sub="current month"               accent="#8b5cf6" />
-          <StatCard label="Today"          value={formatCurrency(stats.todayRevenue)} sub="today's earnings"            accent="#10b981" />
+          <StatCard label="Total Revenue"  value={formatCurrency(stats.totalRevenue, currency)} sub={`${stats.total} paid`}       accent="#1a6bff" />
+          <StatCard label="This Month"     value={formatCurrency(stats.monthRevenue, currency)} sub="current month"               accent="#8b5cf6" />
+          <StatCard label="Today"          value={formatCurrency(stats.todayRevenue, currency)} sub="today's earnings"            accent="#10b981" />
           <StatCard label="Paid"           value={stats.total}                        sub="transactions"                accent="#059669" />
           <StatCard label="Pending"        value={stats.pending}                      sub="awaiting payment"            accent="#f59e0b" />
           <StatCard label="Failed"         value={stats.failed}                       sub="unsuccessful"                accent="#ef4444" />
@@ -387,7 +389,7 @@ export default function PaymentsManagement() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-brand-black/40">{dayPayments.length} txn{dayPayments.length !== 1 ? 's' : ''}</span>
-                    <span className="text-sm font-black text-brand-blue">{formatCurrency(dayTotal)}</span>
+                    <span className="text-sm font-black text-brand-blue">{formatCurrency(dayTotal, currency)}</span>
                   </div>
                 </div>
 
@@ -468,7 +470,7 @@ export default function PaymentsManagement() {
                           <div className="flex items-center gap-6">
                             <div className="flex flex-col items-end gap-1.5 shrink-0">
                               <p className="text-lg font-black" style={{ color: sc.text }}>
-                                {formatCurrency(payment.amount)}
+                                {formatCurrency(payment.amount, currency)}
                               </p>
                               <StatusBadge status={payment.status} />
                               <p className="text-[10px] text-brand-black/35">{formatTime(payment.createdAt)}</p>
@@ -540,7 +542,7 @@ export default function PaymentsManagement() {
                                     </div>
                                     <div className="flex justify-between items-center text-sm">
                                       <span className="text-brand-black/40 font-bold">Billed Amount</span>
-                                      <span className="font-black text-brand-black">{formatCurrency(payment.invoice.amount)}</span>
+                                      <span className="font-black text-brand-black">{formatCurrency(payment.invoice.amount, currency)}</span>
                                     </div>
                                     <div className="pt-2">
                                       <a 

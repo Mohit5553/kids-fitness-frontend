@@ -7,12 +7,14 @@ import LocationPicker from '../components/LocationPicker.jsx';
 import api from '../api/api.js';
 import { getLocationSlug, getLocationId } from '../utils/location.js';
 import { getUser } from '../utils/auth.js';
+import { useSettings } from '../context/SettingsContext.jsx';
 
 
 const formatTime = (value) =>
   new Date(value).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 
 export default function Schedule() {
+  const { currency } = useSettings();
   const user = getUser();
   const isAdmin = user && ['admin', 'superadmin'].includes(user.role);
   const [sessions, setSessions] = useState([]);
@@ -258,7 +260,7 @@ export default function Schedule() {
                           {session.classId?.ageGroup || 'All Ages'}
                         </span>
                         <span className="rounded-full bg-brand-blue/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-brand-blue">
-                          AED {session.classId?.price || 0}
+                          {currency} {session.classId?.price || 0}
                         </span>
                         {(() => {
                           if (session.membershipId) {

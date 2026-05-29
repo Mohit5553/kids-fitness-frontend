@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useSettings } from '../../context/SettingsContext.jsx';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -7,6 +8,7 @@ import toast from 'react-hot-toast';
 import { useSocket } from '../../context/SocketContext.jsx';
 
 export default function TrainerDashboard() {
+  const { currency } = useSettings();
   const [activeTab, setActiveTab] = useState('schedule');
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -622,7 +624,7 @@ export default function TrainerDashboard() {
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-[10px] font-black text-ink/70">AED {booking.totalAmount}</span>
+                                <span className="text-[10px] font-black text-ink/70">{currency} {booking.totalAmount}</span>
                               </div>
                             </div>
                           ))}
@@ -738,7 +740,7 @@ export default function TrainerDashboard() {
                                 </button>
                               )}
                             </div>
-                            <span className="text-[10px] font-black text-ink/70">AED {booking.totalAmount}</span>
+                            <span className="text-[10px] font-black text-ink/70">{currency} {booking.totalAmount}</span>
                           </div>
                         </div>
                       ))}
@@ -818,7 +820,7 @@ export default function TrainerDashboard() {
                           <div className="h-2 w-2 rounded-full bg-green-500"></div>
                           <span className="text-[10px] font-black uppercase tracking-widest text-ink/80">{booking.status}</span>
                         </div>
-                        <span className="text-xs font-black text-ink/40">AED {booking.totalAmount}</span>
+                        <span className="text-xs font-black text-ink/40">{currency} {booking.totalAmount}</span>
                       </div>
                     </div>
                   ))}

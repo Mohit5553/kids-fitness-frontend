@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSettings } from '../../context/SettingsContext.jsx';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
@@ -143,6 +144,7 @@ function TimeView({ sessions }) {
 // --- Main Membership Page Component ---
 
 export default function Membership() {
+  const { currency } = useSettings();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [memberships, setMemberships] = useState([]);
@@ -691,7 +693,7 @@ export default function Membership() {
 
                   <div className="mt-8 mb-8 pb-8 border-b border-slate-100">
                     <div className="flex items-baseline">
-                      <span className="text-sm font-black text-ink/20 mr-2">AED</span>
+                      <span className="text-sm font-black text-ink/20 mr-2">{currency}</span>
                       <span className="text-6xl font-black text-brand-blue tracking-tighter">
                         {plan.price}
                       </span>
@@ -732,7 +734,7 @@ export default function Membership() {
             <div className="bg-brand-blue p-10 text-white relative flex justify-between items-center">
               <div>
                 <h3 className="font-display text-3xl font-black mb-1">Complete Enrollment</h3>
-                <p className="text-xs text-white/60 font-black uppercase tracking-widest">{selectedPlan?.name} · AED {selectedPlan?.price}</p>
+                <p className="text-xs text-white/60 font-black uppercase tracking-widest">{selectedPlan?.name} · {currency} {selectedPlan?.price}</p>
               </div>
               <button onClick={closeCheckout} className="p-3 hover:bg-white/10 rounded-2xl transition-all border border-white/10">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -888,7 +890,7 @@ export default function Membership() {
                   {couponAmount > 0 && (
                     <p className="mt-1 text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                      AED {couponAmount} applied to this transaction!
+                      {currency} {couponAmount} applied to this transaction!
                     </p>
                   )}
                 </div>
@@ -936,7 +938,7 @@ export default function Membership() {
                     disabled={loading}
                     className="w-full bg-brand-blue text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl shadow-brand-blue/20 hover:shadow-brand-blue/40 transition-all hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-50"
                   >
-                    {loading ? 'Processing...' : `Pay AED ${Math.max(0, (selectedPlan?.price || 0) - couponAmount)}`}
+                    {loading ? 'Processing...' : `Pay {currency} ${Math.max(0, (selectedPlan?.price || 0) - couponAmount)}`}
                     {!loading && <span>➜</span>}
                   </button>
                   <p className="mt-4 text-center text-[8px] font-black text-ink/20 uppercase tracking-[0.2em]">Secure 256-bit SSL Encrypted Transaction</p>

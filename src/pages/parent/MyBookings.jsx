@@ -9,6 +9,7 @@ import api from '../../api/api.js';
 // - [/] Update search logic in `MyBookings.jsx` to include plans <!-- id: 69 -->
 
 export default function MyBookings() {
+  const { currency } = useSettings();
   const [bookings, setBookings] = useState([]);
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -387,7 +388,7 @@ export default function MyBookings() {
             <div className="bg-brand-blue p-8 text-white relative overflow-hidden">
               <div className="relative z-10">
                 <h3 className="font-display text-3xl font-black">Complete Payment</h3>
-                <p className="mt-1 text-sm text-white/80 font-medium italic">Pay for {selectedBooking.classId?.title} • AED {selectedBooking.totalAmount || selectedBooking.classId?.price || 0}</p>
+                <p className="mt-1 text-sm text-white/80 font-medium italic">Pay for {selectedBooking.classId?.title} • {currency} {selectedBooking.totalAmount || selectedBooking.classId?.price || 0}</p>
               </div>
               {/* Decorative circle */}
               <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
@@ -456,7 +457,7 @@ export default function MyBookings() {
                         <span>Processing Payment...</span>
                       </>
                     ) : (
-                      `Pay AED ${selectedBooking.totalAmount || selectedBooking.classId?.price || 0}`
+                      `Pay {currency} ${selectedBooking.totalAmount || selectedBooking.classId?.price || 0}`
                     )}
                   </button>
                   <button
@@ -520,7 +521,7 @@ export default function MyBookings() {
                       <p className="text-xs text-ink/50">{detailBooking.bookingType === 'package' ? 'Membership Package' : 'Single Session'}</p>
                     </div>
                     <div className="ml-auto text-right">
-                      <p className="font-black text-brand-blue">AED {detailBooking.totalAmount}</p>
+                      <p className="font-black text-brand-blue">{currency} {detailBooking.totalAmount}</p>
                       <p className="text-[10px] text-ink/30 uppercase font-bold">{detailBooking.paymentMethod?.replace('center_', '') || 'Card'}</p>
                     </div>
                   </div>

@@ -1,3 +1,4 @@
+import { getImageUrl  } from '../../api/api.js';
 import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
@@ -265,7 +266,7 @@ export default function TrainersManagement() {
                     />
                     {form.avatarUrl && (
                       <img 
-                        src={form.avatarUrl.startsWith('http') ? form.avatarUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${form.avatarUrl}`} 
+                        src={getImageUrl(form.avatarUrl)} 
                         className="h-10 w-10 rounded-full object-cover border" 
                         alt="Preview" 
                       />
@@ -296,7 +297,7 @@ export default function TrainersManagement() {
                       {(form.gallery || []).map((img, idx) => (
                         <div key={idx} className="relative group/img w-16 h-16 rounded-xl overflow-hidden border border-slate-200">
                           <img 
-                            src={img.startsWith('http') ? img : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${img}`} 
+                            src={getImageUrl(img)} 
                             className="w-full h-full object-cover" 
                             alt={`Gallery ${idx}`} 
                           />
@@ -415,7 +416,7 @@ export default function TrainersManagement() {
                   <div className="h-14 w-14 rounded-2xl bg-slate-50 flex items-center justify-center text-xl overflow-hidden shrink-0">
                     {trainer.avatarUrl ? (
                       <img 
-                        src={trainer.avatarUrl.startsWith('http') ? trainer.avatarUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${trainer.avatarUrl}`} 
+                        src={getImageUrl(trainer.avatarUrl)} 
                         className="h-full w-full object-cover" 
                         alt={trainer.name} 
                       />

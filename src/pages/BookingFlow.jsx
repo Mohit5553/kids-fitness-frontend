@@ -1,3 +1,4 @@
+import { getImageUrl  } from '../api/api.js';
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../api/api.js';
@@ -5,10 +6,12 @@ import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import { getUser } from '../utils/auth.js';
 import PaymentForm from '../components/PaymentForm.jsx';
+import { useSettings } from '../context/SettingsContext.jsx';
 
 export default function BookingFlow() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { currency } = useSettings();
   const classIdFromUrl = searchParams.get('classId');
   const locationIdFromUrl = searchParams.get('locationId');
   const sessionIdFromUrl = searchParams.get('sessionId');
@@ -652,7 +655,7 @@ export default function BookingFlow() {
                            {c.ageGroup}
                          </div>
                          <img 
-                           src={c.imageUrl ? (c.imageUrl.startsWith('http') ? c.imageUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${c.imageUrl}`) : `https://images.unsplash.com/photo-1594498653385-d5172c532c00?auto=format&fit=crop&q=80&w=800`} 
+                           src={c.imageUrl ? (getImageUrl(c.imageUrl)) : `https://images.unsplash.com/photo-1594498653385-d5172c532c00?auto=format&fit=crop&q=80&w=800`} 
                            alt="" 
                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 select-none pointer-events-none" 
                            onError={(e) => {
@@ -667,7 +670,7 @@ export default function BookingFlow() {
                         <span className="bg-ocean/5 text-ocean text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border border-ocean/10">{c.duration}</span>
                         <div className="text-right">
                           <span className="text-[10px] font-black uppercase tracking-widest text-ink/30 block mb-0.5">Per Person</span>
-                          <span className="text-xl font-black text-ink">AED {c.price}</span>
+                          <span className="text-xl font-black text-ink">{currency} {c.price}</span>
                         </div>
                       </div>
                     </button>
@@ -689,7 +692,7 @@ export default function BookingFlow() {
                       <div className="w-16 h-16 rounded-[24px] bg-slate-50 flex items-center justify-center text-3xl overflow-hidden shrink-0">
                         {loc.imageUrl ? (
                           <img
-                            src={loc.imageUrl.startsWith('http') ? loc.imageUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${loc.imageUrl}`}
+                            src={getImageUrl(loc.imageUrl)}
                             alt={loc.name}
                             className="h-full w-full object-cover"
                           />
@@ -714,7 +717,7 @@ export default function BookingFlow() {
             {step === 3 && selectedClass && (
               <div className="animate-rise">
                 <h2 className="font-display text-3xl font-black text-ink mb-2">Trainer & Time</h2>
-                <p className="text-ink/60 mb-8">{selectedClass.title} • {selectedClass.duration} • AED {selectedClass.price}</p>
+                <p className="text-ink/60 mb-8">{selectedClass.title} • {selectedClass.duration} • {currency} {selectedClass.price}</p>
 
                 <div className="space-y-8">
                   <div>
@@ -867,7 +870,7 @@ export default function BookingFlow() {
                     </div>
                   </div>
                   <div className="md:text-right">
-                    <p className="text-2xl font-black text-ink">AED {selectedClass?.price || 0}</p>
+                    <p className="text-2xl font-black text-ink">{currency} {selectedClass?.price || 0}</p>
                     <p className="text-[10px] font-black uppercase tracking-widest text-ink/40 mt-1">Per Participant</p>
                   </div>
                 </div>
@@ -1089,7 +1092,7 @@ export default function BookingFlow() {
                                       : (() => {
                                           const saved = calculateDiscount(promo, totalPrice);
                                           const isPercent = promo.discountType === 'percentage' || promo.promoType === 'percentage';
-                                          return `Save AED ${Math.round(saved)}${isPercent ? ` (${promo.discountValue}% off)` : ''}`;
+                                          return `Save ${currency} ${Math.round(saved)}${isPercent ? ` (${promo.discountValue}% off)` : ''}`;
                                         })()
                                     }
                                   </p>
@@ -1183,7 +1186,7 @@ export default function BookingFlow() {
                           <div className="flex justify-between items-baseline">
                             <span className="text-sm font-bold text-ink/40">Gross Subtotal</span>
                             <span className="text-sm font-black text-ink">
-                               AED {(activeTax?.calculationMethod === 'inclusive' ? (totalPrice - taxAmount) : totalPrice).toLocaleString()}
+                               {currency} {(activeTax?.calculationMethod === 'inclusive' ? (totalPrice - taxAmount) : totalPrice).toLocaleString()}
                             </span>
                           </div>
 
@@ -1193,7 +1196,7 @@ export default function BookingFlow() {
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                 Promotions & Savings
                               </span>
-                              <span className="text-sm font-black text-emerald-600">-AED {discountAmount.toLocaleString()}</span>
+                              <span className="text-sm font-black text-emerald-600">-{currency} {discountAmount.toLocaleString()}</span>
                             </div>
                           )}
 
@@ -1202,7 +1205,7 @@ export default function BookingFlow() {
                               <span className="text-[11px] font-black uppercase tracking-widest text-ink/30 italic">
                                 {activeTax?.calculationMethod === 'inclusive' ? 'Included' : 'Additional'} VAT ({activeTax?.value}% {activeTax?.name})
                               </span>
-                              <span className="text-sm font-black text-ink/40">AED {taxAmount.toLocaleString()}</span>
+                              <span className="text-sm font-black text-ink/40">{currency} {taxAmount.toLocaleString()}</span>
                             </div>
                           )}
 
@@ -1210,7 +1213,7 @@ export default function BookingFlow() {
                             <span className="text-lg font-black text-ink">Total Amount</span>
                             <div className="text-right">
                               <p className="text-3xl font-black text-brand-blue tracking-tighter">
-                                AED {Math.max(0, (activeTax?.calculationMethod === 'inclusive' ? totalPrice : (totalPrice + taxAmount)) - discountAmount - couponAmount).toLocaleString()}
+                                {currency} {Math.max(0, (activeTax?.calculationMethod === 'inclusive' ? totalPrice : (totalPrice + taxAmount)) - discountAmount - couponAmount).toLocaleString()}
                               </p>
                               <p className="text-[9px] font-black uppercase tracking-widest text-ink/20 mt-1">Inclusive of all taxes</p>
                             </div>
@@ -1219,7 +1222,7 @@ export default function BookingFlow() {
 
                         <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
                           <p className="text-[10px] font-bold text-ink/40 leading-relaxed uppercase tracking-wider text-center md:text-left">
-                             {selectedClass?.price || 0} AED PER UNIT × {participants.length} PARTICIPANTS × {selectedSessions.length} SESSIONS
+                             {selectedClass?.price || 0} {currency} PER UNIT × {participants.length} PARTICIPANTS × {selectedSessions.length} SESSIONS
                           </p>
                         </div>
                       </div>
@@ -1280,7 +1283,7 @@ export default function BookingFlow() {
                             {couponAmount > 0 && (
                                 <p className="mt-3 text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                    ✓ AED {couponAmount} voucher active
+                                    ✓ {currency} {couponAmount} voucher active
                                 </p>
                             )}
                         </div>
@@ -1292,7 +1295,7 @@ export default function BookingFlow() {
                     >
                        <span>Secure Booking Now <span className="ml-2 group-hover:translate-x-1 transition-transform inline-block">→</span></span>
                        <span className="text-[10px] font-bold opacity-60 uppercase tracking-widest mt-1">
-                         Total: AED {Math.max(0, (totalPrice - discountAmount - couponAmount) + (activeTax?.calculationMethod === 'inclusive' ? 0 : taxAmount)).toLocaleString()}
+                         Total: {currency} {Math.max(0, (totalPrice - discountAmount - couponAmount) + (activeTax?.calculationMethod === 'inclusive' ? 0 : taxAmount)).toLocaleString()}
                        </span>
                     </button>
                     </div>
@@ -1482,7 +1485,7 @@ export default function BookingFlow() {
 
                       return (
                         <img
-                          src={currentImg.startsWith('http') ? currentImg : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${currentImg}`}
+                          src={getImageUrl(currentImg)}
                           alt="Trainer Active"
                           className="h-full w-full object-cover animate-in fade-in zoom-in-95 duration-500"
                         />
@@ -1525,7 +1528,7 @@ export default function BookingFlow() {
                             className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all cursor-pointer shadow-sm hover:scale-105 ${activeImage === idx ? 'border-brand-blue scale-110' : 'border-white hover:border-brand-blue/30'}`}
                           >
                             <img
-                              src={img.startsWith('http') ? img : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${img}`}
+                              src={getImageUrl(img)}
                               className="w-full h-full object-cover"
                               alt={`Thumbnail ${idx}`}
                             />

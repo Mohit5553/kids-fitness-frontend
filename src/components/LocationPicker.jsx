@@ -1,3 +1,4 @@
+import { getImageUrl  } from '../api/api.js';
 import { useEffect, useState } from 'react';
 import api from '../api/api.js';
 import { getSelectedLocation, setSelectedLocation } from '../utils/location.js';
@@ -71,7 +72,7 @@ export default function LocationPicker({ compact = false, allowAll = false }) {
           <div className="h-36 w-full bg-gradient-to-r from-sky-200 via-blue-200 to-emerald-100">
             {loc.imageUrl ? (
               <img
-                src={loc.imageUrl.startsWith('http') ? loc.imageUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${loc.imageUrl}`}
+                src={getImageUrl(loc.imageUrl)}
                 alt={loc.name}
                 className="h-full w-full object-cover"
               />

@@ -1,3 +1,4 @@
+import { getImageUrl  } from '../../api/api.js';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/api.js';
@@ -5,10 +6,12 @@ import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import AdminHeader from '../../components/AdminHeader.jsx';
 import { getUser } from '../../utils/auth.js';
+import { useSettings } from '../../context/SettingsContext.jsx';
 import { toast } from 'react-hot-toast';
 import { useBranch } from '../../context/BranchContext.jsx';
 
 export default function WalkingBooking() {
+  const { currency } = useSettings();
   const { roleSlug } = useParams();
   const navigate = useNavigate();
   const staff = useMemo(() => getUser(), []);
@@ -945,11 +948,11 @@ export default function WalkingBooking() {
                         <div className="mt-8 flex items-end justify-between">
                           <div className="flex flex-col">
                             {c.activePromotions?.length > 0 && (
-                              <span className="text-[10px] font-bold text-ink/20 line-through mb-1">AED {c.price}</span>
+                              <span className="text-[10px] font-bold text-ink/20 line-through mb-1">{currency} {c.price}</span>
                             )}
                             <div className="flex items-baseline gap-2">
                               <span className={`text-3xl font-black ${c.activePromotions?.length > 0 ? 'text-brand-blue' : 'text-ink'}`}>
-                                AED {c.activePromotions?.length > 0 ? calculateDiscount(c.activePromotions[0], c.price) === c.price ? '0' : Math.round((c.price - (c.activePromotions[0].discountType === 'percentage' || c.activePromotions[0].promoType === 'percentage' ? (c.price * (c.activePromotions[0].discountValue / 100)) : Math.min(c.price, c.activePromotions[0].discountValue))) * 100) / 100 : c.price}
+                                {currency} {c.activePromotions?.length > 0 ? calculateDiscount(c.activePromotions[0], c.price) === c.price ? '0' : Math.round((c.price - (c.activePromotions[0].discountType === 'percentage' || c.activePromotions[0].promoType === 'percentage' ? (c.price * (c.activePromotions[0].discountValue / 100)) : Math.min(c.price, c.activePromotions[0].discountValue))) * 100) / 100 : c.price}
                               </span>
                               <span className="text-xs font-bold text-ink/30 uppercase">/ session</span>
                             </div>
@@ -1053,11 +1056,11 @@ export default function WalkingBooking() {
                         <div className="mt-6 flex items-center justify-between">
                           <div className="flex flex-col">
                             {plan.activePromotions?.[0] && (
-                              <span className="text-[10px] font-bold text-ink/20 line-through">AED {plan.price.toLocaleString()}</span>
+                              <span className="text-[10px] font-bold text-ink/20 line-through">{currency} {plan.price.toLocaleString()}</span>
                             )}
                             <span className={`text-2xl font-black ${plan.activePromotions?.[0] ? 'text-brand-blue' : 'text-brand-blue'}`}>
                               {plan.activePromotions?.[0] ? Math.round((plan.price - (plan.activePromotions?.[0].discountType === 'percentage' || plan.activePromotions?.[0].promoType === 'percentage' ? (plan.price * (plan.activePromotions?.[0].discountValue / 100)) : Math.min(plan.price, plan.activePromotions?.[0].discountValue))) * 100) / 100 : plan.price.toLocaleString()} 
-                              <span className="text-xs opacity-50 ml-1">AED</span>
+                              <span className="text-xs opacity-50 ml-1">{currency}</span>
                             </span>
                             {plan.activePromotions?.[0]?.promoType === 'bogo' && (
                               <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-1">+1 Free Membership!</p>
@@ -1108,7 +1111,7 @@ export default function WalkingBooking() {
                       <div className="w-px h-8 bg-slate-200" />
                       <div>
                         <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest mb-1">Price</p>
-                        <p className="text-sm font-black text-ink">{selectedPlan.price} <span className="text-[10px] opacity-40">AED</span></p>
+                        <p className="text-sm font-black text-ink">{selectedPlan.price} <span className="text-[10px] opacity-40">{currency}</span></p>
                       </div>
                     </div>
                   )}
@@ -1222,7 +1225,7 @@ export default function WalkingBooking() {
                             className={`p-5 rounded-[24px] border-2 transition-all flex items-center gap-4 group ${selectedTrainer === t._id ? 'border-brand-blue bg-white shadow-glow' : 'bg-white border-slate-50 hover:border-brand-blue/20'}`}
                           >
                             <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-2xl overflow-hidden shrink-0 group-hover:scale-105 transition-all">
-                              {t.avatarUrl ? <img src={t.avatarUrl.startsWith('http') ? t.avatarUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}${t.avatarUrl}`} className="h-full w-full object-cover" /> : '🏆'}
+                              {t.avatarUrl ? <img src={getImageUrl(t.avatarUrl)} className="h-full w-full object-cover" /> : '🏆'}
                             </div>
                             <div className="text-left overflow-hidden">
                               <p className="font-black text-base text-ink truncate">{t.name}</p>
@@ -1347,7 +1350,7 @@ export default function WalkingBooking() {
                           </div>
                           <div className="ml-auto bg-white px-4 py-2 rounded-2xl border border-emerald-100 shadow-sm">
                             <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest leading-none mb-1">Savings</p>
-                            <p className="text-sm font-black text-emerald-600">- AED {calculateDiscount(selectedPromo, currentPrice)}</p>
+                            <p className="text-sm font-black text-emerald-600">- {currency} {calculateDiscount(selectedPromo, currentPrice)}</p>
                           </div>
                         </div>
                       )}
@@ -1395,7 +1398,7 @@ export default function WalkingBooking() {
                         <div className="bg-ink text-white p-6 rounded-3xl flex flex-col justify-center">
                           <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2">Total to Pay</p>
                           <div className="flex items-baseline gap-1">
-                            <span className="text-[10px] font-black text-white/30">AED</span>
+                            <span className="text-[10px] font-black text-white/30">{currency}</span>
                             <span className="text-3xl font-display font-black leading-none py-1">
                                {Math.round((activeTax?.calculationMethod === 'inclusive' ? (currentPrice - discountAmount - couponAmount) : (currentPrice - discountAmount - couponAmount + currentTax)) * 100) / 100}
                             </span>
@@ -1417,7 +1420,7 @@ export default function WalkingBooking() {
                                   <div className="flex justify-between items-baseline group">
                                      <span className="text-sm font-bold text-ink/40 group-hover:text-ink transition-colors">Gross Subtotal</span>
                                      <div className="h-px flex-1 bg-slate-50 border-b border-dashed border-slate-100 mx-4 mb-1"></div>
-                                     <span className="font-display font-black text-ink">AED {currentPrice.toFixed(2)}</span>
+                                     <span className="font-display font-black text-ink">{currency} {currentPrice.toFixed(2)}</span>
                                   </div>
 
                                   {discountAmount > 0 && (
@@ -1429,7 +1432,7 @@ export default function WalkingBooking() {
                                               <p className="text-[11px] font-black text-emerald-700 truncate max-w-[180px]">{selectedPromo?.name}</p>
                                            </div>
                                         </div>
-                                        <span className="font-display text-lg font-black text-emerald-600">- AED {discountAmount.toFixed(2)}</span>
+                                        <span className="font-display text-lg font-black text-emerald-600">- {currency} {discountAmount.toFixed(2)}</span>
                                      </div>
                                   )}
 
@@ -1442,7 +1445,7 @@ export default function WalkingBooking() {
                                               <p className="text-[11px] font-black text-brand-blue">Direct Credit</p>
                                            </div>
                                         </div>
-                                        <span className="font-display text-lg font-black text-brand-blue">- AED {couponAmount.toFixed(2)}</span>
+                                        <span className="font-display text-lg font-black text-brand-blue">- {currency} {couponAmount.toFixed(2)}</span>
                                      </div>
                                   )}
 
@@ -1450,7 +1453,7 @@ export default function WalkingBooking() {
                                      <div className="flex justify-between items-baseline group pt-2">
                                         <span className="text-sm font-bold text-ink/40 group-hover:text-ink transition-colors">{activeTax?.name || 'VAT'} ({activeTax?.value}%)</span>
                                         <div className="h-px flex-1 bg-slate-50 border-b border-dashed border-slate-100 mx-4 mb-1"></div>
-                                        <span className="font-display font-black text-ink/50">+ AED {currentTax.toFixed(2)}</span>
+                                        <span className="font-display font-black text-ink/50">+ {currency} {currentTax.toFixed(2)}</span>
                                      </div>
                                   )}
                                </div>
@@ -1475,7 +1478,7 @@ export default function WalkingBooking() {
                               <span className="text-xl shrink-0">{promo.promoType === 'bogo' ? '🔥' : '🏷️'}</span>
                               <div className="min-w-0">
                                 <p className="font-black text-ink text-[10px] uppercase truncate leading-tight mb-1">{promo.name}</p>
-                                <p className="text-[9px] font-bold text-brand-blue">Save AED {calculateDiscount(promo, currentPrice)}</p>
+                                <p className="text-[9px] font-bold text-brand-blue">Save {currency} {calculateDiscount(promo, currentPrice)}</p>
                               </div>
                               {selectedPromo?._id === promo._id && <span className="ml-auto text-brand-blue font-black animate-scale-up">✓</span>}
                             </button>
@@ -1569,7 +1572,7 @@ export default function WalkingBooking() {
                   <div className="flex-1 space-y-8">
                     <div className="bg-white p-12 rounded-[56px] border border-slate-100 shadow-sm relative overflow-hidden">
                       <div className="absolute top-0 right-0 p-10 opacity-5">
-                        <span className="text-[120px] font-black">AED</span>
+                        <span className="text-[120px] font-black">{currency}</span>
                       </div>
 
                       <div className="relative z-10">
@@ -1578,22 +1581,22 @@ export default function WalkingBooking() {
                         <div className="flex flex-col items-center justify-center border-b border-slate-100 pb-10 mb-10">
                           <p className="text-[10px] font-black text-brand-blue uppercase tracking-[0.3em] mb-3">Amount to be Paid</p>
                           <h2 className="font-display text-7xl font-black text-ink">
-                             AED {Math.round((activeTax?.calculationMethod === 'inclusive' ? (currentPrice - discountAmount - couponAmount) : (currentPrice - discountAmount - couponAmount + currentTax)) * 100) / 100}
+                             {currency} {Math.round((activeTax?.calculationMethod === 'inclusive' ? (currentPrice - discountAmount - couponAmount) : (currentPrice - discountAmount - couponAmount + currentTax)) * 100) / 100}
                           </h2>
                         </div>
 
                         <div className="space-y-4">
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-ink/40 font-bold uppercase tracking-widest text-[10px]">Subtotal (Excl. Tax)</span>
-                            <span className="font-black text-ink">AED {currentPrice}</span>
+                            <span className="font-black text-ink">{currency} {currentPrice}</span>
                           </div>
                           {currentTax > 0 && (
                             <div className="flex justify-between items-center text-sm text-brand-blue animate-in slide-in-from-right-2 duration-300">
                               <span className="font-bold uppercase tracking-widest text-[10px] flex items-center gap-2">
                                 <span className="w-1 h-1 rounded-full bg-brand-blue" />
-                                Applied {activeTax?.name || 'Tax'} ({activeTax?.value}{activeTax?.type === 'percentage' ? '%' : ' AED'})
+                                Applied {activeTax?.name || 'Tax'} ({activeTax?.value}{activeTax?.type === 'percentage' ? '%' : ' {currency}'})
                               </span>
-                              <span className="font-black">+ AED {currentTax}</span>
+                              <span className="font-black">+ {currency} {currentTax}</span>
                             </div>
                           )}
                           {discountAmount > 0 && (
@@ -1602,7 +1605,7 @@ export default function WalkingBooking() {
                                 <span className="w-1 h-1 rounded-full bg-emerald-500" />
                                 Discount Applied
                               </span>
-                              <span className="font-black">- AED {discountAmount}</span>
+                              <span className="font-black">- {currency} {discountAmount}</span>
                             </div>
                           )}
                         </div>
@@ -1613,7 +1616,7 @@ export default function WalkingBooking() {
                             <div className="space-y-4">
                               <div className="flex justify-between text-sm font-bold opacity-60">
                                 <span>Base Order ({totalParticipants} members)</span>
-                                <span>AED {currentPrice}</span>
+                                <span>{currency} {currentPrice}</span>
                               </div>
                               {membershipUnits > 1 && (
                                 <div className="flex justify-between text-[10px] font-black text-ocean uppercase tracking-widest pt-1">
@@ -1624,25 +1627,25 @@ export default function WalkingBooking() {
                               {discountAmount > 0 && (
                                 <div className="flex justify-between text-sm font-black text-emerald-600">
                                   <span>Total Savings ({selectedPromo?.name})</span>
-                                  <span>- AED {discountAmount}</span>
+                                  <span>- {currency} {discountAmount}</span>
                                 </div>
                               )}
                               {couponAmount > 0 && (
                                 <div className="flex justify-between text-sm font-black text-indigo-600">
                                   <span>Coupon Applied ({couponCode})</span>
-                                  <span>- AED {couponAmount}</span>
+                                  <span>- {currency} {couponAmount}</span>
                                 </div>
                               )}
                               {currentTax > 0 && (
                                 <div className="flex justify-between text-sm font-black text-brand-blue">
                                   <span>{activeTax?.name || 'Tax'} ({activeTax?.calculationMethod})</span>
-                                  <span>+ AED {currentTax}</span>
+                                  <span>+ {currency} {currentTax}</span>
                                 </div>
                               )}
                               <div className="h-px bg-slate-100 mt-4"></div>
                               <div className="flex justify-between text-lg font-black text-brand-blue pt-2">
                                 <span>Grand Total</span>
-                                <span>AED {Math.round((activeTax?.calculationMethod === 'inclusive' ? (currentPrice - discountAmount - couponAmount) : (currentPrice - discountAmount - couponAmount + currentTax)) * 100) / 100}</span>
+                                <span>{currency} {Math.round((activeTax?.calculationMethod === 'inclusive' ? (currentPrice - discountAmount - couponAmount) : (currentPrice - discountAmount - couponAmount + currentTax)) * 100) / 100}</span>
                               </div>
                             </div>
                           </div>
@@ -1764,7 +1767,7 @@ export default function WalkingBooking() {
                           <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">✨</div>
                           <div>
                             <h4 className="font-display text-lg font-black text-ink">{selectedPlan?.name || selectedClass?.title}</h4>
-                            <p className="text-[10px] font-bold text-indigo-600/60 uppercase tracking-widest mt-1">AED {Math.round((activeTax?.calculationMethod === 'inclusive' ? (currentPrice - discountAmount - couponAmount) : (currentPrice - discountAmount - couponAmount + currentTax)) * 100) / 100} • {paymentMethod.toUpperCase()}</p>
+                            <p className="text-[10px] font-bold text-indigo-600/60 uppercase tracking-widest mt-1">{currency} {Math.round((activeTax?.calculationMethod === 'inclusive' ? (currentPrice - discountAmount - couponAmount) : (currentPrice - discountAmount - couponAmount + currentTax)) * 100) / 100} • {paymentMethod.toUpperCase()}</p>
                           </div>
                         </div>
                       </div>
@@ -1889,7 +1892,7 @@ export default function WalkingBooking() {
               )}
 
               <div className="mt-6 flex items-baseline gap-2">
-                <span className="text-4xl font-black">AED {detailsClass?.price || detailsPlan?.price}</span>
+                <span className="text-4xl font-black">{currency} {detailsClass?.price || detailsPlan?.price}</span>
                 <span className="text-white/60 text-sm font-bold uppercase tracking-widest">
                   {detailsClass ? '/ session' : `/ ${detailsPlan?.validity || 'period'}`}
                 </span>

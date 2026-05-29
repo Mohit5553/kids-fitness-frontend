@@ -62,31 +62,34 @@ import LeadsManagement from './pages/admin/LeadsManagement.jsx';
 import CorporateBooking from './pages/admin/CorporateBooking.jsx';
 import SystemSettings from './pages/admin/SystemSettings.jsx';
 import ExtensionPanel from './pages/admin/ExtensionPanel.jsx';
+import ExpensesManagement from './pages/admin/ExpensesManagement.jsx';
 import UATManagement from './pages/admin/UATManagement.jsx';
 import TrainerDashboard from './pages/trainer/TrainerDashboard.jsx';
+import { SettingsProvider } from './context/SettingsContext.jsx';
 
 export default function App() {
   return (
-    <SocketProvider>
-      <AuthProvider>
-        <BranchProvider>
-        <Toaster />
-        <Routes>
-          {/* ... existing routes ... */}
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/programs" element={<Programs />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/schedule" element={<Schedule />} />
-          <Route path="/gallery" element={<Gallery />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/book-trial" element={<BookTrial />} />
-          <Route path="/quick-checkin" element={<QuickCheckin />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/calendar" element={<Calendar />} />
-          <Route path="/book" element={<BookingFlow />} />
-          <Route path="/lookup" element={<GuestBookingLookup />} />
+    <SettingsProvider>
+      <SocketProvider>
+        <AuthProvider>
+          <BranchProvider>
+          <Toaster />
+          <Routes>
+            {/* ... existing routes ... */}
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/programs" element={<Programs />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/gallery" element={<Gallery />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/book-trial" element={<BookTrial />} />
+            <Route path="/quick-checkin" element={<QuickCheckin />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/book" element={<BookingFlow />} />
+            <Route path="/lookup" element={<GuestBookingLookup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/health-declaration" element={<MemberHealthDeclaration />} />
@@ -186,11 +189,17 @@ export default function App() {
             </Route>
 
             <Route path="/:roleSlug/extensions" element={<ExtensionPanel />} />
+            
+            <Route element={<RequirePermission permission="expenses:view" />}>
+              <Route path="/:roleSlug/expenses" element={<ExpensesManagement />} />
+            </Route>
+            
             <Route path="/:roleSlug/uat" element={<UATManagement />} />
           </Route>
         </Routes>
       </BranchProvider>
     </AuthProvider>
   </SocketProvider>
+  </SettingsProvider>
   );
 }

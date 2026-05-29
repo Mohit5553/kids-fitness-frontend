@@ -1,10 +1,12 @@
+import { getImageUrl  } from '../api/api.js';
+import { useSettings } from '../context/SettingsContext.jsx';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/api.js';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
-// Helper function to convert number to words for AED
+// Helper function to convert number to words for {currency}
 const numberToWords = (num) => {
    const ones = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
    const tens = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'];
@@ -44,6 +46,7 @@ const defaultCompanyInfo = {
 };
 
 export default function InvoiceView() {
+  const { currency } = useSettings();
    const { id, bookingId } = useParams();
    const navigate = useNavigate();
    const [invoice, setInvoice] = useState(null);
@@ -121,7 +124,7 @@ export default function InvoiceView() {
 
    const brandMark = companyInfo.name === 'JTS Booking' ? 'JTS' : companyInfo.name.substring(0, 3).toUpperCase();
    const logoSrc = companyInfo.logoUrl ? (
-     companyInfo.logoUrl.startsWith('http') ? companyInfo.logoUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${companyInfo.logoUrl}`
+     getImageUrl(companyInfo.logoUrl)
    ) : null;
 
    return (
@@ -280,8 +283,8 @@ export default function InvoiceView() {
                                         <p className="font-black text-ink text-lg tracking-tighter uppercase">{item.description}</p>
                                      </td>
                                      <td className="py-6 px-4 text-center font-black text-ink/40 leading-none">{item.quantity}</td>
-                                     <td className="py-6 px-4 text-right font-black text-ink/40 text-xs">AED {item.unitPrice.toFixed(2)}</td>
-                                     <td className="py-6 text-right font-black text-ink text-xl tracking-tighter">AED {(item.unitPrice * item.quantity).toFixed(2)}</td>
+                                     <td className="py-6 px-4 text-right font-black text-ink/40 text-xs">{currency} {item.unitPrice.toFixed(2)}</td>
+                                     <td className="py-6 text-right font-black text-ink text-xl tracking-tighter">{currency} {(item.unitPrice * item.quantity).toFixed(2)}</td>
                                   </tr>
                                ))}
                            </tbody>
@@ -291,24 +294,24 @@ export default function InvoiceView() {
                      <div className="rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm">
                         <div className="flex items-center justify-between px-8 py-4 bg-slate-50/80 border-b border-slate-100">
                            <span className="text-[10px] font-black text-ink/40 uppercase tracking-[0.3em]">Subtotal</span>
-                           <span className="text-sm font-black text-ink tracking-tight">AED {itemAmount.toFixed(2)}</span>
+                           <span className="text-sm font-black text-ink tracking-tight">{currency} {itemAmount.toFixed(2)}</span>
                         </div>
                         {discountAmount > 0 && (
                            <div className="flex items-center justify-between px-8 py-4 bg-emerald-50/60 border-b border-emerald-100">
                               <span className="text-[10px] font-black text-emerald-700 uppercase tracking-[0.3em]">Discount ({discountLabel})</span>
-                              <span className="text-sm font-black text-emerald-600 tracking-tight">- AED {discountAmount.toFixed(2)}</span>
+                              <span className="text-sm font-black text-emerald-600 tracking-tight">- {currency} {discountAmount.toFixed(2)}</span>
                            </div>
                         )}
                         <div className="flex items-center justify-between px-8 py-4 bg-slate-50/80 border-b border-slate-100">
                            <span className="text-[10px] font-black text-ink/40 uppercase tracking-[0.3em]">VAT (5%)</span>
-                           <span className="text-sm font-black text-ink/60 tracking-tight">AED {taxAmount.toFixed(2)}</span>
+                           <span className="text-sm font-black text-ink/60 tracking-tight">{currency} {taxAmount.toFixed(2)}</span>
                         </div>
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-8 py-6 bg-brand-blue">
                            <div className="space-y-1">
                               <h4 className="text-[10px] font-black text-white/60 uppercase tracking-[0.4em]">Total Amount</h4>
                               <p className="text-[8px] font-black text-white/30 uppercase tracking-widest">{totalInWords}</p>
                            </div>
-                           <span className="text-5xl font-black text-white tracking-tighter leading-none">AED {totalAmount.toFixed(2)}</span>
+                           <span className="text-5xl font-black text-white tracking-tighter leading-none">{currency} {totalAmount.toFixed(2)}</span>
                         </div>
                      </div>
 

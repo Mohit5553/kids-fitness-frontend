@@ -2,8 +2,19 @@ import axios from 'axios';
 import { getToken, clearAuth } from '../utils/auth.js';
 import { getLocationSlug } from '../utils/location.js';
 
+export const API_BASE_URL = import.meta.env.DEV 
+  ? 'http://localhost:5000/api' 
+  : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api');
+export const BASE_URL = API_BASE_URL.replace(/\/api$/, '');
+
+export const getImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `${BASE_URL}${url}`;
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+  baseURL: API_BASE_URL
 });
 
 api.interceptors.request.use((config) => {

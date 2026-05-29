@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { getUser } from '../utils/auth.js';
+import { BASE_URL  } from '../api/api.js';
 
 const SocketContext = createContext();
 
@@ -11,8 +12,7 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-    const backendUrl = apiBaseUrl.replace(/\/api$/, '');
+    const backendUrl = BASE_URL;
 
     const newSocket = io(backendUrl, {
       withCredentials: true,
