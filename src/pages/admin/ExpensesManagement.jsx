@@ -390,18 +390,22 @@ export default function ExpensesManagement() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="text-[10px] font-black text-ink/40 uppercase tracking-widest mb-2 block">Receipt / Invoice Image</label>
+                  <label className="text-[10px] font-black text-ink/40 uppercase tracking-widest mb-2 block">Receipt / Invoice Document</label>
                   <div className="flex items-center gap-4">
                     <label className={`flex-1 flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-[24px] cursor-pointer transition-colors ${formData.receiptUrl ? 'border-ocean bg-ocean/5' : 'border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300'}`}>
                       <span className="text-2xl mb-2">{uploading ? '⏳' : formData.receiptUrl ? '✅' : '📸'}</span>
                       <span className="text-xs font-bold text-ink/60 text-center">
-                        {uploading ? 'Uploading...' : formData.receiptUrl ? 'Receipt attached. Click to replace.' : 'Click to upload receipt image'}
+                        {uploading ? 'Uploading...' : formData.receiptUrl ? 'Receipt attached. Click to replace.' : 'Click to upload receipt document (Image or PDF)'}
                       </span>
-                      <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                      <input type="file" accept="image/*,application/pdf" onChange={handleFileUpload} className="hidden" />
                     </label>
                     {formData.receiptUrl && (
-                      <div className="w-24 h-24 rounded-[20px] overflow-hidden border-2 border-slate-100 shadow-sm relative group">
-                        <img src={getImageUrl(formData.receiptUrl)} alt="Receipt" className="w-full h-full object-cover" />
+                      <div className="w-24 h-24 rounded-[20px] overflow-hidden border-2 border-slate-100 shadow-sm relative group flex items-center justify-center bg-slate-100">
+                        {formData.receiptUrl.toLowerCase().endsWith('.pdf') ? (
+                          <span className="text-4xl">📄</span>
+                        ) : (
+                          <img src={getImageUrl(formData.receiptUrl)} alt="Receipt" className="w-full h-full object-cover" />
+                        )}
                         <a href={getImageUrl(formData.receiptUrl)} target="_blank" rel="noreferrer" className="absolute inset-0 bg-ink/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold">
                           View
                         </a>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
+import { useSettings } from '../../context/SettingsContext.jsx';
 
 // - [x] Populate `planId` in `getMyBookings` (Backend) <!-- id: 67 -->
 // - [/] Update `MyBookings.jsx` UI to display package names <!-- id: 68 -->
