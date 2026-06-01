@@ -1,7 +1,7 @@
 import { getImageUrl  } from '../api/api.js';
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import api from '../api/api.js';
+import api, { BASE_URL } from '../api/api.js';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import { getUser } from '../utils/auth.js';
@@ -747,7 +747,7 @@ export default function BookingFlow() {
                       <div className="w-20 h-20 rounded-2xl bg-slate-50 flex items-center justify-center text-3xl overflow-hidden shrink-0 group-hover:scale-105 transition-transform">
                         {trainers.find(t => t._id === selectedTrainer)?.avatarUrl ? (
                           <img
-                            src={trainers.find(t => t._id === selectedTrainer).avatarUrl.startsWith('http') ? trainers.find(t => t._id === selectedTrainer).avatarUrl : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${trainers.find(t => t._id === selectedTrainer).avatarUrl}`}
+                            src={trainers.find(t => t._id === selectedTrainer).avatarUrl.startsWith('http') ? trainers.find(t => t._id === selectedTrainer).avatarUrl : `${BASE_URL}${trainers.find(t => t._id === selectedTrainer).avatarUrl}`}
                             alt="Trainer"
                             className="h-full w-full object-cover"
                           />

@@ -25,7 +25,8 @@ const MODULES = [
   { id: 'reports', label: 'Detailed Reports' },
   { id: 'promotions', label: 'Promotions Management' },
   { id: 'roles', label: 'Role Master' },
-  { id: 'expenses', label: 'Expense Management' }
+  { id: 'expenses', label: 'Expense Management' },
+  { id: 'profit_loss', label: 'Profit & Loss' }
 ];
 
 const ACTIONS = [

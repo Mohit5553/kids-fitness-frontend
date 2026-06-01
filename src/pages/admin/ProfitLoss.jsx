@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import AdminHeader from '../../components/AdminHeader.jsx';
@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 
 export default function ProfitLoss() {
   const { roleSlug } = useParams();
+  const navigate = useNavigate();
   const [locations, setLocations] = useState([]);
   
   // Filters
@@ -66,42 +67,60 @@ export default function ProfitLoss() {
       return;
     }
 
-    const wb = XLSX.utils.book_new();
-
-    // Summary Sheet
-    const summaryData = [
-      { Metric: 'Total Sales', Amount: totalRevenue },
-      { Metric: 'Total Expenses', Amount: totalExpenses },
-      { Metric: 'Net Profit', Amount: netProfit }
+    const locationName = locationId ? locations.find(l => l._id === locationId)?.name || 'Unknown' : 'All Branches';
+    
+    const aoa = [
+      ['Profit & Loss Report'],
+      ['Location / Store:', locationName],
+      ['From:', startDate || 'Start'],
+      ['To:', endDate || 'End'],
+      [],
+      ['Summary'],
+      ['Total Sales:', totalRevenue],
+      ['Total Expenses:', totalExpenses],
+      ['Net Profit:', netProfit],
+      [],
+      ['Sales Details']
     ];
-    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
 
-    // Sales Sheet
     if (reportData.revenues.length > 0) {
-      const salesData = reportData.revenues.map(item => ({
-        Date: new Date(item.date).toLocaleDateString('en-GB'),
-        Type: item.type,
-        Customer: item.customerName,
-        Location: item.location,
-        Amount: item.amount
-      }));
-      const wsSales = XLSX.utils.json_to_sheet(salesData);
-      XLSX.utils.book_append_sheet(wb, wsSales, "Sales");
+      aoa.push(['Date', 'Type', 'Customer', 'Booking Number', 'Source', 'Location', 'Amount']);
+      reportData.revenues.forEach(item => {
+        aoa.push([
+          new Date(item.date).toLocaleDateString('en-GB'),
+          item.type,
+          item.customerName,
+          item.bookingNumber || 'N/A',
+          item.source || 'N/A',
+          item.location,
+          item.amount
+        ]);
+      });
+    } else {
+      aoa.push(['No sales in this period.']);
     }
 
-    // Expenses Sheet
+    aoa.push([]);
+    aoa.push(['Expense Details']);
+
     if (activeExpenses.length > 0) {
-      const expensesData = activeExpenses.map(item => ({
-        Date: new Date(item.date).toLocaleDateString('en-GB'),
-        Title: item.title,
-        Category: item.category,
-        Location: item.location,
-        Amount: item.amount
-      }));
-      const wsExpenses = XLSX.utils.json_to_sheet(expensesData);
-      XLSX.utils.book_append_sheet(wb, wsExpenses, "Expenses");
+      aoa.push(['Date', 'Title', 'Category', 'Location', 'Amount']);
+      activeExpenses.forEach(item => {
+        aoa.push([
+          new Date(item.date).toLocaleDateString('en-GB'),
+          item.title,
+          item.category,
+          item.location,
+          item.amount
+        ]);
+      });
+    } else {
+      aoa.push(['No expenses in this period.']);
     }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    XLSX.utils.book_append_sheet(wb, ws, "Profit_Loss_Report");
 
     let filename = `Profit_Loss_Report`;
     if (startDate && endDate) {
@@ -260,12 +279,29 @@ export default function ProfitLoss() {
                ) : (
                  <ul className="space-y-4">
                    {reportData.revenues.map(item => (
-                     <li key={item._id} className="flex justify-between items-center p-4 border border-slate-100 rounded-2xl bg-slate-50/50">
+                     <li 
+                       key={item._id} 
+                       className="flex justify-between items-center p-4 border border-slate-100 rounded-2xl bg-slate-50/50 hover:bg-slate-100 hover:border-brand-blue/30 transition-all cursor-pointer group"
+                       onClick={() => {
+                         if (item.bookingNumber && item.bookingNumber !== 'N/A') {
+                           navigate(`/${roleSlug}/bookings?search=${encodeURIComponent(item.bookingNumber)}`);
+                         } else {
+                           navigate(`/${roleSlug}/bookings`);
+                         }
+                       }}
+                       title="View Booking Details"
+                     >
                        <div>
-                         <p className="text-xs font-bold text-ink">{item.type} - {item.customerName}</p>
+                         <p className="text-xs font-bold text-ink group-hover:text-brand-blue transition-colors">
+                           {item.type} - {item.customerName}
+                           {item.bookingNumber && item.bookingNumber !== 'N/A' && ` (${item.bookingNumber})`}
+                         </p>
                          <p className="text-[10px] text-ink/40 mt-1">{new Date(item.date).toLocaleDateString()} • {item.location}</p>
                        </div>
-                       <span className="font-black text-moss text-sm">{formatCurrency(item.amount)}</span>
+                       <div className="flex items-center gap-3">
+                         <span className="font-black text-moss text-sm">{formatCurrency(item.amount)}</span>
+                         <span className="text-brand-blue opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+                       </div>
                      </li>
                    ))}
                  </ul>
@@ -284,15 +320,23 @@ export default function ProfitLoss() {
                ) : (
                  <ul className="space-y-4">
                    {activeExpenses.map(item => (
-                     <li key={item._id} className="flex justify-between items-center p-4 border border-slate-100 rounded-2xl bg-slate-50/50">
+                     <li 
+                       key={item._id} 
+                       className="flex justify-between items-center p-4 border border-slate-100 rounded-2xl bg-slate-50/50 hover:bg-slate-100 hover:border-brand-blue/30 transition-all cursor-pointer group"
+                       onClick={() => navigate(`/${roleSlug}/expenses`)}
+                       title="Manage Expenses"
+                     >
                        <div>
-                         <p className="text-xs font-bold text-ink">{item.title}</p>
+                         <p className="text-xs font-bold text-ink group-hover:text-brand-blue transition-colors">{item.title}</p>
                          <p className="text-[10px] text-ink/40 mt-1">
                            <span className="px-1.5 py-0.5 bg-slate-200 rounded text-ink/60 uppercase font-bold mr-2">{item.category}</span>
                            {new Date(item.date).toLocaleDateString()} • {item.location}
                          </p>
                        </div>
-                       <span className="font-black text-rose-500 text-sm">-{formatCurrency(item.amount)}</span>
+                       <div className="flex items-center gap-3">
+                         <span className="font-black text-rose-500 text-sm">-{formatCurrency(item.amount)}</span>
+                         <span className="text-brand-blue opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+                       </div>
                      </li>
                    ))}
                  </ul>

@@ -22,6 +22,8 @@ const REPORT_TYPES = [
   { id: 'taxes', label: 'Tax Collection Report' },
   { id: 'sales_report', label: 'Sales Summary (Monthly/Daily)' },
   { id: 'detailed_sales', label: 'Detailed Sales Report (Itemized)' },
+  { id: 'profit_loss', label: 'Profit & Loss Report' },
+  { id: 'expenses', label: 'Expenses Report' },
 ];
 
 export default function Reports() {
@@ -115,9 +117,14 @@ export default function Reports() {
 
   const handleExport = () => {
     // Collect data based on report type, respecting current filters
-    const dataToExport = reportType === 'bookings' && reportData.purchases
-      ? [...(filteredData.purchases || []), ...(filteredData.sessions || [])]
-      : Array.isArray(filteredData) ? filteredData : [];
+    let dataToExport = [];
+    if (reportType === 'bookings' && reportData.purchases) {
+      dataToExport = [...(filteredData.purchases || []), ...(filteredData.sessions || [])];
+    } else if (reportType === 'profit_loss' && reportData.revenues) {
+      dataToExport = [...(filteredData.revenues || []), ...(filteredData.expenses || [])];
+    } else {
+      dataToExport = Array.isArray(filteredData) ? filteredData : [];
+    }
 
     if (dataToExport.length === 0) {
       alert('No data to export');
@@ -419,6 +426,22 @@ export default function Reports() {
       { key: 'discountType', label: 'Disc Type' },
       { key: 'paymentSource', label: 'Payment Source' },
       { key: 'paymentMode', label: 'Payment Mode' },
+    ],
+    expenses: [
+      { key: 'date', label: 'Date' },
+      { key: 'title', label: 'Title' },
+      { key: 'category', label: 'Category' },
+      { key: 'amount', label: 'Amount (AED)' },
+      { key: 'location', label: 'Branch' },
+    ],
+    profit_loss_revenues: [
+      { key: 'date', label: 'Date' },
+      { key: 'type', label: 'Type' },
+      { key: 'customerName', label: 'Customer' },
+      { key: 'bookingNumber', label: 'Booking No.' },
+      { key: 'source', label: 'Source' },
+      { key: 'amount', label: 'Amount (AED)' },
+      { key: 'location', label: 'Branch' },
     ]
   };
 
@@ -537,6 +560,8 @@ export default function Reports() {
 
   const filteredData = reportType === 'bookings' && reportData.purchases
     ? { purchases: filterList(reportData.purchases), sessions: filterList(reportData.sessions) }
+    : reportType === 'profit_loss' && reportData.revenues
+    ? { revenues: filterList(reportData.revenues), expenses: filterList(reportData.expenses) }
     : filterList(reportData);
 
   const columns = COLUMNS[reportType] || [];
@@ -691,6 +716,23 @@ export default function Reports() {
                 title="Membership Utilization (Usage Sessions)"
                 data={filteredData.sessions}
                 columns={COLUMNS.membership_sessions}
+                renderValue={renderValue}
+                loading={loading}
+              />
+            </>
+          ) : reportType === 'profit_loss' && filteredData.revenues ? (
+            <>
+              <ReportSection
+                title="Revenues"
+                data={filteredData.revenues}
+                columns={COLUMNS.profit_loss_revenues}
+                renderValue={renderValue}
+                loading={loading}
+              />
+              <ReportSection
+                title="Expenses"
+                data={filteredData.expenses}
+                columns={COLUMNS.expenses}
                 renderValue={renderValue}
                 loading={loading}
               />

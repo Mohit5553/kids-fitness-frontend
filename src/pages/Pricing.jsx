@@ -45,6 +45,10 @@ export default function Pricing() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [globalSettings, setGlobalSettings] = useState({});
 
+  // Upgrade & Proration State
+  const [upgradeMembership, setUpgradeMembership] = useState(null);
+  const [prorationCredit, setProrationCredit] = useState(0);
+
   const fetchPlans = async () => {
     try {
       const locationId = getLocationId();
@@ -65,6 +69,39 @@ export default function Pricing() {
       const settingsMap = {};
       res.data.forEach(s => { settingsMap[s.key] = s.value; });
       setGlobalSettings(settingsMap);
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const upgradeId = urlParams.get('upgrade');
+      
+      if (upgradeId) {
+        api.get('/memberships/mine').then(mRes => {
+          const m = mRes.data.find(x => x._id === upgradeId);
+          if (m && settingsMap.enable_proration) {
+            setUpgradeMembership(m);
+            // Calculate Proration Credit
+            let unusedValue = 0;
+            const totalPaid = m.bookingId?.totalAmount || m.planId?.price || 0;
+            
+            if (m.planId?.type === 'credit-based' && m.planId.creditsIncluded) {
+              const totalCredits = (m.planId.creditsIncluded || 0) * (m.membershipUnits || 1);
+              unusedValue = totalCredits > 0 ? (m.creditsRemaining / totalCredits) * totalPaid : 0;
+            } else if (m.classesRemaining > -1 && m.planId?.classesIncluded) {
+              const totalSessions = (m.planId.classesIncluded || 0) * (m.membershipUnits || 1);
+              unusedValue = totalSessions > 0 ? (m.classesRemaining / totalSessions) * totalPaid : 0;
+            } else if (m.classesRemaining === -1 && m.endDate) {
+              // Time based
+              const start = new Date(m.startDate || m.createdAt).getTime();
+              const end = new Date(m.endDate).getTime();
+              const now = new Date().getTime();
+              if (end > start && now < end) {
+                const remainingRatio = (end - now) / (end - start);
+                unusedValue = remainingRatio * totalPaid;
+              }
+            }
+            setProrationCredit(Math.max(0, Math.round(unusedValue * 100) / 100));
+          }
+        }).catch(() => {});
+      }
     }).catch(() => {});
 
     const handleChange = () => fetchPlans();
@@ -200,7 +237,7 @@ export default function Pricing() {
   }, [selectedPromo, multipliedPrice]);
 
   const currentCouponAmount = appliedCoupon?.amount || 0;
-  const taxableAmount = selectedPlan ? Math.max(0, multipliedPrice - discountAmount - currentCouponAmount) : 0;
+  const taxableAmount = selectedPlan ? Math.max(0, multipliedPrice - discountAmount - currentCouponAmount - prorationCredit) : 0;
   const currTaxValue = (() => {
     if (!activeTax || !taxableAmount) return 0;
     if (activeTax.type === 'percentage') {
@@ -280,7 +317,8 @@ export default function Pricing() {
         discountAmount,
         couponCode: appliedCoupon?.code,
         couponAmount: currentCouponAmount,
-        promotionId: selectedPromo?._id
+        promotionId: selectedPromo?._id,
+        upgradeFromMembershipId: upgradeMembership?._id
       });
 
       setMessage(paymentType === 'online' ? 'Payment successful! Your schedule has been generated.' : 'Booking confirmed! Please pay at the center to activate.');
@@ -756,6 +794,21 @@ export default function Pricing() {
                      )}
                   </div>
 
+                  {prorationCredit > 0 && (
+                    <div className="pt-6 border-t border-slate-100/50">
+                      <label className="text-[10px] font-black uppercase text-amber-500 ml-2 mb-2 block flex items-center gap-2">
+                        <span>⭐</span> Plan Upgrade Proration Applied
+                      </label>
+                      <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-black text-amber-600">Credit for unused current plan</p>
+                          <p className="text-[9px] font-bold text-amber-600/60 uppercase mt-0.5">Applied automatically to this checkout</p>
+                        </div>
+                        <p className="text-lg font-black text-amber-600">- {currency} {prorationCredit.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* BOGO Claim Choice */}
                   {selectedPromo?.promoType === 'bogo' && (
                     <div className="mt-4 border-t-2 border-dashed border-slate-100 pt-6 text-left animate-in slide-in-from-top-4 duration-300">
@@ -881,10 +934,20 @@ export default function Pricing() {
                         </div>
                       )}
                       
+                      <div className="flex justify-between items-center py-2">
+                        <span className="text-[9px] font-black text-ink/30 uppercase">Subtotal</span>
+                        <span className="text-sm font-black text-ink">{multipliedPrice.toLocaleString()} {currency}</span>
+                      </div>
+                      {prorationCredit > 0 && (
+                        <div className="flex justify-between items-center py-2">
+                          <span className="text-[9px] font-black text-amber-500 uppercase">Proration Credit</span>
+                          <span className="text-sm font-black text-amber-500">- {prorationCredit.toLocaleString()} {currency}</span>
+                        </div>
+                      )}
                       {discountAmount > 0 && (
-                        <div className="flex justify-between items-center text-rose-500 font-bold mb-2">
-                          <span className="text-[10px] uppercase tracking-widest pl-2">Promotion Discount</span>
-                          <span className="text-sm">-{currency} {discountAmount.toFixed(2)}</span>
+                        <div className="flex justify-between items-center py-2">
+                          <span className="text-[9px] font-black text-emerald-500 uppercase">Promo Discount</span>
+                          <span className="text-sm font-black text-emerald-500">- {discountAmount.toLocaleString()} {currency}</span>
                         </div>
                       )}
                       {appliedCoupon && (

@@ -566,7 +566,7 @@ export default function Membership() {
                           </button>
                           {globalSettings?.allow_plan_upgrade && m.status === 'active' && (
                             <button
-                              onClick={() => navigate('/pricing')}
+                              onClick={() => navigate(`/pricing?upgrade=${m._id}`)}
                               className="w-full max-w-[120px] px-4 py-2 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
                             >
                               <span>⭐</span> Upgrade
