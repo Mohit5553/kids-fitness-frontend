@@ -144,6 +144,9 @@ export default function App() {
 
             <Route element={<RequirePermission permission="reports:view" />}>
               <Route path="/:roleSlug/reports" element={<Reports />} />
+            </Route>
+
+            <Route element={<RequirePermission permission="profit_loss:view" />}>
               <Route path="/:roleSlug/profit-loss" element={<ProfitLoss />} />
             </Route>
 

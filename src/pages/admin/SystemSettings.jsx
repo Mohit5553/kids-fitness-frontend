@@ -441,6 +441,28 @@ export default function SystemSettings() {
                   </span>
                 </div>
               </div>
+
+              <div className="p-6 rounded-3xl bg-slate-50/50 border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                  <h4 className="font-bold text-ink mb-1">Enable Proration</h4>
+                  <p className="text-xs text-ink/50 leading-relaxed max-w-sm">
+                    When enabled, users upgrading their subscription receive credit for the unused portion of their current plan. When disabled, users pay the full price of the new plan.
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleToggleGlobal('enable_proration', globalSettings.enable_proration)}
+                    disabled={isSaving}
+                    className={`w-14 h-8 rounded-full transition-all relative ${globalSettings.enable_proration ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                  >
+                    <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${globalSettings.enable_proration ? 'left-7' : 'left-1'}`} />
+                  </button>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-ink/40">
+                    {globalSettings.enable_proration ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+              </div>
             </div>
           </section>
         </div>

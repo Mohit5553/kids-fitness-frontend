@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
@@ -95,7 +95,8 @@ export default function BookingManagement() {
   const [paymentRef, setPaymentRef] = useState('');
 
   // Filter States
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState('');
   const [bookingTypeFilter, setBookingTypeFilter] = useState('');
   const [refundFilter, setRefundFilter] = useState(false);
