@@ -19,7 +19,17 @@ export default function ProfitLoss() {
   
   const [reportData, setReportData] = useState({ revenues: [], expenses: [] });
   const [loading, setLoading] = useState(false);
+  const [viewingBookingDetails, setViewingBookingDetails] = useState(null);
 
+  const fetchBookingDetails = async (bookingId) => {
+    try {
+      const res = await api.get(`/bookings/${bookingId}`);
+      setViewingBookingDetails(res.data);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to fetch booking details');
+    }
+  };
   useEffect(() => {
     api.get('/locations?all=true').then(res => setLocations(res.data || [])).catch(() => {});
   }, []);
@@ -300,6 +310,17 @@ export default function ProfitLoss() {
                        </div>
                        <div className="flex items-center gap-3">
                          <span className="font-black text-moss text-sm">{formatCurrency(item.amount)}</span>
+                         {item.bookingId && (
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               fetchBookingDetails(item.bookingId);
+                             }}
+                             className="px-3 py-1.5 bg-brand-blue/10 text-brand-blue rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-brand-blue hover:text-white transition-all ml-2 hidden sm:block"
+                           >
+                             View Detail
+                           </button>
+                         )}
                          <span className="text-brand-blue opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                        </div>
                      </li>
@@ -347,6 +368,126 @@ export default function ProfitLoss() {
 
       </main>
       <Footer />
+
+      {/* Booking Details Modal */}
+      {viewingBookingDetails && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[40px] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="bg-indigo-600 p-8 text-white flex justify-between items-start shrink-0 relative overflow-hidden">
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-black bg-white/20 px-2 py-1 rounded-lg uppercase tracking-widest">Booking Record</span>
+                  {viewingBookingDetails.bookingNumber && (
+                    <span className="text-[10px] font-black bg-white text-indigo-600 px-2 py-1 rounded-lg uppercase tracking-widest">{viewingBookingDetails.bookingNumber}</span>
+                  )}
+                </div>
+                <h3 className="font-display text-3xl font-black text-white">Full Details</h3>
+                <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-1">ID: {viewingBookingDetails._id}</p>
+              </div>
+              <button onClick={() => setViewingBookingDetails(null)} className="relative z-10 rounded-full bg-white/10 p-2 hover:bg-white/20 transition-all">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+              <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50/50">
+              <div className="grid md:grid-cols-2 gap-8">
+                <section>
+                  <h4 className="text-[10px] font-black text-ink uppercase tracking-[0.2em] mb-4">Service Information</h4>
+                  <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                    <div>
+                      <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest mb-1">Type</p>
+                      <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${viewingBookingDetails.bookingType === 'package' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-500'}`}>
+                        {viewingBookingDetails.bookingType === 'package' ? '📦 Membership / Package' : '🎟️ Single Session'}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest mb-1">Service Name</p>
+                      <p className="text-sm font-black text-ink">{viewingBookingDetails.classId?.title || viewingBookingDetails.planId?.name || 'Package Purchase'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest mb-1">Booking Date</p>
+                      <p className="text-sm font-black text-ink">{new Date(viewingBookingDetails.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest mb-1">Schedule Date</p>
+                      <p className="text-sm font-black text-ink">{viewingBookingDetails.date ? new Date(viewingBookingDetails.date).toLocaleDateString() : 'N/A'}</p>
+                    </div>
+                  </div>
+                </section>
+
+                <section>
+                  <h4 className="text-[10px] font-black text-ink uppercase tracking-[0.2em] mb-4">Payment & Finance</h4>
+                  <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Total Amount</p>
+                        <p className="text-lg font-black text-brand-blue">AED {viewingBookingDetails.totalAmount?.toFixed(2)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Status</p>
+                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${viewingBookingDetails.paymentStatus === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                          {viewingBookingDetails.paymentStatus}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-50">
+                      <div>
+                        <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Method</p>
+                        <p className="text-[11px] font-bold text-ink">{viewingBookingDetails.paymentMethod?.toUpperCase()}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Reference</p>
+                        <p className="text-[11px] font-bold text-ink truncate">{viewingBookingDetails.paymentReference || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <section>
+                <h4 className="text-[10px] font-black text-ink uppercase tracking-[0.2em] mb-4">Customer Details</h4>
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                       <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Name</p>
+                       <p className="text-[11px] font-bold text-ink">{viewingBookingDetails.userId?.name || viewingBookingDetails.guestDetails?.name || 'N/A'}</p>
+                     </div>
+                     <div>
+                       <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest">Email</p>
+                       <p className="text-[11px] font-bold text-ink">{viewingBookingDetails.userId?.email || viewingBookingDetails.guestDetails?.email || 'N/A'}</p>
+                     </div>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <h4 className="text-[10px] font-black text-ink uppercase tracking-[0.2em] mb-4">Participants ({viewingBookingDetails.participants?.length})</h4>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {viewingBookingDetails.participants?.map((p, idx) => (
+                    <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-lg">👤</div>
+                      <div>
+                        <p className="text-sm font-black text-ink">{p.name}</p>
+                        <p className="text-[10px] font-bold text-ink/30 uppercase tracking-widest">{p.relation || 'N/A'} • {p.age} Years</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <div className="p-8 border-t border-slate-100 bg-white flex justify-end gap-4 shrink-0">
+              <button onClick={() => window.open(`/invoice/booking/${viewingBookingDetails._id}`, '_blank')} className="px-8 py-4 rounded-2xl bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all flex items-center gap-2">
+                <span>📜</span> View Invoice
+              </button>
+              <button onClick={() => setViewingBookingDetails(null)} className="px-10 py-4 rounded-2xl bg-slate-50 text-ink/40 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all">
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
