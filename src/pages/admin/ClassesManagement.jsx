@@ -23,6 +23,7 @@ const emptyForm = {
   taxId: '',
   creditCost: 1,
   status: 'active',
+  categoryId: '',
   replicateToLocations: []
 };
 
@@ -36,6 +37,7 @@ export default function ClassesManagement() {
   const [loading, setLoading] = useState(true);
   const [taxes, setTaxes] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
 
   const { can } = usePermissions();
@@ -50,7 +52,8 @@ export default function ClassesManagement() {
     const p2 = api.get('/trainers?all=true').then((res) => setTrainers(res.data || [])).catch(() => { });
     const p3 = api.get('/taxes').then(res => setTaxes(res.data.data || [])).catch(() => {});
     const p4 = api.get('/locations?all=true').then((res) => setLocations(res.data || [])).catch(() => { });
-    Promise.all([p1, p2, p3, p4]).finally(() => setLoading(false));
+    const p5 = api.get('/categories?status=active&type=class').then((res) => setCategories(res.data || [])).catch(() => { });
+    Promise.all([p1, p2, p3, p4, p5]).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -76,6 +79,7 @@ export default function ClassesManagement() {
       capacity: item.capacity ?? '',
       imageUrl: item.imageUrl || '',
       taxId: item.taxId?._id || item.taxId || '',
+      categoryId: item.categoryId?._id || item.categoryId || '',
       creditCost: item.creditCost ?? 1,
       status: item.status || 'active',
       replicateToLocations: []
@@ -103,6 +107,7 @@ export default function ClassesManagement() {
       availableTrainers: validTrainers,
       price: Number(form.price),
       capacity: form.capacity !== '' ? Number(form.capacity) : null,
+      categoryId: form.categoryId || null,
       creditCost: Number(form.creditCost || 1),
       replicateToLocations: form.replicateToLocations || []
     };
@@ -315,6 +320,20 @@ export default function ClassesManagement() {
                   <option value="">No Tax (Tax Exempt)</option>
                   {taxes.map(t => (
                     <option key={t._id} value={t._id}>{t.name} ({t.value}{t.type === 'percentage' ? '%' : ' AED'}) - {t.locationId?.name || 'All'}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-ink/30 px-3 uppercase tracking-widest">Category</label>
+                <select
+                  className="w-full rounded-xl border border-orange-200/70 p-3 bg-emerald-50/30"
+                  name="categoryId"
+                  value={form.categoryId}
+                  onChange={handleChange}
+                >
+                  <option value="">No Category</option>
+                  {categories.map(c => (
+                    <option key={c._id} value={c._id}>{c.name}</option>
                   ))}
                 </select>
               </div>

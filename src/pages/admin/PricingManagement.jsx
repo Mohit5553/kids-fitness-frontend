@@ -14,6 +14,9 @@ const emptyForm = {
   validityUnit: 'weeks',
   type: 'pack',
   classesIncluded: '',
+  bonusQuantity: 0,
+  bonusItemType: 'same',
+  bonusItemId: '',
   durationWeeks: '',
   durationValue: '',
   durationUnit: 'weeks',
@@ -24,6 +27,8 @@ const emptyForm = {
   isUnlimited: false,
   sessionType: 'group',
   validDays: 'both',
+  sessionDuration: '',
+  sessionDurationUnit: 'minutes',
   timeSlots: '',
   trainerAllocation: 'random',
   trainerId: '',
@@ -35,7 +40,9 @@ const emptyForm = {
   cancellationWindow: 6,
   allowFreezing: false,
   gender: 'mixed',
-  replicateToLocations: []
+  categoryId: '',
+  replicateToLocations: [],
+  bonuses: []
 };
 
 export default function PricingManagement() {
@@ -48,6 +55,8 @@ export default function PricingManagement() {
   const [trainers, setTrainers] = useState([]);
   const [taxes, setTaxes] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [categories, setCategories] = useState([]);
 
   const { can } = usePermissions();
 
@@ -60,19 +69,21 @@ export default function PricingManagement() {
     setLoading(true);
     const p1 = api.get('/plans?all=true').then((res) => setPlans(res.data || [])).catch(() => { });
     const p2 = api.get('/locations?all=true').then((res) => setLocations(res.data || [])).catch(() => { });
-    Promise.all([p1, p2]).finally(() => setLoading(false));
+    const p3 = api.get('/classes?all=true').then((res) => setClasses(res.data || [])).catch(() => { });
+    const p4 = api.get('/categories?status=active&type=membership').then((res) => setCategories(res.data || [])).catch(() => { });
+    Promise.all([p1, p2, p3, p4]).finally(() => setLoading(false));
   };
 
   const loadTrainers = () => {
     api.get('/trainers')
       .then(res => setTrainers(res.data || []))
-      .catch(() => {});
+      .catch(() => { });
   };
 
   const loadTaxes = () => {
     api.get('/taxes')
       .then(res => setTaxes(res.data.data || []))
-      .catch(() => {});
+      .catch(() => { });
   };
 
   useEffect(() => {
@@ -95,6 +106,9 @@ export default function PricingManagement() {
       validityUnit: plan.validityUnit || 'weeks',
       type: plan.type || 'pack',
       classesIncluded: plan.classesIncluded ?? '',
+      bonusQuantity: plan.bonusQuantity || 0,
+      bonusItemType: plan.bonusItemType || 'same',
+      bonusItemId: plan.bonusItemId?._id || plan.bonusItemId || '',
       durationWeeks: plan.durationWeeks ?? '',
       durationValue: plan.durationValue ?? '',
       durationUnit: plan.durationUnit || 'weeks',
@@ -105,6 +119,8 @@ export default function PricingManagement() {
       isUnlimited: plan.classesIncluded === 0,
       sessionType: plan.sessionType || 'group',
       validDays: plan.validDays || 'both',
+      sessionDuration: plan.sessionDuration || '',
+      sessionDurationUnit: plan.sessionDurationUnit || 'minutes',
       timeSlots: (plan.timeSlots || []).join(', '),
       trainerAllocation: plan.trainerAllocation || 'random',
       trainerId: plan.trainerId?._id || plan.trainerId || '',
@@ -116,7 +132,13 @@ export default function PricingManagement() {
       creditsIncluded: plan.creditsIncluded ?? 0,
       dailyBookingLimit: plan.dailyBookingLimit ?? 0,
       gender: plan.gender || 'mixed',
-      replicateToLocations: []
+      categoryId: plan.categoryId?._id || plan.categoryId || '',
+      replicateToLocations: [],
+      bonuses: plan.bonuses?.map(b => ({
+        quantity: b.quantity || 0,
+        itemType: b.itemType || 'same',
+        itemId: b.itemId?._id || b.itemId || ''
+      })) || []
     });
   };
 
@@ -133,11 +155,21 @@ export default function PricingManagement() {
       ...form,
       price: Number(form.price),
       classesIncluded: form.isUnlimited ? 0 : (form.classesIncluded ? Number(form.classesIncluded) : undefined),
+      bonusQuantity: Number(form.bonusQuantity || 0),
+      bonusItemType: form.bonusItemType,
+      bonusItemId: form.bonusItemId || undefined,
+      bonuses: (form.bonuses || []).map(b => ({
+        quantity: Number(b.quantity || 0),
+        itemType: b.itemType,
+        itemId: b.itemId || undefined
+      })),
       durationWeeks: form.durationWeeks ? Number(form.durationWeeks) : undefined,
       durationValue: form.durationValue ? Number(form.durationValue) : undefined,
       durationUnit: form.durationUnit,
       validityValue: form.validityValue ? Number(form.validityValue) : undefined,
       validityUnit: form.validityUnit,
+      sessionDuration: form.sessionDuration ? Number(form.sessionDuration) : undefined,
+      sessionDurationUnit: form.sessionDurationUnit,
       benefits: form.benefits.split(',').map((item) => item.trim()).filter(Boolean),
       timeSlots: form.timeSlots.split(',').map((item) => item.trim()).filter(Boolean),
       extensionRules: {
@@ -148,6 +180,7 @@ export default function PricingManagement() {
       },
       creditsIncluded: Number(form.creditsIncluded || 0),
       dailyBookingLimit: Number(form.dailyBookingLimit || 0),
+      categoryId: form.categoryId || null,
       trainerId: (form.trainerAllocation === 'fixed' && form.trainerId) ? form.trainerId : null,
       replicateToLocations: form.replicateToLocations || []
     };
@@ -182,8 +215,8 @@ export default function PricingManagement() {
     <div>
       <Navbar />
       <main className="page-shell py-12">
-        <AdminHeader 
-          title="Membership Pricing" 
+        <AdminHeader
+          title="Membership Pricing"
           description="Update plan pricing, benefits, and membership terms."
           backTo={`/${roleSlug}`}
         />
@@ -242,21 +275,37 @@ export default function PricingManagement() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Plan Category</label>
-                <select
-                  className="w-full rounded-xl border border-orange-200/70 p-3"
-                  name="type"
-                  value={form.type}
-                  onChange={handleChange}
-                >
-                  <option value="dropin">Drop-in</option>
-                  <option value="pack">Pack / Packaged</option>
-                  <option value="term">Term / Weekly</option>
-                  <option value="subscription">Subscription</option>
-                  <option value="time-based">Time-Based Access</option>
-                  <option value="credit-based">Credit-Based</option>
-                </select>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Plan Category</label>
+                  <select
+                    className="w-full rounded-xl border border-orange-200/70 p-3"
+                    name="type"
+                    value={form.type}
+                    onChange={handleChange}
+                  >
+                    <option value="dropin">Drop-in</option>
+                    <option value="pack">Pack / Packaged</option>
+                    <option value="term">Term / Weekly</option>
+                    <option value="subscription">Subscription</option>
+                    <option value="time-based">Time-Based Access</option>
+                    <option value="credit-based">Credit-Based</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Category Master</label>
+                  <select
+                    className="w-full rounded-xl border border-orange-200/70 p-3 bg-emerald-50/30"
+                    name="categoryId"
+                    value={form.categoryId}
+                    onChange={handleChange}
+                  >
+                    <option value="">No Category</option>
+                    {categories.map(c => (
+                      <option key={c._id} value={c._id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -312,6 +361,94 @@ export default function PricingManagement() {
               </div>
             </div>
 
+            <div className="flex flex-col gap-3 pt-1 p-4 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/30">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase text-ink/40">Bonus/Free Classes</p>
+                <button type="button" className="text-xs font-bold text-ocean hover:text-ocean/70" onClick={() => setForm(prev => ({ ...prev, bonuses: [...(prev.bonuses || []), { quantity: 0, itemType: 'same', itemId: '' }] }))}>
+                  + Add Bonus
+                </button>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Bonus Quantity</label>
+                  <input
+                    className="w-full rounded-xl border border-indigo-200/70 p-3"
+                    name="bonusQuantity"
+                    type="number"
+                    placeholder="e.g. 3"
+                    value={form.bonusQuantity}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Bonus Item Type</label>
+                  <select
+                    className="w-full rounded-xl border border-indigo-200/70 p-3"
+                    name="bonusItemType"
+                    value={form.bonusItemType}
+                    onChange={handleChange}
+                  >
+                    <option value="same">Same Class/Plan</option>
+                    <option value="class">Specific Class</option>
+                    <option value="plan">Specific Plan</option>
+                  </select>
+                </div>
+                {form.bonusItemType !== 'same' && (
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Specific Bonus Item</label>
+                    <select
+                      className="w-full rounded-xl border border-indigo-200/70 p-3"
+                      name="bonusItemId"
+                      value={form.bonusItemId}
+                      onChange={handleChange}
+                    >
+                      <option value="">Select Item...</option>
+                      {form.bonusItemType === 'class' ? classes.map(c => <option key={c._id} value={c._id}>{c.title}</option>) : plans.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+              {form.bonuses && form.bonuses.map((bonus, idx) => (
+                <div key={idx} className="grid gap-3 md:grid-cols-3 border-t border-indigo-200/30 pt-3 relative">
+                  <button type="button" onClick={() => setForm(prev => ({ ...prev, bonuses: prev.bonuses.filter((_, i) => i !== idx) }))} className="absolute -top-3 -right-2 text-[10px] text-coral font-bold p-1 bg-white rounded-full border border-coral/30 hover:bg-red-50 w-5 h-5 flex items-center justify-center leading-none z-10" title="Remove bonus">×</button>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Bonus Quantity</label>
+                    <input className="w-full rounded-xl border border-indigo-200/70 p-3" type="number" placeholder="e.g. 3" value={bonus.quantity} onChange={e => {
+                      const newBonuses = [...form.bonuses];
+                      newBonuses[idx].quantity = e.target.value;
+                      setForm(prev => ({ ...prev, bonuses: newBonuses }));
+                    }} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Bonus Item Type</label>
+                    <select className="w-full rounded-xl border border-indigo-200/70 p-3" value={bonus.itemType} onChange={e => {
+                      const newBonuses = [...form.bonuses];
+                      newBonuses[idx].itemType = e.target.value;
+                      newBonuses[idx].itemId = '';
+                      setForm(prev => ({ ...prev, bonuses: newBonuses }));
+                    }}>
+                      <option value="same">Same Class/Plan</option>
+                      <option value="class">Specific Class</option>
+                      <option value="plan">Specific Plan</option>
+                    </select>
+                  </div>
+                  {bonus.itemType !== 'same' && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Specific Bonus Item</label>
+                      <select className="w-full rounded-xl border border-indigo-200/70 p-3" value={bonus.itemId} onChange={e => {
+                        const newBonuses = [...form.bonuses];
+                        newBonuses[idx].itemId = e.target.value;
+                        setForm(prev => ({ ...prev, bonuses: newBonuses }));
+                      }}>
+                        <option value="">Select Item...</option>
+                        {bonus.itemType === 'class' ? classes.map(c => <option key={c._id} value={c._id}>{c.title}</option>) : plans.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
             <div className="grid gap-3 md:grid-cols-4 border-t border-slate-50 pt-3">
               <div className="space-y-1">
                 <label className="text-[9px] font-bold text-ink/40 uppercase ml-2">Daily Booking Limit</label>
@@ -327,39 +464,39 @@ export default function PricingManagement() {
 
               {form.type === 'credit-based' && (
                 <div className="space-y-1">
-                   <label className="text-[9px] font-bold text-ink/40 uppercase ml-2">Total Credits</label>
-                   <input
-                     className="w-full rounded-xl border border-orange-200/70 p-3 bg-indigo-50/30"
-                     name="creditsIncluded"
-                     type="number"
-                     placeholder="Credits"
-                     value={form.creditsIncluded}
-                     onChange={handleChange}
-                   />
+                  <label className="text-[9px] font-bold text-ink/40 uppercase ml-2">Total Credits</label>
+                  <input
+                    className="w-full rounded-xl border border-orange-200/70 p-3 bg-indigo-50/30"
+                    name="creditsIncluded"
+                    type="number"
+                    placeholder="Credits"
+                    value={form.creditsIncluded}
+                    onChange={handleChange}
+                  />
                 </div>
               )}
 
               <div className="space-y-1">
-                 <label className="text-[9px] font-bold text-ink/40 uppercase ml-2">Cancel Window (hrs)</label>
-                 <input
-                   className="w-full rounded-xl border border-orange-200/70 p-3"
-                   name="cancellationWindow"
-                   type="number"
-                   placeholder="Window (e.g. 6)"
-                   value={form.cancellationWindow}
-                   onChange={handleChange}
-                 />
+                <label className="text-[9px] font-bold text-ink/40 uppercase ml-2">Cancel Window (hrs)</label>
+                <input
+                  className="w-full rounded-xl border border-orange-200/70 p-3"
+                  name="cancellationWindow"
+                  type="number"
+                  placeholder="Window (e.g. 6)"
+                  value={form.cancellationWindow}
+                  onChange={handleChange}
+                />
               </div>
 
               <div className="flex items-center gap-3 px-3 pt-4">
-                  <input
-                    type="checkbox"
-                    id="allowFreezing"
-                    checked={form.allowFreezing}
-                    onChange={(e) => setForm(prev => ({ ...prev, allowFreezing: e.target.checked }))}
-                    className="h-5 w-5 rounded border-orange-200 text-brand-blue"
-                  />
-                  <label htmlFor="allowFreezing" className="text-[10px] font-bold uppercase text-ink/40">Allow Freezing</label>
+                <input
+                  type="checkbox"
+                  id="allowFreezing"
+                  checked={form.allowFreezing}
+                  onChange={(e) => setForm(prev => ({ ...prev, allowFreezing: e.target.checked }))}
+                  className="h-5 w-5 rounded border-orange-200 text-brand-blue"
+                />
+                <label htmlFor="allowFreezing" className="text-[10px] font-bold uppercase text-ink/40">Allow Freezing</label>
               </div>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
@@ -427,38 +564,50 @@ export default function PricingManagement() {
                   <option value="fixed">Fixed (Manual)</option>
                 </select>
               </div>
-
               {form.trainerAllocation === 'fixed' ? (
                 <div className="space-y-1 animate-rise">
-                    <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Select Fixed Trainer</label>
-                    <select 
-                        className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" 
-                        name="trainerId" 
-                        value={form.trainerId} 
-                        onChange={handleChange}
-                        required={form.trainerAllocation === 'fixed'}
-                    >
-                        <option value="">Choose a trainer...</option>
-                        {trainers.map(t => (
-                            <option key={t._id} value={t._id}>{t.name}</option>
-                        ))}
-                    </select>
+                  <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Select Fixed Trainer</label>
+                  <select
+                    className="w-full rounded-xl border border-orange-200/70 p-3 text-sm"
+                    name="trainerId"
+                    value={form.trainerId}
+                    onChange={handleChange}
+                    required={form.trainerAllocation === 'fixed'}
+                  >
+                    <option value="">Choose a trainer...</option>
+                    {trainers.map(t => (
+                      <option key={t._id} value={t._id}>{t.name}</option>
+                    ))}
+                  </select>
                 </div>
               ) : (
                 <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Time Slots (comma separated)</label>
-                    <input className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" name="timeSlots" placeholder="10:00 AM, 04:00 PM" value={form.timeSlots} onChange={handleChange} />
+                  <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Time Slots (comma separated)</label>
+                  <input className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" name="timeSlots" placeholder="10:00 AM, 04:00 PM" value={form.timeSlots} onChange={handleChange} />
                 </div>
               )}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Session Duration</label>
+                  <input className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" type="number" name="sessionDuration" placeholder="e.g. 45" value={form.sessionDuration} onChange={handleChange} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Unit</label>
+                  <select className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" name="sessionDurationUnit" value={form.sessionDurationUnit} onChange={handleChange}>
+                    <option value="minutes">Minutes</option>
+                    <option value="hours">Hours</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             {form.trainerAllocation === 'fixed' && (
-                <div className="grid gap-3 md:grid-cols-1">
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Time Slots (comma separated)</label>
-                        <input className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" name="timeSlots" placeholder="10:00 AM, 04:00 PM" value={form.timeSlots} onChange={handleChange} />
-                    </div>
+              <div className="grid gap-3 md:grid-cols-1">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Time Slots (comma separated)</label>
+                  <input className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" name="timeSlots" placeholder="10:00 AM, 04:00 PM" value={form.timeSlots} onChange={handleChange} />
                 </div>
+              </div>
             )}
             <div className="grid gap-3 md:grid-cols-3">
               <div className="space-y-1">
@@ -471,10 +620,10 @@ export default function PricingManagement() {
               </div>
               <div className="space-y-1 md:col-span-1">
                 <label className="text-[10px] font-bold uppercase text-ink/40 px-1">Applied Tax Rule</label>
-                <select 
-                  className="w-full rounded-xl border border-orange-200/70 p-3 text-sm" 
-                  name="taxId" 
-                  value={form.taxId} 
+                <select
+                  className="w-full rounded-xl border border-orange-200/70 p-3 text-sm"
+                  name="taxId"
+                  value={form.taxId}
                   onChange={handleChange}
                 >
                   <option value="">No Tax (Tax Exempt)</option>
@@ -555,7 +704,7 @@ export default function PricingManagement() {
                     {plan.type === 'subscription' && plan.billingCycle !== 'none' && ` (${plan.billingCycle})`}
                   </p>
                   {plan.dailyBookingLimit > 0 && (
-                     <p className="text-[9px] font-bold text-coral uppercase tracking-tighter">Max {plan.dailyBookingLimit} bookings/day</p>
+                    <p className="text-[9px] font-bold text-coral uppercase tracking-tighter">Max {plan.dailyBookingLimit} bookings/day</p>
                   )}
                 </div>
                 <p className="text-sm font-semibold text-ocean">AED {plan.price}</p>

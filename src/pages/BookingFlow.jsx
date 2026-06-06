@@ -46,6 +46,7 @@ export default function BookingFlow() {
   const [guestDetails, setGuestDetails] = useState({ name: '', email: '', phone: '' });
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingClasses, setLoadingClasses] = useState(false);
   const [error, setError] = useState('');
   const [showTrainerModal, setShowTrainerModal] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
@@ -228,13 +229,13 @@ export default function BookingFlow() {
 
   // Step 1: Fetch Classes
   useEffect(() => {
-    if (step > 1 && !selectedClass && !loading && !isRestoring) {
+    if (step > 1 && !selectedClass && !loadingClasses && !isRestoring && !sessionIdFromUrl) {
       setStep(1);
     }
-  }, [step, selectedClass, loading, isRestoring]);
+  }, [step, selectedClass, loadingClasses, isRestoring, sessionIdFromUrl]);
 
   useEffect(() => {
-    setLoading(true);
+    setLoadingClasses(true);
     
     // Fetch global settings
     api.get('/settings/global').then(res => {
@@ -254,9 +255,9 @@ export default function BookingFlow() {
           if (found) {
             setSelectedClass(found);
             // If we have a classId from URL, we should at least be on Step 2
-            if (step === 1 && !isRestoringParam) {
-              setStep(2);
-            }
+            // BUT only if we aren't already on a further step (like 4 from sessionId)
+            setStep(prev => (prev === 1 && !isRestoringParam ? 2 : prev));
+            
             // Auto-select location from URL or Class data
             if (!selectedLocation) {
               if (locationIdFromUrl) {
@@ -267,9 +268,9 @@ export default function BookingFlow() {
             }
           }
         }
-        setLoading(false);
+        setLoadingClasses(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => setLoadingClasses(false));
   }, [classIdFromUrl]);
 
   // Step 1.1: Fetch specific session if sessionId is in URL
@@ -811,6 +812,7 @@ export default function BookingFlow() {
                                     >
                                       <span className="text-xl font-black font-display">
                                         {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {s.endTime && ` - ${new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                                       </span>
                                       <span className={`text-[10px] font-bold uppercase tracking-widest ${isSelected ? 'text-brand-blue/70' : spotsLeft <= 0 ? 'text-coral' : 'text-ink/40'}`}>
                                         {spotsLeft <= 0 ? 'FULL' : `${spotsLeft} spots left`}
@@ -1186,7 +1188,11 @@ export default function BookingFlow() {
                           <div className="flex justify-between items-baseline">
                             <span className="text-sm font-bold text-ink/40">Gross Subtotal</span>
                             <span className="text-sm font-black text-ink">
-                               {currency} {(activeTax?.calculationMethod === 'inclusive' ? (totalPrice - taxAmount) : totalPrice).toLocaleString()}
+                               {currency} {
+                                 (activeTax?.calculationMethod === 'inclusive' 
+                                    ? (activeTax.type === 'percentage' ? totalPrice / (1 + (activeTax.value / 100)) : Math.max(0, totalPrice - activeTax.value)) 
+                                    : totalPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                               }
                             </span>
                           </div>
 
@@ -1203,9 +1209,12 @@ export default function BookingFlow() {
                           {taxAmount > 0 && (
                             <div className="flex justify-between items-baseline">
                               <span className="text-[11px] font-black uppercase tracking-widest text-ink/30 italic">
-                                {activeTax?.calculationMethod === 'inclusive' ? 'Included' : 'Additional'} VAT ({activeTax?.value}% {activeTax?.name})
+                                {activeTax?.name || 'VAT'} ({activeTax?.value}% {activeTax?.type === 'percentage' ? '' : currency})
+                                {activeTax?.calculationMethod === 'inclusive' && <span className="ml-1">(Included)</span>}
                               </span>
-                              <span className="text-sm font-black text-ink/40">{currency} {taxAmount.toLocaleString()}</span>
+                              <span className="text-sm font-black text-ink/40">
+                                {activeTax?.calculationMethod === 'inclusive' ? '' : '+ '}{currency} {taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
                             </div>
                           )}
 

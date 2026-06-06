@@ -12,7 +12,9 @@ import { useSettings } from '../context/SettingsContext.jsx';
 export default function Pricing() {
   const navigate = useNavigate();
   const [plans, setPlans] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const { currency } = useSettings();
 
   // Checkout State
@@ -54,6 +56,9 @@ export default function Pricing() {
       const locationId = getLocationId();
       const res = await api.get('/plans', { params: { locationId } });
       setPlans(res.data);
+      
+      const catRes = await api.get('/categories?status=active&type=membership');
+      setCategories(catRes.data || []);
     } catch (err) {
       console.error('Failed to fetch plans', err);
     } finally {
@@ -333,13 +338,18 @@ export default function Pricing() {
     }
   };
 
-  const classOptions = plans.filter(p => p.type === 'pack' || p.type === 'subscription');
-  const termPricing = plans.filter(p => p.type === 'term');
-  const dropIns = plans.filter(p => p.type === 'dropin');
+  const filteredPlans = plans.filter(p => {
+    const itemCategoryId = typeof p.categoryId === 'object' ? p.categoryId?._id : p.categoryId;
+    return selectedCategory === 'All' || itemCategoryId === selectedCategory;
+  });
+
+  const classOptions = filteredPlans.filter(p => p.type === 'pack' || p.type === 'subscription');
+  const termPricing = filteredPlans.filter(p => p.type === 'term');
+  const dropIns = filteredPlans.filter(p => p.type === 'dropin');
 
   const minDropIn = dropIns.length > 0
     ? Math.min(...dropIns.map(p => p.price))
-    : (plans.find(p => p.type === 'dropin')?.price || 80);
+    : (filteredPlans.find(p => p.type === 'dropin')?.price || 80);
 
   return (
     <div>
@@ -375,8 +385,24 @@ export default function Pricing() {
           <div className="pointer-events-none absolute -bottom-16 left-10 h-44 w-44 rounded-full bg-white/10" />
         </section>
 
-        <div className="mt-6">
-          <LocationPicker compact />
+        <div className="mt-6 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-ink/30 uppercase tracking-widest px-2">Location:</span>
+            <LocationPicker compact />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-ink/30 uppercase tracking-widest px-2">Category:</span>
+            <select
+              className="bg-slate-100 border-none rounded-full py-2 px-4 text-xs font-bold text-ink/70 focus:ring-2 focus:ring-brand-blue/20 outline-none cursor-pointer"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              <option value="All">All Categories</option>
+              {categories.map(cat => (
+                <option key={cat._id} value={cat._id}>{cat.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <section className="mt-8">
@@ -452,12 +478,38 @@ export default function Pricing() {
                       <svg className="w-4 h-4 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                       {item.classesIncluded || (item.type === 'dropin' ? '1' : 'Unlimited')} Classes
                     </span>
-                    {item.durationWeeks && (
+                    {(item.durationValue && item.durationUnit) ? (
                       <span className="flex items-center gap-1.5">
                         <svg className="w-4 h-4 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        {item.durationWeeks} Weeks
+                        {item.durationValue} {item.durationUnit.charAt(0).toUpperCase() + item.durationUnit.slice(1)}
                       </span>
+                    ) : item.durationWeeks ? (
+                      <span className="flex items-center gap-1.5">
+                        <svg className="w-4 h-4 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        {Math.round(item.durationWeeks * 10) / 10} Weeks
+                      </span>
+                    ) : null}
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center">
+                    {item.bonusQuantity > 0 && (
+                      <div className="mt-3 mr-2 text-xs font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg inline-flex items-center gap-2 border border-emerald-100/50 shadow-sm">
+                        <span>🎁</span>
+                        {item.bonusItemType === 'same' 
+                          ? `+${item.bonusQuantity} FREE ${item.bonusQuantity === 1 ? 'Class' : 'Classes'}`
+                          : `+${item.bonusQuantity} FREE ${item.bonusQuantity === 1 ? 'Class' : 'Classes'} of ${item.bonusItemName}`
+                        }
+                      </div>
                     )}
+                    {item.bonuses && item.bonuses.map((b, idx) => b.quantity > 0 && (
+                      <div key={idx} className="mt-3 mr-2 text-xs font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg inline-flex items-center gap-2 border border-emerald-100/50 shadow-sm">
+                        <span>🎁</span>
+                        {b.itemType === 'same'
+                          ? `+${b.quantity} FREE ${b.quantity === 1 ? 'Class' : 'Classes'}`
+                          : `+${b.quantity} FREE ${b.quantity === 1 ? 'Class' : 'Classes'} of ${b.itemName}`
+                        }
+                      </div>
+                    ))}
                   </div>
 
                   {item.benefits && item.benefits.length > 0 && (
@@ -519,30 +571,30 @@ export default function Pricing() {
       {/* Details Modal */}
       {detailsPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm" onClick={() => setDetailsPlan(null)}>
-          <div className="relative w-full max-w-lg bg-white rounded-[2.5rem] p-8 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="relative w-full max-w-lg bg-white rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             {/* Header with Close Button */}
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-blue/40">Membership Details</span>
-                <h2 className="text-3xl font-black text-ink mt-1">{detailsPlan.name}</h2>
+            <div className="flex items-start justify-between mb-5 shrink-0">
+              <div className="pr-4">
+                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-brand-blue/40">Membership Details</span>
+                <h2 className="text-2xl md:text-3xl font-black text-ink mt-1 leading-tight">{detailsPlan.name}</h2>
               </div>
               <button 
                 onClick={() => setDetailsPlan(null)}
-                className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-ink/30 hover:bg-slate-100 hover:text-coral transition-all"
+                className="w-8 h-8 md:w-10 md:h-10 shrink-0 rounded-full bg-slate-50 flex items-center justify-center text-ink/30 hover:bg-slate-100 hover:text-coral transition-all"
                 title="Close"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </div>
 
-            <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-5 overflow-y-auto pr-2 custom-scrollbar flex-1 pb-4">
               {/* Tagline */}
               {detailsPlan.tagline && (
                 <p className="text-sm font-bold text-ink/50 italic leading-relaxed">"{detailsPlan.tagline}"</p>
               )}
 
               {/* Core Specs Grid */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-50">
                   <p className="text-[9px] font-black uppercase text-ink/30 mb-1">Entitlement</p>
                   <p className="text-xl font-black text-brand-blue">
@@ -555,8 +607,45 @@ export default function Pricing() {
                 </div>
               </div>
 
+              <div className="flex flex-col gap-3">
+                {detailsPlan.bonusQuantity > 0 && (
+                   <div className="flex items-center gap-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 animate-in slide-in-from-bottom-2 duration-300">
+                      <span className="text-3xl">🎁</span>
+                      <div>
+                         <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Bonus Reward Included</p>
+                         <p className="text-lg font-black text-ink">
+                           {detailsPlan.bonusItemType === 'same'
+                             ? `${detailsPlan.bonusQuantity} Free ${detailsPlan.bonusQuantity === 1 ? 'Class' : 'Classes'}!`
+                             : `${detailsPlan.bonusQuantity} Free ${detailsPlan.bonusQuantity === 1 ? 'Class' : 'Classes'} of ${detailsPlan.bonusItemName}!`
+                           }
+                         </p>
+                         <p className="text-[10px] font-bold text-ink/50 mt-1">
+                            You will receive these bonus sessions automatically upon purchasing this plan.
+                         </p>
+                      </div>
+                   </div>
+                )}
+                {detailsPlan.bonuses && detailsPlan.bonuses.map((b, idx) => b.quantity > 0 && (
+                   <div key={`b-${idx}`} className="flex items-center gap-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 animate-in slide-in-from-bottom-2 duration-300">
+                      <span className="text-3xl">🎁</span>
+                      <div>
+                         <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Additional Bonus Reward</p>
+                         <p className="text-lg font-black text-ink">
+                           {b.itemType === 'same'
+                             ? `${b.quantity} Free ${b.quantity === 1 ? 'Class' : 'Classes'}!`
+                             : `${b.quantity} Free ${b.quantity === 1 ? 'Class' : 'Classes'} of ${b.itemName}!`
+                           }
+                         </p>
+                         <p className="text-[10px] font-bold text-ink/50 mt-1">
+                            You will receive these bonus sessions automatically upon purchasing this plan.
+                         </p>
+                      </div>
+                   </div>
+                ))}
+              </div>
+
               {/* Advanced Specs Grid */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                  <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50/30 border border-indigo-50">
                     <span className="text-lg">🏋️</span>
                     <div>
@@ -622,14 +711,16 @@ export default function Pricing() {
               )}
             </div>
 
-            <div className="mt-8 pt-4 border-t border-slate-50">
+
+            
+            <div className="mt-4 pt-4 border-t border-slate-50 shrink-0">
                <button
                  onClick={() => { setDetailsPlan(null); openCheckout(detailsPlan); }}
-                 className="w-full rounded-2xl bg-brand-blue py-5 text-white font-black shadow-lg shadow-brand-blue/20 hover:shadow-brand-blue/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                 className="w-full rounded-2xl bg-brand-blue py-4 md:py-5 text-white font-black shadow-lg shadow-brand-blue/20 hover:shadow-brand-blue/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
                >
                  Book This Plan
                </button>
-               <p className="text-[9px] font-bold text-ink/20 text-center uppercase tracking-widest mt-4">Safe & Secure Payment via Stripe</p>
+               <p className="text-[8px] md:text-[9px] font-bold text-ink/20 text-center uppercase tracking-widest mt-3">Safe & Secure Payment via Stripe</p>
             </div>
           </div>
         </div>
@@ -924,7 +1015,13 @@ export default function Pricing() {
                     <div className="space-y-3">
                       <div className="flex justify-between items-center text-sm font-bold">
                         <span className="text-ink/60">Gross Amount</span>
-                        <span className="text-ink font-black">{currency} {multipliedPrice.toFixed(2)}</span>
+                        <span className="text-ink font-black">
+                          {currency} {
+                            (activeTax?.calculationMethod === 'inclusive' 
+                              ? (activeTax.type === 'percentage' ? multipliedPrice / (1 + (activeTax.value / 100)) : Math.max(0, multipliedPrice - activeTax.value)) 
+                              : multipliedPrice).toFixed(2)
+                          }
+                        </span>
                       </div>
 
                       {membershipUnits > 1 && (
@@ -936,7 +1033,11 @@ export default function Pricing() {
                       
                       <div className="flex justify-between items-center py-2">
                         <span className="text-[9px] font-black text-ink/30 uppercase">Subtotal</span>
-                        <span className="text-sm font-black text-ink">{multipliedPrice.toLocaleString()} {currency}</span>
+                        <span className="text-sm font-black text-ink">
+                          {(activeTax?.calculationMethod === 'inclusive' 
+                              ? (activeTax.type === 'percentage' ? multipliedPrice / (1 + (activeTax.value / 100)) : Math.max(0, multipliedPrice - activeTax.value)) 
+                              : multipliedPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
+                        </span>
                       </div>
                       {prorationCredit > 0 && (
                         <div className="flex justify-between items-center py-2">

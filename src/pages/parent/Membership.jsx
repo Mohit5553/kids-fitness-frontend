@@ -981,7 +981,7 @@ export default function Membership() {
                   {showScheduleMembership.generatedSessions.map((s, i) => (
                     <div key={s._id} className="bg-white p-6 rounded-[2rem] border border-slate-100 flex items-center justify-between group hover:shadow-lg transition-all font-display">
                       <div className="flex items-center gap-6 text-left">
-                        <span className="text-[10px] font-black text-brand-blue/30 w-6">0{i + 1}</span>
+                        <span className="text-[10px] font-black text-brand-blue/30 w-6">{(i + 1).toString().padStart(2, '0')}</span>
                         <div>
                           <p className="text-sm font-black text-ink">{new Date(s.startTime).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</p>
                           <p className="text-[10px] font-bold text-ink/30 uppercase tracking-widest leading-none mt-1">

@@ -52,7 +52,7 @@ const formatLocalDateForInput = (dateString) => {
   const date = new Date(dateString);
   if (isNaN(date.getTime())) return '';
   const pad = (n) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 };
 
 export default function SessionsManagement() {
@@ -60,6 +60,7 @@ export default function SessionsManagement() {
   const [sessions, setSessions] = useState([]);
   const [classes, setClasses] = useState([]);
   const [trainers, setTrainers] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [locations, setLocations] = useState([]);
   const [plans, setPlans] = useState([]);
   const [form, setForm] = useState(emptyForm);
@@ -88,6 +89,9 @@ export default function SessionsManagement() {
 
   const [dateFilterOption, setDateFilterOption] = useState('all');
   const [customDateFilter, setCustomDateFilter] = useState('');
+  const [selectedTrainerFilter, setSelectedTrainerFilter] = useState('all');
+  const [selectedClassFilter, setSelectedClassFilter] = useState('all');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
 
   const getLocalDateString = (date) => {
     const d = new Date(date);
@@ -142,6 +146,30 @@ export default function SessionsManagement() {
       result = result.filter(s => getLocalDateString(s.startTime) === customDateFilter);
     }
 
+    // Filter by Trainer
+    if (selectedTrainerFilter !== 'all') {
+      result = result.filter(s => {
+        const tId = s.trainerId?._id || s.trainerId;
+        return tId === selectedTrainerFilter;
+      });
+    }
+
+    // Filter by Class
+    if (selectedClassFilter !== 'all') {
+      result = result.filter(s => {
+        const cId = s.classId?._id || s.classId;
+        return cId === selectedClassFilter;
+      });
+    }
+
+    // Filter by Category
+    if (selectedCategoryFilter !== 'all') {
+      result = result.filter(s => {
+        const catId = s.classId?.categoryId;
+        return catId === selectedCategoryFilter;
+      });
+    }
+
     // Sort
     result.sort((a, b) => {
       if (view === 'active') {
@@ -152,7 +180,7 @@ export default function SessionsManagement() {
     });
 
     return result;
-  }, [sessions, view, dateFilterOption, customDateFilter]);
+  }, [sessions, view, dateFilterOption, customDateFilter, selectedTrainerFilter, selectedClassFilter, selectedCategoryFilter]);
 
   const load = () => {
     setLoading(true);
@@ -164,7 +192,8 @@ export default function SessionsManagement() {
     const p3 = api.get('/trainers').then((res) => setTrainers(res.data || []));
     const p4 = api.get('/locations').then((res) => setLocations(res.data || []));
     const p5 = api.get('/plans?all=true').then((res) => setPlans(res.data || []));
-    Promise.all([p1, p2, p3, p4, p5]).finally(() => setLoading(false));
+    const p6 = api.get('/categories').then((res) => setCategories(res.data || []));
+    Promise.all([p1, p2, p3, p4, p5, p6]).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -246,17 +275,10 @@ export default function SessionsManagement() {
       capacity: form.capacity ? Number(form.capacity) : undefined
     };
 
-    console.log('Creating session with payload:', {
-      ...payload,
-      locationIds: [selectedBranch]
-    });
-
     try {
       if (editingId) {
         await api.put(`/sessions/${editingId}`, payload);
       } else {
-        // If superadmin has "all" selected, the backend will fail with "Location is required" 
-        // unless the class has one. We've added a UI warning below.
         await api.post('/sessions', {
           ...payload,
           locationIds: selectedBranch && selectedBranch !== 'all' ? [selectedBranch] : []
@@ -267,7 +289,6 @@ export default function SessionsManagement() {
       load();
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to save session';
-      console.error('Session save error:', err.response?.data);
       toast.error(msg);
     }
   };
@@ -327,24 +348,6 @@ export default function SessionsManagement() {
     }
   };
 
-  const handleSendReminder = async (booking) => {
-    const id = booking._id;
-    const isVirtual = booking.isVirtualMembership;
-    setSendingReminderId(id);
-    try {
-      let url = `/bookings/${id}/reminder`;
-      if (isVirtual && viewingParticipantsSession) {
-        url += `?sessionId=${viewingParticipantsSession._id}`;
-      }
-      await api.post(url);
-      toast.success('Reminder email sent successfully!');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to send reminder');
-    } finally {
-      setSendingReminderId(null);
-    }
-  };
-
   const handleSendTrainerReminder = async (sessionId) => {
     setSendingTrainerReminderId(sessionId);
     try {
@@ -354,35 +357,6 @@ export default function SessionsManagement() {
       toast.error(err.response?.data?.message || 'Failed to send trainer reminder');
     } finally {
       setSendingTrainerReminderId(null);
-    }
-  };
-
-  const handleSendAllReminders = async () => {
-    if (!participantsList.length) return;
-    if (!window.confirm(`Are you sure you want to send reminders to all ${participantsList.length} participants?`)) return;
-
-    setSendingAllReminders(true);
-    let successCount = 0;
-    let failCount = 0;
-
-    for (const booking of participantsList) {
-      try {
-        let url = `/bookings/${booking._id}/reminder`;
-        if (booking.isVirtualMembership && viewingParticipantsSession) {
-          url += `?sessionId=${viewingParticipantsSession._id}`;
-        }
-        await api.post(url);
-        successCount++;
-      } catch (err) {
-        failCount++;
-      }
-    }
-
-    setSendingAllReminders(false);
-    if (successCount > 0) {
-      toast.success(`Success: ${successCount} reminders sent.${failCount > 0 ? ` Failed: ${failCount}` : ''}`);
-    } else if (failCount > 0) {
-      toast.error(`Failed to send ${failCount} reminders.`);
     }
   };
 
@@ -444,7 +418,6 @@ export default function SessionsManagement() {
                       onChange={(e) => {
                         setClassSearchQuery(e.target.value);
                         if (!showClassDropdown) setShowClassDropdown(true);
-                        // Clear selection if searching
                         if (form.classId) setForm(prev => ({ ...prev, classId: '' }));
                       }}
                       onFocus={() => setShowClassDropdown(true)}
@@ -489,13 +462,12 @@ export default function SessionsManagement() {
                         )}
                       </div>
                     )}
-                    {/* Backdrop to close dropdown */}
                     {showClassDropdown && (
                       <div
                         className="fixed inset-0 z-40"
                         onClick={() => {
                           setShowClassDropdown(false);
-                          setClassSearchQuery(''); // Reset query on close
+                          setClassSearchQuery(''); 
                         }}
                       />
                     )}
@@ -611,9 +583,52 @@ export default function SessionsManagement() {
           </div>
         )}
 
-        {/* Date Filter Bar */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-[28px] border border-slate-100 shadow-sm">
-          <div className="flex flex-wrap gap-2">
+        {/* Search and Date Filter Bar */}
+        <div className="mb-6 flex flex-col xl:flex-row items-center justify-between gap-4 bg-white p-4 rounded-[28px] border border-slate-100 shadow-sm">
+          <div className="flex flex-wrap items-center gap-4 shrink-0">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                <span className="text-xs font-bold text-ink/30 uppercase tracking-widest">Trainer:</span>
+              </div>
+              <select
+                value={selectedTrainerFilter}
+                onChange={(e) => setSelectedTrainerFilter(e.target.value)}
+                className="bg-slate-50 border border-slate-100 rounded-xl py-2.5 pl-[85px] pr-8 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all cursor-pointer min-w-[180px] max-w-[220px] truncate"
+              >
+                <option value="all">All Trainers</option>
+                {trainers.map(t => (
+                  <option key={t._id} value={t._id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                <span className="text-xs font-bold text-ink/30 uppercase tracking-widest">Program:</span>
+              </div>
+              <select
+                value={selectedClassFilter}
+                onChange={(e) => setSelectedClassFilter(e.target.value)}
+                className="bg-slate-50 border border-slate-100 rounded-xl py-2.5 pl-[85px] pr-8 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all cursor-pointer min-w-[180px] max-w-[220px] truncate"
+              >
+                <option value="all">All Programs</option>
+                <optgroup label="Classes">
+                  {classes.map(c => (
+                    <option key={c._id} value={c._id}>{c.title}</option>
+                  ))}
+                </optgroup>
+                {plans && plans.length > 0 && (
+                  <optgroup label="Memberships">
+                    {plans.map(p => (
+                      <option key={p._id} value={p._id}>{p.name}</option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-2 w-full">
             {[
               { id: 'all', label: 'All Dates' },
               { id: 'today', label: 'Today' },
@@ -626,7 +641,7 @@ export default function SessionsManagement() {
                 type="button"
                 onClick={() => {
                   setDateFilterOption(opt.id);
-                  setCustomDateFilter(''); // Clear custom date picker
+                  setCustomDateFilter(''); 
                 }}
                 className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${dateFilterOption === opt.id
                     ? 'bg-brand-blue text-white shadow-md shadow-brand-blue/15'
@@ -636,24 +651,24 @@ export default function SessionsManagement() {
                 {opt.label}
               </button>
             ))}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-black text-ink/30 uppercase tracking-widest">Or Select Date:</span>
-            <input
-              type="date"
-              value={customDateFilter}
-              onChange={(e) => {
-                const val = e.target.value;
-                setCustomDateFilter(val);
-                if (val) {
-                  setDateFilterOption('custom');
-                } else {
-                  setDateFilterOption('all');
-                }
-              }}
-              className="bg-slate-50 border border-slate-100 rounded-xl py-2 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all cursor-pointer"
-            />
+            
+            <div className="flex items-center gap-3 ml-2">
+              <span className="text-[10px] font-black text-ink/30 uppercase tracking-widest">Or Select Date:</span>
+              <input
+                type="date"
+                value={customDateFilter}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCustomDateFilter(val);
+                  if (val) {
+                    setDateFilterOption('custom');
+                  } else {
+                    setDateFilterOption('all');
+                  }
+                }}
+                className="bg-slate-50 border border-slate-100 rounded-xl py-2 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all cursor-pointer"
+              />
+            </div>
           </div>
         </div>
 
