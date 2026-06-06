@@ -18,6 +18,8 @@ export default function Schedule() {
   const user = getUser();
   const isAdmin = user && ['admin', 'superadmin'].includes(user.role);
   const [sessions, setSessions] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -86,6 +88,10 @@ export default function Schedule() {
         setSessions([]);
         setLoading(false);
       });
+
+    api.get('/categories?status=active&type=class')
+      .then(res => setCategories(res.data || []))
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -117,16 +123,21 @@ export default function Schedule() {
     }, {});
   }, [sessions, rollingDays, currentTime]);
 
-  // Combined filtering: Day + Search
+  // Combined filtering: Day + Search + Category
   const filteredSessions = useMemo(() => {
     const daySessions = grouped[selectedDay] || [];
-    if (!searchTerm) return daySessions;
-
-    return daySessions.filter(s =>
-      s.classId?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.trainerId?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [grouped, selectedDay, searchTerm]);
+    
+    return daySessions.filter(s => {
+      const matchesSearch = !searchTerm || 
+        s.classId?.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.trainerId?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+        
+      const itemCategoryId = typeof s.classId?.categoryId === 'object' ? s.classId?.categoryId?._id : s.classId?.categoryId;
+      const matchesCategory = selectedCategory === 'All' || itemCategoryId === selectedCategory;
+      
+      return matchesSearch && matchesCategory;
+    });
+  }, [grouped, selectedDay, searchTerm, selectedCategory]);
 
   // Ensure current day is selected if data exists for it, otherwise first available day
   useEffect(() => {
@@ -165,6 +176,20 @@ export default function Schedule() {
             <div className="p-1 px-4 bg-white/70 backdrop-blur-xl rounded-full border border-white shadow-low inline-flex items-center gap-4">
               <span className="text-xs font-bold text-ink/40 uppercase tracking-widest ml-2">Location:</span>
               <LocationPicker compact />
+            </div>
+
+            <div className="p-1 px-4 bg-white/70 backdrop-blur-xl rounded-full border border-white shadow-low inline-flex items-center gap-4">
+              <span className="text-xs font-bold text-ink/40 uppercase tracking-widest ml-2">Category:</span>
+              <select 
+                className="bg-transparent border-none py-2 text-xs font-bold text-ink/70 focus:ring-0 outline-none cursor-pointer"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                <option value="All">All Categories</option>
+                {categories.map(cat => (
+                  <option key={cat._id} value={cat._id}>{cat.name}</option>
+                ))}
+              </select>
             </div>
 
             <div className="group relative w-full max-w-xs">
@@ -319,7 +344,10 @@ export default function Schedule() {
                         </div>
                         <div>
                           <p className="text-[10px] font-bold uppercase tracking-widest text-ink/30 leading-none">Time</p>
-                          <p className="mt-1 text-sm font-black">{formatTime(session.startTime)}</p>
+                          <p className="mt-1 text-sm font-black">
+                            {formatTime(session.startTime)}
+                            {session.endTime && ` - ${formatTime(session.endTime)}`}
+                          </p>
                         </div>
                       </div>
 

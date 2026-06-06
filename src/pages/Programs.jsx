@@ -14,6 +14,8 @@ export default function Programs() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAge, setSelectedAge] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [categories, setCategories] = useState([]);
 
   const fetchClasses = () => {
     setLoading(true);
@@ -31,6 +33,10 @@ export default function Programs() {
       .catch(() => {
         setLoading(false);
       });
+
+    api.get('/categories?status=active&type=class')
+      .then(res => setCategories(res.data || []))
+      .catch(() => { });
   };
 
   useEffect(() => {
@@ -47,12 +53,16 @@ export default function Programs() {
 
   const filteredClasses = useMemo(() => {
     return classes.filter(item => {
-      const matchesSearch = item.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            item.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = item.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesAge = selectedAge === 'All' || item.ageGroup === selectedAge;
-      return matchesSearch && matchesAge;
+
+      const itemCategoryId = typeof item.categoryId === 'object' ? item.categoryId?._id : item.categoryId;
+      const matchesCategory = selectedCategory === 'All' || itemCategoryId === selectedCategory;
+
+      return matchesSearch && matchesAge && matchesCategory;
     });
-  }, [classes, searchTerm, selectedAge]);
+  }, [classes, searchTerm, selectedAge, selectedCategory]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -74,8 +84,8 @@ export default function Programs() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Search for classes..."
               className="w-full bg-slate-50 border-none rounded-2xl py-3 pl-12 pr-4 text-sm font-medium focus:ring-2 focus:ring-brand-blue/20 focus:bg-white transition-all outline-none"
               value={searchTerm}
@@ -86,13 +96,27 @@ export default function Programs() {
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-3">
               <span className="text-xs font-bold text-ink/30 uppercase tracking-widest">Age Group:</span>
-              <select 
+              <select
                 className="bg-slate-50 border-none rounded-2xl py-3 px-4 text-sm font-bold text-ink/70 focus:ring-2 focus:ring-brand-blue/20 outline-none cursor-pointer hover:bg-slate-100 transition-all"
                 value={selectedAge}
                 onChange={(e) => setSelectedAge(e.target.value)}
               >
                 {ageGroups.map(group => (
                   <option key={group} value={group}>{group}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-ink/30 uppercase tracking-widest">Category:</span>
+              <select
+                className="bg-slate-50 border-none rounded-2xl py-3 px-4 text-sm font-bold text-ink/70 focus:ring-2 focus:ring-brand-blue/20 outline-none cursor-pointer hover:bg-slate-100 transition-all"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                <option value="All">All Categories</option>
+                {categories.map(cat => (
+                  <option key={cat._id} value={cat._id}>{cat.name}</option>
                 ))}
               </select>
             </div>
@@ -120,15 +144,15 @@ export default function Programs() {
           </div>
         ) : (
           <div className="mt-12 py-16 text-center bg-white rounded-[48px] border border-dashed border-slate-200">
-             <div className="text-4xl mb-4 grayscale opacity-30">🔍</div>
-             <h3 className="font-display text-xl font-black text-ink">No matching classes</h3>
-             <p className="mt-2 text-ink/50 font-medium">Try adjusting your filters or searching for something else.</p>
-             <button 
-               onClick={() => { setSearchTerm(''); setSelectedAge('All'); }}
-               className="mt-6 text-brand-blue font-bold text-sm hover:underline"
-             >
-               Clear all filters
-             </button>
+            <div className="text-4xl mb-4 grayscale opacity-30">🔍</div>
+            <h3 className="font-display text-xl font-black text-ink">No matching classes</h3>
+            <p className="mt-2 text-ink/50 font-medium">Try adjusting your filters or searching for something else.</p>
+            <button
+              onClick={() => { setSearchTerm(''); setSelectedAge('All'); setSelectedCategory('All'); }}
+              className="mt-6 text-brand-blue font-bold text-sm hover:underline"
+            >
+              Clear all filters
+            </button>
           </div>
         )}
 
@@ -136,18 +160,18 @@ export default function Programs() {
         <div className="mt-24 p-8 md:p-12 rounded-[48px] bg-ink text-white relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-brand-blue/20 to-transparent pointer-events-none"></div>
           <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-ocean rounded-full blur-[100px] opacity-20 pointer-events-none group-hover:scale-150 transition-transform duration-1000"></div>
-          
+
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
             <div className="max-w-2xl">
               <span className="inline-block px-4 py-2 rounded-full bg-brand-blue text-[10px] font-black uppercase tracking-[0.2em] mb-6">Corporate & Events</span>
               <h2 className="font-display text-4xl md:text-5xl font-black mb-6 leading-tight">Bring your whole team to the <span className="text-brand-blue">Kid Fitness</span> arena!</h2>
               <p className="text-slate-400 text-lg leading-relaxed mb-8">
-                Looking for a unique corporate team-building event or a large-scale group booking? 
-                Our specialized corporate portal allows you to register multiple staff members, 
+                Looking for a unique corporate team-building event or a large-scale group booking?
+                Our specialized corporate portal allows you to register multiple staff members,
                 manage consolidated billing, and select custom session blocks in one seamless transaction.
               </p>
               <div className="flex flex-wrap gap-4">
-                <button 
+                <button
                   onClick={() => navigate('/book?mode=corporate')}
                   className="bg-brand-blue hover:bg-brand-blue/90 text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-[0_10px_30px_rgba(40,116,252,0.3)] hover:-translate-y-1"
                 >
@@ -158,7 +182,7 @@ export default function Programs() {
                 </button>
               </div>
             </div>
-            
+
             <div className="w-full md:w-auto flex flex-col gap-4">
               {[
                 { icon: "📄", title: "Consolidated Billing", desc: "One sales order, one payment." },

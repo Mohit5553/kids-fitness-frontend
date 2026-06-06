@@ -524,11 +524,11 @@ export default function WalkingBooking() {
       });
 
       // 2. Create membership for the first selected child
-      const primaryChildId = selectedChildrenIds[0];
+      const primaryChildId = selectedChildrenIds[0] === 'self' ? null : selectedChildrenIds[0];
       const isDoubled = selectedPromo?.promoType === 'bogo' && bogoOption === 'double';
       const isSiblingBogo = selectedPromo?.promoType === 'bogo' && bogoOption === 'person' && selectedChildrenIds.length >= 2;
 
-      await api.post('/memberships', {
+      const memRes = await api.post('/memberships', {
         planId: selectedPlan._id,
         paymentId: payRes.data._id,
         childId: primaryChildId,
@@ -538,13 +538,16 @@ export default function WalkingBooking() {
         sessionsPerWeek,
         membershipUnits,
         claimBogo: isDoubled || isSiblingBogo,
-        bogoChildId: isDoubled ? primaryChildId : (isSiblingBogo ? selectedChildrenIds[1] : undefined),
+        bogoChildId: isDoubled ? primaryChildId : (isSiblingBogo ? (selectedChildrenIds[1] === 'self' ? null : selectedChildrenIds[1]) : undefined),
         discountAmount,
         couponCode,
         couponAmount
       });
 
-      setCreatedBookings([{ bookingNumber: `MBR-${reference}`, _id: payRes.data._id }]);
+      const createdBookingId = memRes.data.bookingId?._id || memRes.data.bookingId || payRes.data._id;
+      const createdBookingNumber = memRes.data.bookingId?.bookingNumber || `MBR-${reference}`;
+
+      setCreatedBookings([{ bookingNumber: createdBookingNumber, _id: createdBookingId }]);
       setStep(8);
       toast.success('Membership package purchased!');
     } catch (err) {
@@ -568,8 +571,12 @@ export default function WalkingBooking() {
 
       const participants = [];
       selectedChildrenIds.forEach(id => {
-        const c = (availableChildren || []).find(ac => ac._id === id);
-        if (c) participants.push({ name: c.name, age: c.age, gender: c.gender, childId: c._id });
+        if (id === 'self') {
+          participants.push({ name: finalUser.name, age: 30, gender: 'male', childId: null });
+        } else {
+          const c = (availableChildren || []).find(ac => ac._id === id);
+          if (c) participants.push({ name: c.name, age: c.age, gender: c.gender, childId: c._id });
+        }
       });
 
       if (participants.length === 0) {
@@ -768,6 +775,26 @@ export default function WalkingBooking() {
                 </div>
 
                 <div className="space-y-10">
+                  {/* Account Holder (Self) */}
+                  <div className="animate-rise">
+                     <label className="block text-xs font-black text-ink/40 uppercase tracking-[0.2em] mb-4 px-1">Account Holder</label>
+                     <button
+                        onClick={() => toggleExistingChild('self')}
+                        className={`w-full p-6 rounded-[24px] border-2 transition-all text-left flex items-center justify-between group ${selectedChildrenIds.includes('self') ? 'border-brand-blue bg-brand-blue/5 text-brand-blue shadow-md' : 'border-slate-100 bg-white hover:border-slate-300'}`}
+                     >
+                        <div className="flex items-center gap-4">
+                           <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-xl">👤</div>
+                           <div>
+                              <p className="font-black text-lg">{customer?.name || newCustomer.name}</p>
+                              <p className="text-xs font-bold opacity-60 mt-1">Book for Self</p>
+                           </div>
+                        </div>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedChildrenIds.includes('self') ? 'bg-brand-blue text-white' : 'bg-slate-100 group-hover:bg-slate-200'}`}>
+                           {selectedChildrenIds.includes('self') ? '✓' : ''}
+                        </div>
+                     </button>
+                  </div>
+
                   {/* Existing Children */}
                   {availableChildren.length > 0 && (
                     <div className="animate-rise">
@@ -1040,8 +1067,18 @@ export default function WalkingBooking() {
                           {plan.tagline && <p className="text-xs text-ink/50 mt-1 line-clamp-1">{plan.tagline}</p>}
                           <div className="flex items-center gap-4 mt-3 text-xs font-bold text-ink/40">
                             <span className="flex items-center gap-1.5"><span className="opacity-50">📋</span> {plan.classesIncluded || 'Unlimited'} classes</span>
-                            {plan.durationWeeks && <span className="flex items-center gap-1.5"><span className="opacity-50">⏱</span> {plan.durationWeeks} weeks</span>}
+                            {(plan.durationValue && plan.durationUnit) ? (
+                               <span className="flex items-center gap-1.5"><span className="opacity-50">⏱</span> {plan.durationValue} {plan.durationUnit}</span>
+                            ) : plan.durationWeeks ? (
+                               <span className="flex items-center gap-1.5"><span className="opacity-50">⏱</span> {Math.round(plan.durationWeeks * 10) / 10} weeks</span>
+                            ) : null}
                           </div>
+                          {plan.bonusQuantity > 0 && (
+                            <div className="mt-3 text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg inline-flex items-center gap-2 border border-emerald-100/50 shadow-sm">
+                              <span>🎁</span>
+                              +{plan.bonusQuantity} FREE Bonus {plan.bonusQuantity === 1 ? 'Class' : 'Classes'}
+                            </div>
+                          )}
 
                           {/* Promotion Highlight Detail */}
                           {plan.activePromotions?.[0] && (
@@ -1379,7 +1416,9 @@ export default function WalkingBooking() {
                               </p>
                               <p className="text-xs font-bold text-ink/70 flex items-center gap-2">
                                 <span className="w-1.5 h-1.5 rounded-full bg-brand-blue"></span>
-                                {selectedPlan?.durationWeeks || '—'} Weeks Access
+                                {(selectedPlan?.durationValue && selectedPlan?.durationUnit) ? 
+                                   `${selectedPlan.durationValue} ${selectedPlan.durationUnit.charAt(0).toUpperCase() + selectedPlan.durationUnit.slice(1)}` 
+                                   : `${Math.round(selectedPlan?.durationWeeks * 10) / 10 || '—'} Weeks`} Access
                               </p>
                             </div>
                           ) : (
@@ -1420,7 +1459,13 @@ export default function WalkingBooking() {
                                   <div className="flex justify-between items-baseline group">
                                      <span className="text-sm font-bold text-ink/40 group-hover:text-ink transition-colors">Gross Subtotal</span>
                                      <div className="h-px flex-1 bg-slate-50 border-b border-dashed border-slate-100 mx-4 mb-1"></div>
-                                     <span className="font-display font-black text-ink">{currency} {currentPrice.toFixed(2)}</span>
+                                     <span className="font-display font-black text-ink">
+                                        {currency} {
+                                          (activeTax?.calculationMethod === 'inclusive' 
+                                             ? (activeTax.type === 'percentage' ? currentPrice / (1 + (activeTax.value / 100)) : Math.max(0, currentPrice - activeTax.value)) 
+                                             : currentPrice).toFixed(2)
+                                        }
+                                     </span>
                                   </div>
 
                                   {discountAmount > 0 && (
@@ -1451,9 +1496,14 @@ export default function WalkingBooking() {
 
                                   {currentTax > 0 && (
                                      <div className="flex justify-between items-baseline group pt-2">
-                                        <span className="text-sm font-bold text-ink/40 group-hover:text-ink transition-colors">{activeTax?.name || 'VAT'} ({activeTax?.value}%)</span>
+                                        <span className="text-sm font-bold text-ink/40 group-hover:text-ink transition-colors">
+                                          {activeTax?.name || 'VAT'} {activeTax?.type === 'percentage' ? `(${activeTax?.value}%)` : ''} 
+                                          {activeTax?.calculationMethod === 'inclusive' && <span className="text-[9px] uppercase ml-1">(Included)</span>}
+                                        </span>
                                         <div className="h-px flex-1 bg-slate-50 border-b border-dashed border-slate-100 mx-4 mb-1"></div>
-                                        <span className="font-display font-black text-ink/50">+ {currency} {currentTax.toFixed(2)}</span>
+                                        <span className="font-display font-black text-ink/50">
+                                          {activeTax?.calculationMethod === 'inclusive' ? '' : '+ '}{currency} {currentTax.toFixed(2)}
+                                        </span>
                                      </div>
                                   )}
                                </div>
@@ -1588,15 +1638,22 @@ export default function WalkingBooking() {
                         <div className="space-y-4">
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-ink/40 font-bold uppercase tracking-widest text-[10px]">Subtotal (Excl. Tax)</span>
-                            <span className="font-black text-ink">{currency} {currentPrice}</span>
+                            <span className="font-black text-ink">
+                               {currency} {
+                                 (activeTax?.calculationMethod === 'inclusive' 
+                                    ? (activeTax.type === 'percentage' ? currentPrice / (1 + (activeTax.value / 100)) : Math.max(0, currentPrice - activeTax.value)) 
+                                    : currentPrice).toFixed(2)
+                               }
+                            </span>
                           </div>
                           {currentTax > 0 && (
                             <div className="flex justify-between items-center text-sm text-brand-blue animate-in slide-in-from-right-2 duration-300">
                               <span className="font-bold uppercase tracking-widest text-[10px] flex items-center gap-2">
                                 <span className="w-1 h-1 rounded-full bg-brand-blue" />
                                 Applied {activeTax?.name || 'Tax'} ({activeTax?.value}{activeTax?.type === 'percentage' ? '%' : ' {currency}'})
+                                {activeTax?.calculationMethod === 'inclusive' && <span className="uppercase text-[8px]">(Included)</span>}
                               </span>
-                              <span className="font-black">+ {currency} {currentTax}</span>
+                              <span className="font-black">{activeTax?.calculationMethod === 'inclusive' ? '' : '+ '}{currency} {currentTax.toFixed(2)}</span>
                             </div>
                           )}
                           {discountAmount > 0 && (
@@ -1923,11 +1980,28 @@ export default function WalkingBooking() {
                     </div>
                     <div className="rounded-2xl bg-slate-50 p-5">
                       <p className="text-[10px] font-black uppercase text-ink/30 mb-1 tracking-widest">Duration</p>
-                      <p className="text-lg font-black text-ink">{detailsPlan.durationWeeks || '—'} Weeks</p>
+                      <p className="text-lg font-black text-ink">
+                         {(detailsPlan.durationValue && detailsPlan.durationUnit) ? 
+                            `${detailsPlan.durationValue} ${detailsPlan.durationUnit.charAt(0).toUpperCase() + detailsPlan.durationUnit.slice(1)}` 
+                            : (detailsPlan.durationWeeks ? `${Math.round(detailsPlan.durationWeeks * 10) / 10} Weeks` : '—')}
+                      </p>
                     </div>
                   </>
                 )}
               </div>
+
+              {detailsPlan?.bonusQuantity > 0 && (
+                 <div className="flex items-center gap-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 animate-in slide-in-from-bottom-2 duration-300">
+                    <span className="text-3xl">🎁</span>
+                    <div>
+                       <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Bonus Reward Included</p>
+                       <p className="text-lg font-black text-ink">{detailsPlan.bonusQuantity} Free {detailsPlan.bonusQuantity === 1 ? 'Class' : 'Classes'}!</p>
+                       <p className="text-[10px] font-bold text-ink/50 mt-1">
+                          The member will receive these bonus sessions automatically.
+                       </p>
+                    </div>
+                 </div>
+              )}
 
               {/* Benefits / Info */}
               {(detailsPlan?.benefits?.length > 0 || detailsClass?.genderRestriction || detailsPlan?.timeSlots?.length > 0) && (

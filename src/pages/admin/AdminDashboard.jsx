@@ -28,6 +28,7 @@ export default function AdminDashboard() {
     { to: `${base}/payments`, title: 'Payments', desc: 'Monitor transactions and exports.', perm: 'payments:view' },
     { to: `${base}/locations`, title: 'Locations', desc: 'Add or remove gym branches.', perm: 'locations:view' },
     { to: `${base}/specialties`, title: 'Specialty Master', desc: 'Manage trainer expertise areas.', perm: 'specialties:view' },
+    { to: `${base}/categories`, title: 'Category Master', desc: 'Manage categories for classes and plans.', perm: 'specialties:view' },
     { to: `${base}/reports`, title: 'Reports', desc: 'View detailed activity & export Excel.', perm: 'reports:view' },
     { to: `${base}/profit-loss`, title: 'Profit & Loss', desc: 'Analyze sales, expenses and net profit.', perm: 'profit_loss:view' },
     { to: `${base}/settings`, title: 'Company Setup', desc: 'Manage company name, footer info, and invoice numbering.', perm: 'settings:edit' },

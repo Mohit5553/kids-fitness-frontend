@@ -120,6 +120,7 @@ export default function InvoiceView() {
    }, 0) || 0;
 
    const totalAmount = invoice.amount || (amountAfterDiscount + taxAmount);
+   const isInclusive = Math.abs(totalAmount - amountAfterDiscount) < 0.1 && taxAmount > 0;
    const totalInWords = numberToWords(totalAmount);
 
    const brandMark = companyInfo.name === 'JTS Booking' ? 'JTS' : companyInfo.name.substring(0, 3).toUpperCase();
@@ -293,7 +294,7 @@ export default function InvoiceView() {
 
                      <div className="rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm">
                         <div className="flex items-center justify-between px-8 py-4 bg-slate-50/80 border-b border-slate-100">
-                           <span className="text-[10px] font-black text-ink/40 uppercase tracking-[0.3em]">Subtotal</span>
+                           <span className="text-[10px] font-black text-ink/40 uppercase tracking-[0.3em]">Gross Subtotal</span>
                            <span className="text-sm font-black text-ink tracking-tight">{currency} {itemAmount.toFixed(2)}</span>
                         </div>
                         {discountAmount > 0 && (
@@ -303,8 +304,12 @@ export default function InvoiceView() {
                            </div>
                         )}
                         <div className="flex items-center justify-between px-8 py-4 bg-slate-50/80 border-b border-slate-100">
-                           <span className="text-[10px] font-black text-ink/40 uppercase tracking-[0.3em]">VAT (5%)</span>
-                           <span className="text-sm font-black text-ink/60 tracking-tight">{currency} {taxAmount.toFixed(2)}</span>
+                           <span className="text-[10px] font-black text-ink/40 uppercase tracking-[0.3em]">Net Amount (Excl. VAT)</span>
+                           <span className="text-sm font-black text-ink tracking-tight">{currency} {Math.max(0, amountAfterDiscount - (isInclusive ? taxAmount : 0)).toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between px-8 py-4 bg-slate-50/80 border-b border-slate-100">
+                           <span className="text-[10px] font-black text-ink/40 uppercase tracking-[0.3em]">{isInclusive ? 'VAT (Included in Total)' : 'VAT (Additional)'}</span>
+                           <span className="text-sm font-black text-ink/60 tracking-tight">{isInclusive ? '' : '+ '}{currency} {taxAmount.toFixed(2)}</span>
                         </div>
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-8 py-6 bg-brand-blue">
                            <div className="space-y-1">
