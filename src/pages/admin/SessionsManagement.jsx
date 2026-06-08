@@ -360,6 +360,24 @@ export default function SessionsManagement() {
     }
   };
 
+  const handleSendAllReminders = async () => {
+    const eligibleParticipants = participantsList.filter(b => b.status === 'confirmed' || b.status === 'scheduled');
+    if (!viewingParticipantsSession || eligibleParticipants.length === 0) return;
+    if (!window.confirm(`Send reminder emails to ${eligibleParticipants.length} booked participant(s)?`)) return;
+    
+    setSendingAllReminders(true);
+    try {
+      await Promise.all(eligibleParticipants.map(booking => 
+        api.post(`/bookings/${booking._id}/reminder`)
+      ));
+      toast.success('Reminders sent successfully!');
+    } catch (err) {
+      toast.error('Failed to send some reminders');
+    } finally {
+      setSendingAllReminders(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <Navbar />
@@ -709,7 +727,7 @@ export default function SessionsManagement() {
                         </span>
                       </button>
                     </div>
-                    <div className="mt-2 text-[10px] font-black uppercase tracking-widest flex gap-2">
+                    <div className="mt-3 text-[10px] font-black uppercase tracking-widest flex flex-wrap gap-2">
                       {new Date(session.startTime) < new Date() ? (
                         <span className="text-ink/30 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
                           Closed / Expired
@@ -742,7 +760,7 @@ export default function SessionsManagement() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-none border-slate-100 justify-start md:justify-end">
                   {canEdit && (
                     <button
                       className={`rounded-full px-6 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${new Date(session.startTime) < new Date()
@@ -754,7 +772,7 @@ export default function SessionsManagement() {
                       Edit
                     </button>
                   )}
-                  {session.trainerId && session.status !== 'cancelled' && (
+                  {session.trainerId && session.status !== 'cancelled' && new Date(session.startTime) >= new Date() && (
                     <button
                       className="h-10 w-10 flex items-center justify-center rounded-full bg-white border border-slate-100 text-brand-blue hover:bg-brand-blue hover:text-white transition-all shadow-sm hover:shadow-md disabled:opacity-50"
                       onClick={(e) => {
@@ -775,7 +793,7 @@ export default function SessionsManagement() {
                   )}
                   {canDelete && (
                     <button
-                      className={`h-10 px-4 flex items-center justify-center rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${session.status === 'scheduled' ? 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-green-50 text-green-500 hover:bg-green-500 hover:text-white'}`}
+                      className={`h-10 px-4 flex items-center justify-center rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${session.status === 'scheduled' ? 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white' : 'bg-green-50 text-green-500 hover:bg-green-500 hover:text-white'}`}
                       onClick={() => handleToggleStatus(session)}
                     >
                       {session.status === 'scheduled' ? 'Cancel Slot' : 'Restore'}
@@ -863,7 +881,7 @@ export default function SessionsManagement() {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                {participantsList.length > 0 && (
+                {new Date(viewingParticipantsSession.startTime) >= new Date() && participantsList.some(b => b.status === 'confirmed' || b.status === 'scheduled') && (
                   <button
                     onClick={handleSendAllReminders}
                     disabled={sendingAllReminders}
@@ -926,7 +944,7 @@ export default function SessionsManagement() {
                               {booking.refundStatus === 'requested' ? 'Refund Req.' : booking.refundStatus}
                             </span>
                           )}
-                          {(booking.status === 'confirmed' || booking.status === 'scheduled') && (
+                          {new Date(viewingParticipantsSession.startTime) >= new Date() && (booking.status === 'confirmed' || booking.status === 'scheduled') && (
                             <button
                               onClick={() => handleSendReminder(booking)}
                               disabled={sendingReminderId === booking._id}

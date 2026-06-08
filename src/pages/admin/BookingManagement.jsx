@@ -485,38 +485,42 @@ export default function BookingManagement() {
             <div key={booking._id} className="group relative overflow-hidden rounded-3xl bg-white p-6 shadow-sm border border-slate-100 transition-all hover:shadow-xl hover:translate-y-[-2px]">
               <div className="flex flex-wrap items-center justify-between gap-6 relative z-10">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h3 className="font-display text-xl font-bold text-ink leading-tight">
-                      {booking.participants?.map((p, idx) => (
-                        <span key={idx}>
-                          <span className="text-ink font-bold">{p.name}</span>
-                          {` (${p.relation || 'N/A'})${idx < (booking.participants.length - 1) ? ', ' : ''}`}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-display text-lg text-ink/80 flex flex-wrap items-center gap-2">
+                        {booking.participants?.map((p, idx) => (
+                          <span key={idx}>
+                            <span className="text-ink font-bold">{p.name}</span>
+                            {` (${p.relation || 'N/A'})${idx < (booking.participants.length - 1) ? ', ' : ''}`}
+                          </span>
+                        )) || 'No Name'}
+                      </h3>
+                      {booking.bookingNumber ? (
+                        <span className="text-[10px] font-black text-brand-blue bg-brand-blue/8 border border-brand-blue/20 px-2.5 py-0.5 rounded-full tracking-widest">
+                          #{booking.bookingNumber}
                         </span>
-                      )) || 'No Name'}
-                    </h3>
-                    {booking.bookingNumber ? (
-                      <span className="text-[10px] font-black text-brand-blue bg-brand-blue/8 border border-brand-blue/20 px-2.5 py-0.5 rounded-full tracking-widest">
-                        #{booking.bookingNumber}
+                      ) : (
+                        <span className="text-[10px] font-black text-ink/20 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">#{booking._id.slice(-6)}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-full tracking-widest flex items-center gap-1.5">
+                        <span className="opacity-50">📅 Schedule:</span>
+                        {new Date(booking.sessionId?.startTime || booking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </span>
-                    ) : (
-                      <span className="text-[10px] font-black text-ink/20 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">#{booking._id.slice(-6)}</span>
-                    )}
-                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-full tracking-widest flex items-center gap-1.5">
-                      <span className="opacity-50">📅 Schedule:</span>
-                      {new Date(booking.sessionId?.startTime || booking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                    <button 
-                      onClick={() => setDateFilter(booking.createdAt.split('T')[0])}
-                      className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full tracking-widest flex items-center gap-1.5 hover:bg-indigo-100 transition-colors"
-                    >
-                      <span className="opacity-50">📝 Booked:</span>
-                      {new Date(booking.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </button>
-                    {booking.bookingType === 'package' && (
-                      <span className="text-[10px] font-black text-white bg-indigo-600 px-2.5 py-0.5 rounded-full tracking-widest animate-pulse">
-                        📦 Package Purchase
-                      </span>
-                    )}
+                      <button 
+                        onClick={() => setDateFilter(booking.createdAt.split('T')[0])}
+                        className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full tracking-widest flex items-center gap-1.5 hover:bg-indigo-100 transition-colors"
+                      >
+                        <span className="opacity-50">📝 Booked:</span>
+                        {new Date(booking.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </button>
+                      {booking.bookingType === 'package' && (
+                        <span className="text-[10px] font-black text-white bg-indigo-600 px-2.5 py-0.5 rounded-full tracking-widest animate-pulse">
+                          📦 Package Purchase
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
                     <p className="text-xs font-bold text-brand-blue">
@@ -637,7 +641,7 @@ export default function BookingManagement() {
                         Refunded
                       </span>
                     )}
-                    {booking.status !== 'cancelled' && (
+                    {booking.status === 'confirmed' && (
                       <button
                         onClick={() => handleSendReminder(booking)}
                         disabled={sendingReminderId === booking._id}

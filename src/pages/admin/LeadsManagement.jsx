@@ -146,6 +146,20 @@ export default function LeadsManagement() {
                     <div className="mt-4 rounded-2xl bg-rose-50/50 p-4 text-sm text-ink/80 italic">
                       "{lead.message}"
                     </div>
+                    {(lead.interestedClassId || lead.interestedPlanId) && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {lead.interestedClassId && (
+                           <span className="bg-brand-blue/10 text-brand-blue border border-brand-blue/20 px-3 py-1 rounded-xl text-xs font-bold shadow-sm">
+                             🏋️ Class: {lead.interestedClassId.title}
+                           </span>
+                        )}
+                        {lead.interestedPlanId && (
+                           <span className="bg-coral/10 text-coral border border-coral/20 px-3 py-1 rounded-xl text-xs font-bold shadow-sm">
+                             🎟️ Plan: {lead.interestedPlanId.name}
+                           </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col gap-2">
                     <select

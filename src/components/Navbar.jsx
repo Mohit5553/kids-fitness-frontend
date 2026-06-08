@@ -88,6 +88,7 @@ export default function Navbar({ className = '' }) {
   };
 
   const isStaff = user && (user.role === 'admin' || user.role === 'superadmin' || (user.permissions && user.permissions.length > 0));
+  const showLocationSelect = user && (isStaff || (user.role && user.role.toLowerCase() === 'trainer'));
   const roleLabel = getRoleLabel(user);
   const initials = user ? getInitials(user.name) : null;
   const dashboardPath = user ? `/${getRoleSlug(user.role)}` : '/login';
@@ -156,7 +157,7 @@ export default function Navbar({ className = '' }) {
                  </button>
                </div>
              )}
-             {user && <LocationSelect />}
+             {showLocationSelect && <LocationSelect />}
              {user ? (
                 <div className="relative" ref={profileRef}>
                   <button 
@@ -230,7 +231,7 @@ export default function Navbar({ className = '' }) {
         </div>
 
         {isMobileMenuOpen && (
-          <div className="xl:hidden bg-white border-t border-slate-50 animate-in slide-in-from-top-4 duration-300">
+          <div className="xl:hidden bg-white border-t border-slate-50 animate-in slide-in-from-top-4 duration-300 max-h-[calc(100vh-80px)] overflow-y-auto">
             <div className="page-shell py-8 flex flex-col gap-4">
               {navLinks.map((link) => (
                 <NavLink 
@@ -276,7 +277,7 @@ export default function Navbar({ className = '' }) {
                   </div>
                 </div>
               )}
-              {user && <LocationSelect />}
+              {showLocationSelect && <LocationSelect />}
               {user ? (
                 <>
                    <NavLink to={dashboardPath} onClick={closeMenu} className="text-lg font-bold text-brand-blue px-4">Dashboard</NavLink>

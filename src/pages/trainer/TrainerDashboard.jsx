@@ -499,12 +499,6 @@ export default function TrainerDashboard() {
                                     >
                                       {!session.trainerId ? 'Claim & Accept' : 'Accept'}
                                     </button>
-                                    <button
-                                      onClick={() => handleUpdateTrainerStatus(session._id, 'rejected')}
-                                      className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-slate-100 text-slate-400 hover:bg-slate-200 transition-all"
-                                    >
-                                      Reject
-                                    </button>
                                   </div>
                                 ) : (
                                   <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-xl border mr-2 ${session.trainerStatus === 'accepted' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
@@ -546,105 +540,7 @@ export default function TrainerDashboard() {
                   </div>
                 )}
 
-                {/* Roster Right Panel */}
-                {selectedSession && (
-                  <div className="rounded-[32px] bg-white p-8 shadow-xl border border-slate-100 animate-in slide-in-from-right-4 duration-500">
-                    <div className="flex items-center justify-between mb-8">
-                      <div>
-                        <h3 className="font-display text-xl font-bold text-ink">Attendee Roster</h3>
-                        <p className="text-[10px] font-black text-coral uppercase tracking-widest mt-1">
-                          {selectedSession.classId?.title}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setSelectedSession(null)}
-                        className="h-10 w-10 flex items-center justify-center rounded-xl bg-slate-100 text-ink/40 hover:bg-slate-200 transition-all font-black text-xl"
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <div className="max-h-[72vh] overflow-y-auto pr-4 custom-scrollbar">
-                      {loadingRoster ? (
-                        <div className="flex flex-col items-center justify-center py-20 gap-4">
-                          <div className="h-8 w-8 animate-spin rounded-full border-4 border-coral border-t-transparent" />
-                          <p className="text-xs font-bold text-ink/30 uppercase tracking-widest">Loading roster...</p>
-                        </div>
-                      ) : roster.length > 0 ? (
-                        <div className="space-y-6">
-                          {roster.map((booking) => (
-                            <div key={booking._id} className="p-6 rounded-[28px] bg-slate-50 border border-slate-100 shadow-sm relative overflow-hidden">
-                              <div className="flex items-center justify-between mb-4 border-b border-slate-200/50 pb-4">
-                                <div>
-                                  <div className="flex items-center gap-3">
-                                    <p className="text-[10px] font-black text-ink/30 uppercase tracking-widest leading-none">Customer / Contact</p>
-                                    <span className="text-[9px] font-black text-coral border border-coral/20 bg-coral/5 px-1.5 py-0.5 rounded-md leading-none">#{booking.bookingNumber}</span>
-                                  </div>
-                                  <h4 className="text-sm font-black text-ink mt-1.5">{booking.userId?.name || booking.guestDetails?.name || 'Guest User'}</h4>
-                                  <p className="text-[10px] font-bold text-ink/50 mt-1">{booking.userId?.phone || booking.guestDetails?.phone || booking.userId?.email || 'No contact provided'}</p>
-                                </div>
-                                <div className="text-right">
-                                  <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${booking.status === 'confirmed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
-                                    {booking.status}
-                                  </span>
-                                </div>
-                              </div>
 
-                              <div className="space-y-3">
-                                <p className="text-[9px] font-black text-coral uppercase tracking-widest">Participants ({booking.participants?.length})</p>
-                                {booking.participants?.map((p, idx) => (
-                                  <div key={idx} className="flex items-center gap-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center text-xs font-black text-ink/20">
-                                      {p.name?.charAt(0) || p.childId?.name?.charAt(0) || '?'}
-                                    </div>
-                                    <div className="flex-1">
-                                      <p className="text-sm font-black text-ink">{p.name || p.childId?.name}</p>
-                                      <div className="flex gap-3 mt-0.5">
-                                        <span className="text-[10px] font-bold text-ink/30 uppercase">{p.age || p.childId?.age} Years</span>
-                                        <span className="text-[10px] font-bold text-ink/30 uppercase">{p.gender || p.childId?.gender}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-
-                              <div className="mt-4 pt-4 border-t border-slate-200/50 flex justify-between items-center">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-[9px] font-black text-ink/20 uppercase tracking-[0.2em]">{booking.paymentMethod === 'online' ? 'Paid Online' : 'Pay at Center'}</span>
-                                  {(viewType === 'current' || viewType === 'past') && booking.status === 'confirmed' && (
-                                    <button
-                                      onClick={() => handleApproveAttendance(booking._id)}
-                                      className="px-4 py-1.5 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-md active:scale-95"
-                                    >
-                                      Approve Attendance
-                                    </button>
-                                  )}
-                                  {(booking.status === 'attended' || booking.status === 'completed') && (
-                                    <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase tracking-widest rounded-lg border border-emerald-100 flex items-center gap-1.5">
-                                      <span>✔</span> Verified
-                                    </span>
-                                  )}
-                                </div>
-                                <span className="text-[10px] font-black text-ink/70">{currency} {booking.totalAmount}</span>
-                              </div>
-                            </div>
-                          ))}
-                          <div className="pt-6">
-                            <button
-                              onClick={() => window.print()}
-                              className="w-full py-4 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl"
-                            >
-                              Print Full Roster Report
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="py-20 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                          <p className="text-xs font-bold text-ink/30 uppercase tracking-widest">No attendees yet</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </>
           )}

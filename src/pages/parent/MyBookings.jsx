@@ -45,9 +45,34 @@ export default function MyBookings() {
   const load = () => {
     setLoading(true);
     api.get('/bookings/mine').then((res) => {
-      const data = res.data || [];
-      setBookings(data);
-      setFilteredBookings(data);
+      const result = [];
+      const grouped = {};
+      res.data.forEach(b => {
+        if (b.groupId) {
+          if (!grouped[b.groupId]) {
+            grouped[b.groupId] = { ...b, sessions: b.sessionId ? [b.sessionId] : [], groupedIds: [b._id] };
+            result.push(grouped[b.groupId]);
+          } else {
+            const group = grouped[b.groupId];
+            const pIds = new Set(group.participants.map(p => p.name + p.age));
+            b.participants?.forEach(p => {
+              if (!pIds.has(p.name + p.age)) {
+                 group.participants.push(p);
+                 pIds.add(p.name + p.age);
+              }
+            });
+            if (b.sessionId && !group.sessions.some(s => String(s._id) === String(b.sessionId._id || b.sessionId))) {
+              group.sessions.push(b.sessionId);
+            }
+            group.groupedIds.push(b._id);
+          }
+        } else {
+          result.push({ ...b, sessions: b.sessionId ? [b.sessionId] : [], groupedIds: [b._id] });
+        }
+      });
+      result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setBookings(result);
+      setFilteredBookings(result);
       setLoading(false);
     }).catch((err) => {
       setError(err?.response?.data?.message || 'Failed to load bookings. Please check your connection.');
@@ -155,6 +180,8 @@ export default function MyBookings() {
 
   const isRefundable = (booking) => {
     if (booking.refundStatus !== 'none') return false;
+    if (['attended', 'completed', 'cancelled'].includes(booking.status)) return false;
+
     const isPaid = booking.paymentStatus === 'completed' || booking.status === 'confirmed';
     if (!isPaid) return false;
 
@@ -244,7 +271,7 @@ export default function MyBookings() {
                       )}
                       {/* Booking Type Badge */}
                       <span className={`rounded px-2  py-0.5 text-[10px] font-bold uppercase tracking-tight ${booking.bookingType === 'package' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-slate-50 text-slate-500 border border-slate-100'}`}>
-                        {booking.bookingType === 'package' ? '📦 Membership / Package' : '🎟️ Single Session'}
+                        {booking.bookingType === 'package' ? '📦 Membership / Package' : booking.groupId ? '🧑‍🤝‍🧑 Group / Multi-Session' : '🎟️ Single Session'}
                       </span>
                     </div>
                     <div className="mt-2 space-y-1">
@@ -502,13 +529,46 @@ export default function MyBookings() {
                       {detailBooking.status}
                     </span>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-1">Session Timing</p>
-                    <p className="text-sm font-bold text-ink">
-                      {new Date(detailBooking.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at {new Date(detailBooking.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
+                  <div className="text-right flex items-center justify-end gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-coral/10 flex items-center justify-center text-coral">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-ink/30 mb-0.5">Session Timing</p>
+                      <p className="text-sm font-bold text-ink">
+                        {detailBooking.sessions && detailBooking.sessions.length > 1 ? (
+                           `${detailBooking.sessions.length} Sessions Selected`
+                        ) : detailBooking.date ? (
+                           `${new Date(detailBooking.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} at ${new Date(detailBooking.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                        ) : 'Date TBD'}
+                      </p>
+                    </div>
                   </div>
                 </div>
+
+                {/* Multi-Session List (if applicable) */}
+                {detailBooking.sessions && detailBooking.sessions.length > 1 && (
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-ink/30 mb-4 px-1">Selected Sessions</h4>
+                    <div className="grid gap-2 mb-6">
+                      {detailBooking.sessions.map((sess, idx) => {
+                        const sessDate = sess.startTime || sess; // handle populated vs unpopulated
+                        return (
+                          <div key={idx} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <span className="text-sm font-bold text-ink">
+                              {new Date(sessDate).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                            </span>
+                            <span className="text-[10px] uppercase font-black tracking-widest text-ink/50">
+                              {new Date(sessDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Course/Plan Info */}
                 <div>
