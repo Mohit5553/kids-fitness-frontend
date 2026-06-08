@@ -228,7 +228,8 @@ export default function Pricing() {
   };
 
   const totalWeeklySessions = preferredDays.length * (preferredSlots.length || 1);
-  const baseCapacity = selectedPlan?.classesIncluded || 1;
+  const isUnlimited = selectedPlan?.type !== 'dropin' && !selectedPlan?.classesIncluded;
+  const baseCapacity = isUnlimited ? Infinity : (selectedPlan?.classesIncluded || 1);
   const effectiveCapacity = baseCapacity * (claimBogo ? 2 : 1);
   const membershipUnits = Math.max(1, Math.ceil(totalWeeklySessions / effectiveCapacity));
   const multipliedPrice = selectedPlan ? (selectedPlan.price * membershipUnits) : 0;

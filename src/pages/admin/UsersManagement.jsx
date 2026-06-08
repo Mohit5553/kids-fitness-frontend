@@ -440,12 +440,12 @@ export default function UsersManagement() {
                     </div>
                   </div>
 
-                    <div className="flex items-center gap-4 border-t md:border-t-0 pt-6 md:pt-0 border-slate-100">
+                    <div className="flex flex-wrap items-end md:items-center gap-3 sm:gap-4 border-t md:border-t-0 pt-6 md:pt-0 border-slate-100 mt-4 md:mt-0 w-full md:w-auto">
                       {canEdit && (
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-1 w-full sm:w-auto sm:flex-1 md:flex-none">
                           <label className="text-[9px] font-black text-ink/20 uppercase tracking-widest px-1">Control access</label>
                           <select
-                            className="rounded-2xl bg-slate-50 border border-slate-200 px-5 py-3 text-xs font-black uppercase tracking-wider text-ink focus:ring-4 focus:ring-coral/5 outline-none cursor-pointer transition-all"
+                            className="w-full rounded-2xl bg-slate-50 border border-slate-200 px-5 py-3 text-xs font-black uppercase tracking-wider text-ink focus:ring-4 focus:ring-coral/5 outline-none cursor-pointer transition-all"
                             value={user.role}
                             onChange={(event) => updateRole(user._id, event.target.value)}
                           >
@@ -512,7 +512,7 @@ export default function UsersManagement() {
                           setExpandedUser(next);
                           if (next) fetchChildren(user._id);
                         }}
-                        className={`h-14 px-6 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${expandedUser === user._id ? 'bg-coral text-white' : 'bg-slate-50 text-ink/40 hover:bg-slate-100'}`}
+                        className={`h-14 px-6 rounded-2xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap flex-1 sm:flex-none ${expandedUser === user._id ? 'bg-coral text-white' : 'bg-slate-50 text-ink/40 hover:bg-slate-100'}`}
                       >
                         {expandedUser === user._id ? 'Close info' : 'View full profile'}
                       </button>

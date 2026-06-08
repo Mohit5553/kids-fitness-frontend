@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
 import SectionTitle from '../components/SectionTitle.jsx';
@@ -14,8 +14,26 @@ export default function Contact() {
     name: '',
     email: '',
     phone: '',
-    message: ''
+    message: '',
+    interestedClassId: '',
+    interestedPlanId: ''
   });
+  
+  const [classes, setClasses] = useState([]);
+  const [plans, setPlans] = useState([]);
+
+  useEffect(() => {
+    const locId = getLocationId();
+    if (locId) {
+      Promise.all([
+        api.get('/classes', { params: { locationId: locId, all: true } }),
+        api.get('/plans', { params: { locationId: locId, all: true } })
+      ]).then(([resClasses, resPlans]) => {
+        setClasses(resClasses.data || []);
+        setPlans(resPlans.data || []);
+      }).catch(err => console.error('Failed to load classes/plans', err));
+    }
+  }, [location?.id]);
 
   const handleChange = (e) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -30,7 +48,7 @@ export default function Contact() {
         locationId: getLocationId()
       });
       toast.success('Message sent! We will contact you soon.');
-      setForm({ name: '', email: '', phone: '', message: '' });
+      setForm({ name: '', email: '', phone: '', message: '', interestedClassId: '', interestedPlanId: '' });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send message. Please try again.');
     } finally {
@@ -77,6 +95,33 @@ export default function Contact() {
               value={form.phone}
               onChange={handleChange}
             />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <select
+                className="rounded-xl border border-orange-200/70 p-3 text-ink/70"
+                name="interestedClassId"
+                value={form.interestedClassId}
+                onChange={handleChange}
+              >
+                <option value="">Select a Class (Optional)</option>
+                {classes.filter(c => c.status === 'active').map(c => (
+                  <option key={c._id} value={c._id}>{c.title}</option>
+                ))}
+              </select>
+
+              <select
+                className="rounded-xl border border-orange-200/70 p-3 text-ink/70"
+                name="interestedPlanId"
+                value={form.interestedPlanId}
+                onChange={handleChange}
+              >
+                <option value="">Select a Membership (Optional)</option>
+                {plans.filter(p => p.status === 'active').map(p => (
+                  <option key={p._id} value={p._id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+
             <textarea
               className="min-h-[120px] rounded-xl border border-orange-200/70 p-3"
               placeholder="Tell us about your child"

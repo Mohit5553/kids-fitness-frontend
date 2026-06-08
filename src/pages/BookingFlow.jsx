@@ -378,7 +378,20 @@ export default function BookingFlow() {
       setError('Please select at least one time slot');
       return;
     }
-    if (step === 4) {
+    
+    // Auth validation if they are on Step 4 (Guest form)
+    if (step === 4 && showGuestForm) {
+      if (!guestDetails.name || !guestDetails.email || !guestDetails.phone) {
+        setError('Please fill in all guest details');
+        return;
+      }
+      if (!/\S+@\S+\.\S+/.test(guestDetails.email)) {
+        setError('Please enter a valid email address');
+        return;
+      }
+    }
+
+    if (step === 5) {
       // Basic validation
       for (const p of participants) {
         if (!p.name || !p.age) {
@@ -416,20 +429,15 @@ export default function BookingFlow() {
         }
       }
     }
-    if (step === 6 && showGuestForm) {
-      if (!guestDetails.name || !guestDetails.email || !guestDetails.phone) {
-        setError('Please fill in all guest details');
-        return;
-      }
-      // Simple email validation
-      if (!/\S+@\S+\.\S+/.test(guestDetails.email)) {
-        setError('Please enter a valid email address');
-        return;
-      }
-    }
 
     setError('');
-    setStep(step + 1);
+    
+    // Skip Step 4 (Auth) if already logged in
+    if (step === 3 && getUser()) {
+      setStep(5);
+    } else {
+      setStep(step + 1);
+    }
   };
 
   const handleCreateBooking = async () => {
@@ -458,28 +466,22 @@ export default function BookingFlow() {
         setCreatedBookings(res.data.bookings || [res.data]);
         setStep(8);
       } else {
-        // Individual Sequential Bookings for Families
-        const results = [];
-        for (const sess of selectedSessions) {
-          const payload = {
-            participants,
-            classId: selectedClass._id,
-            sessionId: sess._id,
-            locationId: selectedLocation,
-            date: sess.startTime,
-            paymentMethod: paymentType || 'center',
-            paymentStatus: paymentType === 'online' ? 'completed' : 'pending',
-            guestDetails: !getUser() ? guestDetails : undefined,
-            promotionId: selectedPromo?._id,
-            discountAmount: Math.round(perSessionDiscount * 100) / 100,
-            couponCode,
-            couponAmount: Math.round((couponAmount / totalSessions) * 100) / 100
-          };
-          const res = await api.post('/bookings', payload);
-          results.push(res.data);
-        }
+        // Consolidated Group Bookings for Families
+        const payload = {
+          participants,
+          sessionIds: selectedSessions.map(s => s._id),
+          classId: selectedClass._id,
+          locationId: selectedLocation,
+          paymentMethod: paymentType || 'center',
+          guestDetails: !getUser() ? guestDetails : undefined,
+          promotionId: selectedPromo?._id,
+          discountAmount,
+          couponCode,
+          couponAmount
+        };
+        const res = await api.post('/bookings/group', payload);
         sessionStorage.removeItem('booking_pending_state');
-        setCreatedBookings(results);
+        setCreatedBookings(res.data.bookings || [res.data]);
         setStep(8);
       }
     } catch (err) {
@@ -839,6 +841,82 @@ export default function BookingFlow() {
             )}
 
             {step === 4 && (
+              <div className="animate-rise text-center py-10">
+                {getUser() ? (
+                  <div className="max-w-md mx-auto text-center animate-rise">
+                    <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">👤</div>
+                    <h2 className="font-display text-3xl font-black text-ink mb-2">Welcome Back!</h2>
+                    <p className="text-ink/60 mb-10">Logged in as <b>{getUser().name}</b>. You are now ready to add participants.</p>
+
+                    <div className="flex flex-col gap-4">
+                      <button onClick={() => setStep(5)} className="bg-brand-blue text-white w-full px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all">Continue to Participants</button>
+                      <button onClick={() => setStep(3)} className="text-sm font-bold text-ink/40 hover:text-ink transition-colors px-6 py-3">Back to sessions</button>
+                    </div>
+                  </div>
+                ) : !showGuestForm ? (
+                  <>
+                    <div className="w-20 h-20 bg-brand-blue/10 text-brand-blue rounded-full flex items-center justify-center text-4xl mx-auto mb-6">👋</div>
+                    <h2 className="font-display text-3xl font-black text-ink mb-2">You are not logged in</h2>
+                    <p className="text-ink/60 mb-10 max-w-md mx-auto">Log in to save this booking to your account and easily add your linked children, or continue as a guest.</p>
+
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                      <button onClick={() => navigate(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)} className="bg-brand-blue text-white w-full sm:w-auto px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all">Log In</button>
+                      <p className="text-ink/40 font-bold text-xs uppercase mx-4">Or</p>
+                      <button onClick={() => setShowGuestForm(true)} className="bg-white border-2 border-slate-200 text-ink/80 w-full sm:w-auto px-10 py-4 rounded-full font-black hover:border-brand-blue hover:text-brand-blue transition-all">Continue as Guest</button>
+                    </div>
+                    
+                    <div className="mt-12">
+                      <button onClick={() => setStep(3)} className="text-sm font-bold text-ink/40 hover:text-ink transition-colors">Back to sessions</button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="max-w-md mx-auto text-left animate-rise">
+                    <h2 className="font-display text-3xl font-black text-ink mb-2 text-center">Guest Details</h2>
+                    <p className="text-ink/60 mb-8 text-center text-sm">We need a few details to send your booking confirmation.</p>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-ink/40 uppercase tracking-widest mb-2 px-2">Full Name</label>
+                        <input
+                          type="text"
+                          placeholder="Customer / Guardian Name"
+                          className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:border-brand-blue focus:ring-0 outline-none transition-all"
+                          value={guestDetails.name}
+                          onChange={(e) => setGuestDetails({ ...guestDetails, name: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-ink/40 uppercase tracking-widest mb-2 px-2">Email Address</label>
+                        <input
+                          type="email"
+                          placeholder="Your Email"
+                          className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:border-brand-blue focus:ring-0 outline-none transition-all"
+                          value={guestDetails.email}
+                          onChange={(e) => setGuestDetails({ ...guestDetails, email: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-ink/40 uppercase tracking-widest mb-2 px-2">Phone Number</label>
+                        <input
+                          type="tel"
+                          placeholder="Your Phone Number"
+                          className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:border-brand-blue focus:ring-0 outline-none transition-all"
+                          value={guestDetails.phone}
+                          onChange={(e) => setGuestDetails({ ...guestDetails, phone: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-between">
+                      <button onClick={() => setShowGuestForm(false)} className="text-sm font-bold text-ink/40 hover:text-ink transition-colors px-6 py-3 order-2 sm:order-1 text-center">Back</button>
+                      <button onClick={handleNextStep} className="bg-brand-blue text-white w-full sm:w-auto px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all order-1 sm:order-2">Continue to Participants</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {step === 5 && (
               <div className="animate-rise">
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="font-display text-3xl font-black text-ink">Participants</h2>
@@ -962,13 +1040,13 @@ export default function BookingFlow() {
                 </div>
 
                 <div className="mt-12 flex items-center justify-between">
-                  <button onClick={() => setStep(3)} className="text-sm font-bold text-ink/40 hover:text-ink transition-colors px-6 py-3">Back to selection</button>
+                  <button onClick={() => setStep(getUser() ? 3 : 4)} className="text-sm font-bold text-ink/40 hover:text-ink transition-colors px-6 py-3">Back</button>
                   <button onClick={handleNextStep} className="bg-brand-blue text-white px-10 py-3 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all">Review & Summary</button>
                 </div>
               </div>
             )}
 
-            {step === 5 && (
+            {step === 6 && (
               <div className="animate-rise">
                 <div className="text-center mb-10">
                   <h2 className="font-display text-4xl font-black text-ink tracking-tight mb-2">Review & Summary</h2>
@@ -1135,7 +1213,7 @@ export default function BookingFlow() {
 
                             {/* Standard Add Button */}
                             <button 
-                              onClick={() => setStep(4)}
+                              onClick={() => setStep(5)}
                               className="bg-white/40 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-emerald-600/60 hover:text-emerald-600 hover:bg-white shadow-sm transition-all border border-emerald-100 flex items-center gap-2"
                             >
                               <span>👥</span> Manage List
@@ -1218,10 +1296,10 @@ export default function BookingFlow() {
                             </div>
                           )}
 
-                          <div className="pt-4 border-t border-slate-100 flex justify-between items-baseline">
+                          <div className="pt-4 border-t border-slate-100 flex flex-wrap justify-between items-baseline gap-2">
                             <span className="text-lg font-black text-ink">Total Amount</span>
                             <div className="text-right">
-                              <p className="text-3xl font-black text-brand-blue tracking-tighter">
+                              <p className="text-2xl sm:text-3xl font-black text-brand-blue tracking-tighter break-all">
                                 {currency} {Math.max(0, (activeTax?.calculationMethod === 'inclusive' ? totalPrice : (totalPrice + taxAmount)) - discountAmount - couponAmount).toLocaleString()}
                               </p>
                               <p className="text-[9px] font-black uppercase tracking-widest text-ink/20 mt-1">Inclusive of all taxes</p>
@@ -1237,8 +1315,8 @@ export default function BookingFlow() {
                       </div>
 
                       {/* Right: Voucher & Action */}
-                      <div className="space-y-8">
-                        <div className="bg-white rounded-[32px] p-8 border-2 border-slate-100 shadow-sm relative overflow-hidden group hover:border-brand-blue/30 transition-all">
+                      <div className="space-y-8 w-full overflow-hidden">
+                        <div className="bg-white rounded-[32px] p-5 md:p-8 border-2 border-slate-100 shadow-sm relative overflow-hidden group hover:border-brand-blue/30 transition-all">
                           <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform"></div>
                           <div className="relative z-10">
                             <div className="flex items-center gap-3 mb-6">
@@ -1249,10 +1327,10 @@ export default function BookingFlow() {
                               </div>
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2">
                               <input 
                                 type="text"
-                                className="flex-1 bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-6 text-sm font-black uppercase tracking-widest text-ink placeholder:text-ink/20 outline-none focus:border-brand-blue focus:shadow-inner transition-all"
+                                className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4 sm:px-6 text-sm font-black uppercase tracking-widest text-ink placeholder:text-ink/20 outline-none focus:border-brand-blue focus:shadow-inner transition-all"
                                 placeholder="CODE (CPN-XXXX)"
                                 value={couponCode}
                                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
@@ -1299,10 +1377,10 @@ export default function BookingFlow() {
                     </div>
 
                     <button 
-                      onClick={() => getUser() ? setStep(7) : setStep(6)} 
-                      className="w-full md:w-auto bg-brand-blue text-white px-14 py-6 rounded-[2.5rem] font-black shadow-glow hover:scale-[1.03] active:scale-[0.98] transition-all text-xl hover:shadow-brand-blue/30 group flex flex-col items-center"
+                      onClick={() => setStep(7)} 
+                      className="w-full bg-brand-blue text-white px-4 md:px-14 py-5 md:py-6 rounded-[2.5rem] font-black shadow-glow hover:scale-[1.03] active:scale-[0.98] transition-all text-lg md:text-xl hover:shadow-brand-blue/30 group flex flex-col items-center whitespace-normal break-words"
                     >
-                       <span>Secure Booking Now <span className="ml-2 group-hover:translate-x-1 transition-transform inline-block">→</span></span>
+                       <span>Secure Booking <span className="hidden sm:inline">Now</span> <span className="ml-1 sm:ml-2 group-hover:translate-x-1 transition-transform inline-block">→</span></span>
                        <span className="text-[10px] font-bold opacity-60 uppercase tracking-widest mt-1">
                          Total: {currency} {Math.max(0, (totalPrice - discountAmount - couponAmount) + (activeTax?.calculationMethod === 'inclusive' ? 0 : taxAmount)).toLocaleString()}
                        </span>
@@ -1312,7 +1390,7 @@ export default function BookingFlow() {
                 </div>
 
                 <div className="mt-12 text-center">
-                  <button onClick={() => setStep(4)} className="text-sm font-bold text-ink/40 hover:text-brand-blue transition-colors flex items-center justify-center gap-2 mx-auto group">
+                  <button onClick={() => setStep(5)} className="text-sm font-bold text-ink/40 hover:text-brand-blue transition-colors flex items-center justify-center gap-2 mx-auto group">
                     <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span> Edit details & participants
                   </button>
                 </div>
@@ -1320,83 +1398,7 @@ export default function BookingFlow() {
             </div>
           )}
 
-            {step === 6 && (
-              <div className="animate-rise text-center py-10">
-                {getUser() ? (
-                  <div className="max-w-md mx-auto text-center animate-rise">
-                    <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">👤</div>
-                    <h2 className="font-display text-3xl font-black text-ink mb-2">Welcome Back!</h2>
-                    <p className="text-ink/60 mb-10">Logged in as <b>{getUser().name}</b>. You are now ready to complete your booking.</p>
 
-                    <div className="flex flex-col gap-4">
-                      <button onClick={() => setStep(7)} className="bg-brand-blue text-white w-full px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all">Continue to Payment</button>
-                      <button onClick={() => setStep(5)} className="text-sm font-bold text-ink/40 hover:text-ink transition-colors px-6 py-3">Back to summary</button>
-                    </div>
-                  </div>
-                ) : !showGuestForm ? (
-                  <>
-                    <div className="w-20 h-20 bg-brand-blue/10 text-brand-blue rounded-full flex items-center justify-center text-4xl mx-auto mb-6">👋</div>
-                    <h2 className="font-display text-3xl font-black text-ink mb-2">You are not logged in</h2>
-                    <p className="text-ink/60 mb-10 max-w-md mx-auto">Log in to save this booking to your account, or continue as a guest to quickly secure your spot.</p>
-
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                      <button onClick={() => navigate(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)} className="bg-brand-blue text-white w-full sm:w-auto px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all">Log In</button>
-                      <p className="text-ink/40 font-bold text-xs uppercase mx-4">Or</p>
-                      <button onClick={() => setShowGuestForm(true)} className="bg-white border-2 border-slate-200 text-ink/80 w-full sm:w-auto px-10 py-4 rounded-full font-black hover:border-brand-blue hover:text-brand-blue transition-all">Continue as Guest</button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="max-w-md mx-auto text-left animate-rise">
-                    <h2 className="font-display text-3xl font-black text-ink mb-2 text-center">Guest Details</h2>
-                    <p className="text-ink/60 mb-8 text-center text-sm">We need a few details to send your booking confirmation.</p>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-bold text-ink/40 uppercase tracking-widest mb-2 px-2">Full Name</label>
-                        <input
-                          type="text"
-                          placeholder="Customer / Guardian Name"
-                          className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:border-brand-blue focus:ring-0 outline-none transition-all"
-                          value={guestDetails.name}
-                          onChange={(e) => setGuestDetails({ ...guestDetails, name: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-ink/40 uppercase tracking-widest mb-2 px-2">Email Address</label>
-                        <input
-                          type="email"
-                          placeholder="Your Email"
-                          className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:border-brand-blue focus:ring-0 outline-none transition-all"
-                          value={guestDetails.email}
-                          onChange={(e) => setGuestDetails({ ...guestDetails, email: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-ink/40 uppercase tracking-widest mb-2 px-2">Phone Number</label>
-                        <input
-                          type="tel"
-                          placeholder="Your Phone Number"
-                          className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 px-6 text-sm font-bold text-ink focus:border-brand-blue focus:ring-0 outline-none transition-all"
-                          value={guestDetails.phone}
-                          onChange={(e) => setGuestDetails({ ...guestDetails, phone: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-between">
-                      <button onClick={() => setShowGuestForm(false)} className="text-sm font-bold text-ink/40 hover:text-ink transition-colors px-6 py-3 order-2 sm:order-1 text-center">Back</button>
-                      <button onClick={handleNextStep} className="bg-brand-blue text-white w-full sm:w-auto px-10 py-4 rounded-full font-black shadow-lg hover:scale-105 active:scale-95 transition-all order-1 sm:order-2">Continue to Pay</button>
-                    </div>
-                  </div>
-                )}
-
-                {!showGuestForm && (
-                  <div className="mt-12">
-                    <button onClick={() => setStep(5)} className="text-sm font-bold text-ink/40 hover:text-ink transition-colors">Back to summary</button>
-                  </div>
-                )}
-              </div>
-            )}
 
             {step === 7 && (
               <div className="animate-rise text-center py-10">
@@ -1404,7 +1406,7 @@ export default function BookingFlow() {
                   <PaymentForm
                     totalAmount={Math.max(0, (totalPrice - discountAmount - couponAmount) + (activeTax?.calculationMethod === 'inclusive' ? 0 : taxAmount))}
                     onSubmit={handleCreateBooking}
-                    onCancel={() => { setPaymentType(''); setStep(5); }}
+                    onCancel={() => { setPaymentType(''); setStep(6); }}
                   />
                 ) : (
                   <>
@@ -1439,19 +1441,19 @@ export default function BookingFlow() {
                 <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-8 animate-bounce transition-transform">✓</div>
                 <h2 className="font-display text-4xl font-black text-ink mb-4">Awesome!</h2>
                 <div className="mb-8 space-y-4">
-                  {createdBookings.map((b, i) => (
-                    <div key={i} className="bg-slate-50 p-4 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 max-w-md mx-auto border border-slate-100">
+                  {createdBookings.length > 0 && (
+                    <div className="bg-slate-50 p-4 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 max-w-md mx-auto border border-slate-100">
                       <p className="text-brand-blue font-black tracking-widest text-sm uppercase">
-                        #{b.bookingNumber}
+                        #{createdBookings[0]?.bookingNumber}
                       </p>
                       <button 
-                         onClick={() => window.open(`/invoice/booking/${b._id}`, '_blank')}
+                         onClick={() => window.open(`/invoice/booking/${createdBookings[0]?._id}`, '_blank')}
                          className="bg-white text-brand-blue px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:shadow-md transition-all flex items-center gap-2 border border-brand-blue/10"
                       >
                          <span>📄</span> Print Invoice
                       </button>
                     </div>
-                  ))}
+                  )}
                 </div>
                 <p className="text-ink/60 text-lg mb-10 max-w-md mx-auto">Your booking for {participants.length} participant(s) has been successfully placed. We've sent an email confirmation.</p>
 
