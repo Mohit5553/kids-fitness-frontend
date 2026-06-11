@@ -31,6 +31,7 @@ export default function AdminDashboard() {
     { to: `${base}/categories`, title: 'Category Master', desc: 'Manage categories for classes and plans.', perm: 'specialties:view' },
     { to: `${base}/reports`, title: 'Reports', desc: 'View detailed activity & export Excel.', perm: 'reports:view' },
     { to: `${base}/profit-loss`, title: 'Profit & Loss', desc: 'Analyze sales, expenses and net profit.', perm: 'profit_loss:view' },
+    { to: `${base}/sales-dashboard`, title: 'Sales Dashboard', desc: 'Real-time sales, revenue trends, and metrics.', perm: 'profit_loss:view' },
     { to: `${base}/settings`, title: 'Company Setup', desc: 'Manage company name, footer info, and invoice numbering.', perm: 'settings:edit' },
     { to: `${base}/taxes`, title: 'Tax Master', desc: 'Manage VAT and local tax rules location-wise.', perm: 'settings:view' },
     { to: `${base}/vouchers`, title: 'Vouchers', desc: 'Generate and print gift or promo vouchers.', perm: 'promotions:view' },

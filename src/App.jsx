@@ -65,6 +65,7 @@ import SystemSettings from './pages/admin/SystemSettings.jsx';
 import ExtensionPanel from './pages/admin/ExtensionPanel.jsx';
 import ExpensesManagement from './pages/admin/ExpensesManagement.jsx';
 import ProfitLoss from './pages/admin/ProfitLoss.jsx';
+import SalesDashboard from './pages/admin/SalesDashboard.jsx';
 import UATManagement from './pages/admin/UATManagement.jsx';
 import TrainerDashboard from './pages/trainer/TrainerDashboard.jsx';
 import { SettingsProvider } from './context/SettingsContext.jsx';
@@ -149,6 +150,7 @@ export default function App() {
 
             <Route element={<RequirePermission permission="profit_loss:view" />}>
               <Route path="/:roleSlug/profit-loss" element={<ProfitLoss />} />
+              <Route path="/:roleSlug/sales-dashboard" element={<SalesDashboard />} />
             </Route>
 
             <Route element={<RequirePermission permission="trainers:view" />}>

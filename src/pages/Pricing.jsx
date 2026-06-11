@@ -762,12 +762,14 @@ export default function Pricing() {
                   </div>
 
                   <div className="text-left">
-                    <label className="text-[10px] font-black uppercase text-ink/30 ml-2 mb-2 block">2. Training Days</label>
+                    <label className="text-[10px] font-black uppercase text-ink/30 ml-2 mb-2 block">2. Training Days {selectedPlan?.sessionsPerWeek > 0 ? `(Max ${selectedPlan.sessionsPerWeek} days/week)` : ''}</label>
                     <div className="grid grid-cols-4 gap-2 bg-slate-50 p-4 rounded-3xl">
                       {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
                         const isWeekend = day === 'Sat' || day === 'Sun';
-                        const isDisabled = (selectedPlan.validDays === 'weekday' && isWeekend) || (selectedPlan.validDays === 'weekend' && !isWeekend);
                         const isSelected = preferredDays.includes(day);
+                        const isLimitReached = !isSelected && selectedPlan?.sessionsPerWeek > 0 && preferredDays.length >= selectedPlan.sessionsPerWeek;
+                        const isDisabled = (selectedPlan.validDays === 'weekday' && isWeekend) || (selectedPlan.validDays === 'weekend' && !isWeekend) || isLimitReached;
+                        
                         return (
                           <button
                             key={day}

@@ -41,7 +41,13 @@ export default function BookingFlow() {
       setSelectedSessions([]);
     }
   }, [selectedClass?._id, selectedLocation, selectedTrainer]);
-  const [participants, setParticipants] = useState([{ name: '', age: '', gender: 'male', relation: '' }]);
+  const [participants, setParticipants] = useState(() => {
+    const user = getUser();
+    if (user) {
+      return [{ name: user.name || '', age: '', gender: user.gender === 'female' ? 'female' : 'male', relation: 'Self' }];
+    }
+    return [{ name: '', age: '', gender: 'male', relation: '' }];
+  });
   const [paymentType, setPaymentType] = useState(''); // 'online' or 'center'
   const [guestDetails, setGuestDetails] = useState({ name: '', email: '', phone: '' });
   const [showGuestForm, setShowGuestForm] = useState(false);
@@ -548,23 +554,7 @@ export default function BookingFlow() {
     }
   };
 
-  const bookForMyself = () => {
-    const user = getUser();
-    if (!user) {
-      setStep(6); // Go to login if not logged in
-      return;
-    }
 
-    const newParticipants = [...participants];
-    // Find first empty or default participant to fill, or add new one
-    let targetIdx = newParticipants.findIndex(p => !p.name && !p.age);
-    if (targetIdx === -1) {
-      newParticipants.push({ name: user.name, age: '', gender: 'male', relation: 'Self' });
-    } else {
-      newParticipants[targetIdx] = { ...newParticipants[targetIdx], name: user.name, relation: 'Self' };
-    }
-    setParticipants(newParticipants);
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -921,9 +911,7 @@ export default function BookingFlow() {
                 <div className="flex items-center justify-between mb-8">
                   <h2 className="font-display text-3xl font-black text-ink">Participants</h2>
                   <div className="flex gap-2">
-                    {getUser() && !participants.some(p => p.relation === 'Self') && (
-                      <button onClick={bookForMyself} className="bg-brand-blue text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:scale-105 transition-all shadow-sm">Book for myself</button>
-                    )}
+
                     <button onClick={addParticipant} className="bg-brand-blue/10 text-brand-blue px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-brand-blue/20 transition-all">+ Add more</button>
                   </div>
                 </div>

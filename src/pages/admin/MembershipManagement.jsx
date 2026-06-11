@@ -59,6 +59,16 @@ export default function MembershipManagement() {
     }
   };
 
+  const handleUpdateSessions = async (id, sessionsPerWeek) => {
+    try {
+      await api.put(`/memberships/${id}`, { sessionsPerWeek });
+      setMemberships(prev => prev.map(m => m._id === id ? { ...m, sessionsPerWeek } : m));
+      toast.success('Sessions per week updated');
+    } catch (err) {
+      toast.error('Failed to update sessions');
+    }
+  };
+
   const filteredMemberships = memberships.filter(m => {
     const parentName = m.userId?.name?.toLowerCase() || '';
     const childName = m.childId?.name?.toLowerCase() || '';
@@ -167,7 +177,7 @@ export default function MembershipManagement() {
                     </div>
 
                     {canEdit && (
-                      <div className="pt-4 border-t border-slate-100 grid grid-cols-2 gap-4">
+                      <div className="pt-4 border-t border-slate-100 grid grid-cols-3 gap-4">
                         <div className="space-y-2">
                           <label className="text-[9px] font-black text-ink/30 uppercase tracking-[0.2em] ml-1 text-left block">Assigned Trainer</label>
                           <select
@@ -180,6 +190,16 @@ export default function MembershipManagement() {
                               <option key={t._id} value={t._id}>{t.name}</option>
                             ))}
                           </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[9px] font-black text-ink/30 uppercase tracking-[0.2em] ml-1 text-left block">Sessions/Week</label>
+                          <input
+                            type="text"
+                            className="w-full rounded-xl bg-white border border-slate-200 p-2 text-xs font-bold text-ink outline-none focus:ring-2 focus:ring-coral/20"
+                            value={m.sessionsPerWeek || ''}
+                            onChange={(e) => handleUpdateSessions(m._id, e.target.value)}
+                            placeholder="e.g. 2 or Flexible"
+                          />
                         </div>
                         <div className="space-y-2">
                           <label className="text-[9px] font-black text-ink/30 uppercase tracking-[0.2em] ml-1 text-left block">Account Status</label>

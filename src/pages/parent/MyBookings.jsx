@@ -10,7 +10,7 @@ import { useSettings } from '../../context/SettingsContext.jsx';
 // - [/] Update search logic in `MyBookings.jsx` to include plans <!-- id: 69 -->
 
 export default function MyBookings() {
-  const { currency } = useSettings();
+  const { currency, globalSettings } = useSettings();
   const [bookings, setBookings] = useState([]);
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -179,6 +179,8 @@ export default function MyBookings() {
   };
 
   const isRefundable = (booking) => {
+    if (globalSettings?.allow_refund_request === false) return false;
+
     if (booking.refundStatus !== 'none') return false;
     if (['attended', 'completed', 'cancelled'].includes(booking.status)) return false;
 

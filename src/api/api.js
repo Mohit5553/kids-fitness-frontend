@@ -2,9 +2,8 @@ import axios from 'axios';
 import { getToken, clearAuth } from '../utils/auth.js';
 import { getLocationSlug } from '../utils/location.js';
 
-export const API_BASE_URL = import.meta.env.DEV 
-  ? 'http://localhost:5000/api' 
-  : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api');
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+export const API_BASE_URL = isLocalhost ? 'http://localhost:5000/api' : (import.meta.env.VITE_API_BASE_URL || 'https://api.jtsonline.shop/api');
 export const BASE_URL = API_BASE_URL.replace(/\/api$/, '');
 
 export const getImageUrl = (url) => {
