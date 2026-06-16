@@ -6,13 +6,15 @@ import Footer from '../../components/Footer.jsx';
 import AdminHeader from '../../components/AdminHeader.jsx';
 import api from '../../api/api.js';
 import * as XLSX from 'xlsx';
+import { useBranch } from '../../context/BranchContext.jsx';
 
 export default function SalesDashboard() {
   const { roleSlug } = useParams();
   const navigate = useNavigate();
+  const { selectedBranch, setSelectedBranch, availableBranches } = useBranch();
 
   const [locations, setLocations] = useState([]);
-  const [locationId, setLocationId] = useState('');
+  const [locationId, setLocationId] = useState(selectedBranch === 'all' ? '' : (selectedBranch || ''));
   
   // Date Presets & Compare
   const [datePreset, setDatePreset] = useState('month'); 
@@ -361,9 +363,20 @@ export default function SalesDashboard() {
               </div>
               <div>
                 <label className="block text-[10px] font-black text-ink/40 uppercase tracking-widest mb-2.5 px-0.5">Location</label>
-                <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className="w-full lg:w-48 bg-slate-50/50 border border-slate-100 rounded-2xl py-2.5 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/10 outline-none">
+                <select 
+                  value={locationId} 
+                  onChange={(e) => {
+                    setLocationId(e.target.value);
+                    if (e.target.value) {
+                      setSelectedBranch(e.target.value);
+                    } else {
+                      setSelectedBranch('all');
+                    }
+                  }} 
+                  className="w-full lg:w-48 bg-slate-50/50 border border-slate-100 rounded-2xl py-2.5 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/10 outline-none"
+                >
                   <option value="">All Branches</option>
-                  {locations.map(loc => <option key={loc._id} value={loc._id}>{loc.name}</option>)}
+                  {locations.filter(loc => availableBranches.includes('all') || availableBranches.includes(loc._id)).map(loc => <option key={loc._id} value={loc._id}>{loc.name}</option>)}
                 </select>
               </div>
             </div>

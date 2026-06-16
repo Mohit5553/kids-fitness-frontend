@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
+import { shiftApi } from '../api/shiftApi.js';
+import ShiftModal from './ShiftModal.jsx';
 
 /**
  * A reusable header for administrative pages that dynamically reflects the user's role.
@@ -12,7 +14,28 @@ export default function AdminHeader({ title, description, actions }) {
   const { user } = useAuth();
   const roleName = user?.role || 'Admin';
 
-  const [isLive, setIsLive] = React.useState(localStorage.getItem('systemMode') !== 'uat');
+  const [isLive, setIsLive] = useState(localStorage.getItem('systemMode') !== 'uat');
+  const [currentShift, setCurrentShift] = useState(null);
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+
+  const userRole = user?.role?.toLowerCase() || '';
+  const hasShiftPerm = user?.permissions?.some(p => p.startsWith('shifts:'));
+  const canManageShift = ['admin', 'superadmin', 'cashier', 'store-manager'].includes(userRole) || hasShiftPerm || user?.canManageShifts;
+
+  const fetchShiftStatus = async () => {
+    try {
+      if (canManageShift) {
+        const shift = await shiftApi.getCurrentShift();
+        setCurrentShift(shift);
+      }
+    } catch (err) {
+      console.error('Failed to fetch shift status', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchShiftStatus();
+  }, [user]);
 
   const toggleMode = () => {
     const newMode = isLive ? 'uat' : 'live';
@@ -47,6 +70,21 @@ export default function AdminHeader({ title, description, actions }) {
                 <span className="text-[9px] font-black uppercase tracking-[0.1em]">TEST ENVIRONMENT (UAT)</span>
               </div>
             )}
+            {canManageShift && (
+              <button 
+                onClick={() => setIsShiftModalOpen(true)}
+                className={`flex items-center gap-2 backdrop-blur-md px-3 py-1 rounded-full border cursor-pointer hover:opacity-80 transition-all active:scale-95 shadow-sm ml-2 ${
+                  currentShift 
+                    ? 'bg-emerald-500/20 border-emerald-400 text-emerald-100' 
+                    : 'bg-rose-500/20 border-rose-400 text-rose-100'
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full ${currentShift ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                <span className="text-[9px] font-black uppercase tracking-[0.1em]">
+                  {currentShift ? 'Shift Open' : 'Shift Closed'}
+                </span>
+              </button>
+            )}
           </div>
           <h1 className="mt-1 font-display text-3xl md:text-4xl capitalize">
             {roleName} {title}
@@ -57,6 +95,13 @@ export default function AdminHeader({ title, description, actions }) {
       </div>
       <div className="pointer-events-none absolute -right-24 -top-20 h-64 w-64 rounded-full bg-white/10" />
       <div className="pointer-events-none absolute -bottom-16 left-10 h-48 w-48 rounded-full bg-white/10" />
+
+      <ShiftModal 
+        isOpen={isShiftModalOpen}
+        onClose={() => setIsShiftModalOpen(false)}
+        currentShift={currentShift}
+        onShiftChange={fetchShiftStatus}
+      />
     </section>
   );
 }

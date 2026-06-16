@@ -5,16 +5,18 @@ import Footer from '../../components/Footer.jsx';
 import AdminHeader from '../../components/AdminHeader.jsx';
 import api from '../../api/api.js';
 import * as XLSX from 'xlsx';
+import { useBranch } from '../../context/BranchContext.jsx';
 
 export default function ProfitLoss() {
   const { roleSlug } = useParams();
   const navigate = useNavigate();
+  const { selectedBranch, setSelectedBranch, availableBranches } = useBranch();
   const [locations, setLocations] = useState([]);
   
   // Filters
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [locationId, setLocationId] = useState('');
+  const [locationId, setLocationId] = useState(selectedBranch === 'all' ? '' : (selectedBranch || ''));
   const [excludedCategories, setExcludedCategories] = useState([]);
   
   const [reportData, setReportData] = useState({ revenues: [], expenses: [] });
@@ -159,10 +161,17 @@ export default function ProfitLoss() {
               <select
                 className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-3 px-4 text-xs font-bold text-ink focus:ring-2 focus:ring-brand-blue/10 outline-none transition-all cursor-pointer"
                 value={locationId}
-                onChange={e => setLocationId(e.target.value)}
+                onChange={e => {
+                  setLocationId(e.target.value);
+                  if (e.target.value) {
+                    setSelectedBranch(e.target.value);
+                  } else {
+                    setSelectedBranch('all');
+                  }
+                }}
               >
                 <option value="">All Branches</option>
-                {locations.map(loc => (
+                {locations.filter(loc => availableBranches.includes('all') || availableBranches.includes(loc._id)).map(loc => (
                   <option key={loc._id} value={loc._id}>{loc.name}</option>
                 ))}
               </select>

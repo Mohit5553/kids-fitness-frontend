@@ -4,6 +4,7 @@ import Navbar from '../../components/Navbar.jsx';
 import Footer from '../../components/Footer.jsx';
 import api from '../../api/api.js';
 import { useSettings } from '../../context/SettingsContext.jsx';
+import ReviewModal from '../../components/ReviewModal.jsx';
 
 // - [x] Populate `planId` in `getMyBookings` (Backend) <!-- id: 67 -->
 // - [/] Update `MyBookings.jsx` UI to display package names <!-- id: 68 -->
@@ -25,6 +26,8 @@ export default function MyBookings() {
   const [detailBooking, setDetailBooking] = useState(null);
   const [schedule, setSchedule] = useState([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState({ targetType: '', targetId: '' });
 
   const openDetail = async (booking) => {
     setDetailBooking(booking);
@@ -327,6 +330,20 @@ export default function MyBookings() {
                       >
                         <span>🔍</span> View Detail
                       </button>
+                      {['attended', 'completed'].includes(booking.status) && (
+                        <button
+                          onClick={() => {
+                            setReviewTarget({
+                              targetType: booking.bookingType === 'package' ? 'Plan' : 'Class',
+                              targetId: booking.planId?._id || booking.classId?._id
+                            });
+                            setReviewModalOpen(true);
+                          }}
+                          className="text-[9px] font-black text-amber-500/60 uppercase tracking-widest hover:text-amber-500 transition-colors flex items-center gap-1.5 ml-2"
+                        >
+                          <span>⭐</span> Leave Review
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -683,6 +700,13 @@ export default function MyBookings() {
           </div>
         </div>
       ) : null}
+
+      <ReviewModal 
+        isOpen={reviewModalOpen} 
+        onClose={() => setReviewModalOpen(false)} 
+        targetType={reviewTarget.targetType} 
+        targetId={reviewTarget.targetId} 
+      />
 
       <Footer />
     </div>
