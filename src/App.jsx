@@ -38,6 +38,7 @@ import Membership from './pages/parent/Membership.jsx';
 import Attendance from './pages/parent/Attendance.jsx';
 import MyBookings from './pages/parent/MyBookings.jsx';
 import MyCoupons from './pages/parent/MyCoupons.jsx';
+import MyReviews from './pages/parent/MyReviews.jsx';
 import Profile from './pages/parent/Profile.jsx';
 
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
@@ -65,8 +66,11 @@ import SystemSettings from './pages/admin/SystemSettings.jsx';
 import ExtensionPanel from './pages/admin/ExtensionPanel.jsx';
 import ExpensesManagement from './pages/admin/ExpensesManagement.jsx';
 import ProfitLoss from './pages/admin/ProfitLoss.jsx';
+import SalesDashboard from './pages/admin/SalesDashboard.jsx';
 import UATManagement from './pages/admin/UATManagement.jsx';
 import TrainerDashboard from './pages/trainer/TrainerDashboard.jsx';
+import ReviewsManagement from './pages/admin/ReviewsManagement.jsx';
+import ShiftManagement from './pages/admin/ShiftManagement.jsx';
 import { SettingsProvider } from './context/SettingsContext.jsx';
 
 export default function App() {
@@ -110,6 +114,7 @@ export default function App() {
             <Route path="/dashboard/membership" element={<Membership />} />
             <Route path="/dashboard/attendance" element={<Attendance />} />
             <Route path="/dashboard/coupons" element={<MyCoupons />} />
+            <Route path="/dashboard/reviews" element={<MyReviews />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/calendar" element={<Calendar />} />
           </Route>
@@ -145,10 +150,13 @@ export default function App() {
 
             <Route element={<RequirePermission permission="reports:view" />}>
               <Route path="/:roleSlug/reports" element={<Reports />} />
+              <Route path="/:roleSlug/reviews" element={<ReviewsManagement />} />
+              <Route path="/:roleSlug/shifts" element={<ShiftManagement />} />
             </Route>
 
             <Route element={<RequirePermission permission="profit_loss:view" />}>
               <Route path="/:roleSlug/profit-loss" element={<ProfitLoss />} />
+              <Route path="/:roleSlug/sales-dashboard" element={<SalesDashboard />} />
             </Route>
 
             <Route element={<RequirePermission permission="trainers:view" />}>

@@ -10,6 +10,7 @@ const actions = [
   { to: '/dashboard/bookings', title: 'My Booking', desc: 'Complete payments to confirm classes.' },
   { to: '/dashboard/membership', title: 'Manage membership', desc: 'Upgrade or renew a plan.' },
   { to: '/dashboard/coupons', title: 'My Cash Coupons', desc: 'View and track your earned vouchers.' },
+  { to: '/dashboard/reviews', title: 'My Reviews', desc: 'Manage your feedback on classes and trainers.' },
   { to: '/profile', title: 'Manage profile', desc: 'Update your personal info and security settings.' }
 ];
 
@@ -153,6 +154,10 @@ export default function ParentDashboard() {
               </Link>
               <Link className="flex items-center gap-2 text-brand-blue hover:underline" to="/dashboard/coupons">
                 <span>My Cash Coupons</span>
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
+              </Link>
+              <Link className="flex items-center gap-2 text-brand-blue hover:underline" to="/dashboard/reviews">
+                <span>My Reviews</span>
                 <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
               </Link>
               <Link className="flex items-center gap-2 text-brand-blue hover:underline" to="/profile">

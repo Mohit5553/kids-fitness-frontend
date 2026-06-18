@@ -42,7 +42,8 @@ export const setAuth = (payload) => {
     locationIds: payload?.locationIds || [],
     trainerId: payload?.trainerId,
     permissions: payload?.permissions,
-    allowUAT: payload?.allowUAT
+    allowUAT: payload?.allowUAT,
+    canManageShifts: payload?.canManageShifts
   };
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 };

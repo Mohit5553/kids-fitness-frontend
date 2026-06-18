@@ -37,6 +37,7 @@ const emptyForm = {
   taxId: '',
   creditsIncluded: 0,
   dailyBookingLimit: 0,
+  sessionsPerWeek: 0,
   cancellationWindow: 6,
   allowFreezing: false,
   gender: 'mixed',
@@ -131,6 +132,7 @@ export default function PricingManagement() {
       taxId: plan.taxId?._id || plan.taxId || '',
       creditsIncluded: plan.creditsIncluded ?? 0,
       dailyBookingLimit: plan.dailyBookingLimit ?? 0,
+      sessionsPerWeek: plan.sessionsPerWeek ?? 0,
       gender: plan.gender || 'mixed',
       categoryId: plan.categoryId?._id || plan.categoryId || '',
       replicateToLocations: [],
@@ -141,6 +143,7 @@ export default function PricingManagement() {
       })) || []
     });
   };
+
 
   const handleCancel = () => {
     setEditingId('');
@@ -179,11 +182,14 @@ export default function PricingManagement() {
         allowFreezing: Boolean(form.allowFreezing)
       },
       creditsIncluded: Number(form.creditsIncluded || 0),
-      dailyBookingLimit: Number(form.dailyBookingLimit || 0),
+      dailyBookingLimit: parseInt(form.dailyBookingLimit) || 0,
+      sessionsPerWeek: form.sessionsPerWeek,
       categoryId: form.categoryId || null,
       trainerId: (form.trainerAllocation === 'fixed' && form.trainerId) ? form.trainerId : null,
       replicateToLocations: form.replicateToLocations || []
     };
+
+    console.log("PAYLOAD BEING SENT:", payload);
 
     try {
       if (editingId) {
@@ -194,7 +200,9 @@ export default function PricingManagement() {
         setMessage('Plan created.');
       }
       handleCancel();
-      load();
+      await load();
+      // Force a hard reload to ensure all location-wise variations and UI states are freshly synced
+      window.location.reload();
     } catch (err) {
       setMessage(err?.response?.data?.message || 'Unable to save plan.');
     }
@@ -459,6 +467,18 @@ export default function PricingManagement() {
                   placeholder="Daily Limit (0=∞)"
                   value={form.dailyBookingLimit}
                   onChange={handleChange}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-ink/40 uppercase ml-2">Sessions Per Week</label>
+                <input
+                  className="w-full rounded-xl border border-orange-200/70 p-3"
+                  name="sessionsPerWeek"
+                  type="text"
+                  placeholder="Weekly Limit (0=∞, or Flexible)"
+                  value={form.sessionsPerWeek}
+                  onChange={(e) => setForm(prev => ({ ...prev, sessionsPerWeek: e.target.value }))}
                 />
               </div>
 

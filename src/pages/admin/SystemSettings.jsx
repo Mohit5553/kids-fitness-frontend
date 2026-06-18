@@ -463,6 +463,28 @@ export default function SystemSettings() {
                   </span>
                 </div>
               </div>
+
+              <div className="p-6 rounded-3xl bg-slate-50/50 border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                  <h4 className="font-bold text-ink mb-1">Allow Refund Requests</h4>
+                  <p className="text-xs text-ink/50 leading-relaxed max-w-sm">
+                    Allow customers to see the 'Refund' option for their bookings on their dashboard.
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleToggleGlobal('allow_refund_request', globalSettings.allow_refund_request !== false)}
+                    disabled={isSaving}
+                    className={`w-14 h-8 rounded-full transition-all relative ${globalSettings.allow_refund_request !== false ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                  >
+                    <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${globalSettings.allow_refund_request !== false ? 'left-7' : 'left-1'}`} />
+                  </button>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-ink/40">
+                    {globalSettings.allow_refund_request !== false ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+              </div>
             </div>
           </section>
         </div>

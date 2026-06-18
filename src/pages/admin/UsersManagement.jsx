@@ -6,6 +6,7 @@ import api from '../../api/api.js';
 import toast from 'react-hot-toast';
 import AdminHeader from '../../components/AdminHeader.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import { useBranch } from '../../context/BranchContext.jsx';
 
 const MODULES = [
   { id: 'classes', label: 'Classes' },
@@ -64,10 +65,12 @@ export default function UsersManagement() {
     role: 'admin',
     phone: '',
     locationIds: [],
-    allowUAT: false
+    allowUAT: false,
+    canManageShifts: false
   });
 
   const { can, user } = usePermissions();
+  const { selectedBranch } = useBranch();
 
   const canCreate = can('users:create');
   const canEdit = can('users:edit');
@@ -145,7 +148,8 @@ export default function UsersManagement() {
       role: u.role || 'customer',
       phone: u.phone || '',
       locationIds: (u.locationIds || []).map(l => l._id || l),
-      allowUAT: u.allowUAT || false
+      allowUAT: u.allowUAT || false,
+      canManageShifts: u.canManageShifts || false
     });
     setShowAddStaff(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -167,7 +171,7 @@ export default function UsersManagement() {
       }
       setShowAddStaff(false);
       setEditingUserId(null);
-      setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '', locationIds: [], allowUAT: false });
+      setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '', locationIds: [], allowUAT: false, canManageShifts: false });
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save user');
@@ -214,7 +218,15 @@ export default function UsersManagement() {
       (statusFilter === 'active' && (u.status === 'active' || !u.status)) ||
       (statusFilter === 'inactive' && u.status === 'inactive');
 
-    return matchesSearch && matchesRole && matchesUat && matchesStatus;
+    const matchesBranch = 
+      !selectedBranch || 
+      selectedBranch === 'all' || 
+      (u.role === 'superadmin') ||
+      (u.locationIds && u.locationIds.some(loc => 
+        (typeof loc === 'string' ? loc : loc._id) === selectedBranch
+      ));
+
+    return matchesSearch && matchesRole && matchesUat && matchesStatus && matchesBranch;
   });
 
   // Pagination Logic
@@ -240,7 +252,7 @@ export default function UsersManagement() {
                 if (showAddStaff) {
                   setShowAddStaff(false);
                   setEditingUserId(null);
-                  setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '', locationIds: [], allowUAT: false });
+                  setStaffForm({ name: '', email: '', password: '', role: 'admin', phone: '', locationIds: [], allowUAT: false, canManageShifts: false });
                 } else {
                   setShowAddStaff(true);
                 }
@@ -303,6 +315,18 @@ export default function UsersManagement() {
                       onChange={e => setStaffForm({...staffForm, allowUAT: e.target.checked})}
                     />
                     <span className="text-xs font-bold text-ink">Allow UAT Access</span>
+                  </label>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-ink/30 uppercase tracking-widest block mb-2">Shift Management</label>
+                  <label className="flex items-center gap-3 bg-slate-50 rounded-2xl py-3 px-4 text-sm font-bold cursor-pointer hover:bg-slate-100/80 transition-all min-h-[44px]">
+                    <input 
+                      type="checkbox"
+                      className="h-5 w-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 transition-all cursor-pointer"
+                      checked={staffForm.canManageShifts}
+                      onChange={e => setStaffForm({...staffForm, canManageShifts: e.target.checked})}
+                    />
+                    <span className="text-xs font-bold text-ink">Enable Shift Button</span>
                   </label>
                 </div>
                 {user?.role === 'superadmin' && (
@@ -440,7 +464,7 @@ export default function UsersManagement() {
                     </div>
                   </div>
 
-                    <div className="flex flex-wrap items-end md:items-center gap-3 sm:gap-4 border-t md:border-t-0 pt-6 md:pt-0 border-slate-100 mt-4 md:mt-0 w-full md:w-auto">
+                    <div className="flex flex-wrap items-end md:items-center md:justify-end gap-3 sm:gap-4 border-t md:border-t-0 pt-6 md:pt-0 border-slate-100 mt-4 md:mt-0 w-full md:w-auto ml-auto">
                       {canEdit && (
                         <div className="flex flex-col gap-1 w-full sm:w-auto sm:flex-1 md:flex-none">
                           <label className="text-[9px] font-black text-ink/20 uppercase tracking-widest px-1">Control access</label>

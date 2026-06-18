@@ -774,17 +774,26 @@ export default function Membership() {
 
                 {/* 2. Scheduling */}
                 <div className="space-y-6">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 ml-2">2. Scheduling Preference</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/30 ml-2">2. Scheduling Preference {selectedPlan?.sessionsPerWeek > 0 ? `(Max ${selectedPlan.sessionsPerWeek} days/week)` : ''}</label>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <p className="text-[9px] font-black text-ink/20 uppercase tracking-widest ml-1">Preferred Days</p>
                       <select
                         multiple
                         value={preferredDays}
-                        onChange={(e) => setPreferredDays(Array.from(e.target.selectedOptions, option => option.value))}
+                        onChange={(e) => {
+                          const newDays = Array.from(e.target.selectedOptions, option => option.value);
+                          if (selectedPlan?.sessionsPerWeek > 0 && newDays.length > selectedPlan.sessionsPerWeek) {
+                            return; // Fallback prevention
+                          }
+                          setPreferredDays(newDays);
+                        }}
                         className="w-full p-4 bg-slate-50 rounded-2xl border-none text-xs font-bold outline-none ring-brand-blue/5 focus:ring-4"
                       >
-                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => <option key={d} value={d}>{d}</option>)}
+                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => {
+                           const isLimitReached = !preferredDays.includes(d) && selectedPlan?.sessionsPerWeek > 0 && preferredDays.length >= selectedPlan.sessionsPerWeek;
+                           return <option key={d} value={d} disabled={isLimitReached}>{d}</option>;
+                        })}
                       </select>
                     </div>
                     <div className="space-y-2">

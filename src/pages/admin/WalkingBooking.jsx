@@ -1166,8 +1166,9 @@ export default function WalkingBooking() {
                     <div className="flex flex-wrap gap-4">
                       {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
                         const isWeekend = day === 'Sat' || day === 'Sun';
-                        const isDisabled = (selectedPlan?.validDays === 'weekday' && isWeekend) || (selectedPlan?.validDays === 'weekend' && !isWeekend);
                         const isSelected = preferredDays.includes(day);
+                        const isLimitReached = !isSelected && selectedPlan?.sessionsPerWeek > 0 && preferredDays.length >= selectedPlan.sessionsPerWeek;
+                        const isDisabled = (selectedPlan?.validDays === 'weekday' && isWeekend) || (selectedPlan?.validDays === 'weekend' && !isWeekend) || isLimitReached;
 
                         return (
                           <button
