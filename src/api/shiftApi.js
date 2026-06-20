@@ -16,6 +16,11 @@ export const shiftApi = {
     return response.data;
   },
 
+  getCurrentShiftTotals: async () => {
+    const response = await api.get('/shifts/current/totals');
+    return response.data;
+  },
+
   getAllShifts: async () => {
     const response = await api.get('/shifts');
     return response.data;
