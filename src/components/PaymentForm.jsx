@@ -15,6 +15,14 @@ export default function PaymentForm({ totalAmount, onSubmit, onCancel }) {
     return value.replace(/\W/gi, '').replace(/(.{4})/g, '$1 ').trim().slice(0, 19);
   };
 
+  const getCardBrand = (cardNumber) => {
+    const raw = cardNumber.replace(/\D/g, '');
+    if (raw.startsWith('4')) return 'visa';
+    if (/^5[1-5]/.test(raw)) return 'mastercard';
+    if (/^3[47]/.test(raw)) return 'amex';
+    return 'other';
+  };
+
   const formatExpiry = (value) => {
     return value.replace(/\W/gi, '').replace(/(.{2})/g, '$1/').trim().slice(0, 5);
   };
@@ -33,7 +41,8 @@ export default function PaymentForm({ totalAmount, onSubmit, onCancel }) {
     // Mock processing delay
     setTimeout(() => {
       setLoading(false);
-      onSubmit(form);
+      const cardBrand = getCardBrand(form.cardNumber);
+      onSubmit({ ...form, cardBrand });
     }, 2000);
   };
 
@@ -74,8 +83,18 @@ export default function PaymentForm({ totalAmount, onSubmit, onCancel }) {
               onChange={handleChange}
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-1">
-               <div className="w-8 h-5 bg-slate-200 rounded-sm opacity-50"></div>
-               <div className="w-8 h-5 bg-slate-200 rounded-sm opacity-50"></div>
+               {getCardBrand(form.cardNumber) === 'visa' && (
+                 <div className="w-8 h-5 bg-blue-100 rounded-sm flex items-center justify-center text-[8px] font-black text-blue-800">VISA</div>
+               )}
+               {getCardBrand(form.cardNumber) === 'mastercard' && (
+                 <div className="w-8 h-5 bg-orange-100 rounded-sm flex items-center justify-center text-[8px] font-black text-orange-800">MC</div>
+               )}
+               {getCardBrand(form.cardNumber) !== 'visa' && getCardBrand(form.cardNumber) !== 'mastercard' && (
+                 <>
+                   <div className="w-8 h-5 bg-slate-200 rounded-sm opacity-50"></div>
+                   <div className="w-8 h-5 bg-slate-200 rounded-sm opacity-50"></div>
+                 </>
+               )}
             </div>
           </div>
         </div>
